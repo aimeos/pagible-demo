@@ -1,0 +1,62 @@
+{
+  "name": "admin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Laravel CMS admin",
+  "keywords": [
+    "laravel",
+    "cms",
+    "vue"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
+    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
+    "test:unit": "cypress run --component",
+    "test:unit:dev": "cypress open --component",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
+    "format": "prettier --write src/",
+    "gettext:extract": "vue-gettext-extract",
+    "gettext:compile": "vue-gettext-compile"
+  },
+  "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
+    "@ckeditor/ckeditor5-vue": "^7.3.0",
+    "@he-tree/vue": "^2.9",
+    "@vue/apollo-option": "^4.2",
+    "apollo-link-batch-http": "^1.2",
+    "apollo-upload-client": "^18.0.1",
+    "ckeditor5": "^45.0.0",
+    "cropperjs": "^1.5.13",
+    "diff": "^7.0",
+    "mdast-util-from-markdown": "^2.0.2",
+    "mdast-util-to-markdown": "^2.1.2",
+    "micromark": "^4.0.2",
+    "pinia": "^3.0",
+    "sass": "^1.86",
+    "vite-plugin-vuetify": "^2.1",
+    "vue": "^3.5",
+    "vue-draggable-plus": "^0.6.0",
+    "vue-router": "^4.5",
+    "vue3-gettext": "^4.0.0-alpha.8",
+    "vue3-observe-visibility": "^1.0.3",
+    "vuedraggable": "^4.1.0",
+    "vuetify": "^3.8"
+  },
+  "devDependencies": {
+    "@mdi/font": "^7.4",
+    "@rushstack/eslint-patch": "^1.11",
+    "@vitejs/plugin-vue": "^5.2",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "cypress": "^14.2",
+    "eslint": "^9.0",
+    "eslint-plugin-cypress": "^4.2",
+    "eslint-plugin-vue": "^10.0",
+    "prettier": "^3.5",
+    "start-server-and-test": "^2.0",
+    "vite": "^6.3"
+  }
+}

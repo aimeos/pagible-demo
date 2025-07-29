@@ -1,0 +1,69 @@
+{
+	"name": "aimeos/pagible",
+	"description": "Pagible CMS",
+	"keywords": ["laravel", "cms", "package", "api", "graphql", "jsonapi", "multi-tenant", "multi-language"],
+	"homepage": "https://laravel-cms.org",
+	"type": "library",
+	"license": "MIT",
+	"prefer-stable": true,
+	"minimum-stability": "dev",
+	"require": {
+		"laravel/framework": "^11.0||^12.0",
+		"laravel-json-api/laravel": "^5.1",
+		"mll-lab/graphql-php-scalars": "^6.4",
+		"nuwave/lighthouse": "^6.54",
+		"ezyang/htmlpurifier": "^4.18",
+		"intervention/image": "^3.11",
+		"kalnoy/nestedset": "^6.0",
+		"league/commonmark": "^2.6",
+		"league/csv": "^9.23",
+		"symfony/uid": "^7.0",
+		"doctrine/dbal": "^4.2",
+		"prism-php/prism": "^0.80"
+	},
+	"require-dev": {
+		"orchestra/testbench": "^9.0||^10.0",
+		"laravel-json-api/testing": "^3.1",
+		"om/potrans": "dev-master"
+	},
+	"autoload": {
+		"psr-4": {
+			"Aimeos\\Cms\\": "src",
+			"Database\\Seeders\\": "database/seeders/"
+		},
+		"files": [
+			"src/helpers.php"
+		],
+		"classmap": [
+			"src"
+		]
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"Aimeos\\Cms\\": "tests"
+		},
+		"classmap": [
+			"tests"
+		]
+	},
+	"extra": {
+		"laravel": {
+			"providers": [
+				"Aimeos\\Cms\\CmsServiceProvider"
+			]
+		}
+	},
+	"scripts": {
+		"post-autoload-dump": [
+			"@php vendor/bin/testbench package:discover --ansi"
+		],
+		"translate": [
+			"mv admin/i18n/no.po admin/i18n/nb.po; for POFILE in `ls admin/i18n/*.po`; do vendor/bin/potrans deepl --ignore='%\\{[a-z]+\\}' --only --pot=admin/i18n/messages.pot $POFILE; done; mv admin/i18n/nb.po admin/i18n/no.po"
+		]
+	},
+	"config": {
+		"allow-plugins": {
+			"php-http/discovery": true
+		}
+	}
+}

@@ -1,0 +1,577 @@
+"Can be used as an argument to upload files using https://github.com/jaydenseric/graphql-multipart-request-spec"
+scalar Upload @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\Upload")
+
+"JSON data type for JSON strings with arbitrary data"
+scalar JSON @scalar(class: "MLL\\GraphQLScalars\\JSON")
+
+enum Publish {
+  SCHEDULED
+  PUBLISHED
+  DRAFT
+}
+
+union RemoveableUpload = Upload | Boolean
+
+extend type User {
+    "CMS editor capabilities"
+    permission: JSON! @field(resolver: "\\Aimeos\\Cms\\GraphQL\\Resolvers\\UserResolver@permission")
+}
+
+extend type Query {
+  "Current authenticated user"
+  me: User @auth
+
+  "Get page by ID"
+  page(id: ID! @eq): Page
+    @canModel(ability: "view", model: "\\Aimeos\\Cms\\Models\\Page")
+    @softDeletes
+    @find
+
+  "Get the available pages"
+  pages(filter: PageFilter, publish: Publish): [Page!]
+    @paginate(builder: "\\Aimeos\\Cms\\GraphQL\\Query@pages", defaultCount: 100)
+    @canModel(ability: "view", model: "\\Aimeos\\Cms\\Models\\Page")
+    @orderBy(column: "_lft", direction: ASC)
+    @softDeletes
+
+  "Get element item by ID"
+  element(id: ID! @eq): Element
+    @canModel(ability: "view", model: "\\Aimeos\\Cms\\Models\\Element")
+    @softDeletes
+    @find
+
+  "Get available element items"
+  elements(filter: ElementFilter, sort: _ @orderBy(columns: ["id", "lang", "name", "type", "editor"]), publish: Publish): [Element!]
+    @paginate(builder: "\\Aimeos\\Cms\\GraphQL\\Query@elements", defaultCount: 100)
+    @canModel(ability: "view", model: "\\Aimeos\\Cms\\Models\\Element")
+    @orderBy(column: "id", direction: DESC)
+    @softDeletes
+
+  "Get file item by ID"
+  file(id: ID! @eq): File
+    @canModel(ability: "view", model: "\\Aimeos\\Cms\\Models\\File")
+    @softDeletes
+    @find
+
+  "Get available files"
+  files(filter: FileFilter, sort: _ @orderBy(columns: ["id", "name", "mime", "lang", "editor"]), publish: Publish): [File!]
+    @paginate(builder: "\\Aimeos\\Cms\\GraphQL\\Query@files", defaultCount: 100)
+    @canModel(ability: "view", model: "\\Aimeos\\Cms\\Models\\File")
+    @orderBy(column: "id", direction: DESC)
+    @softDeletes
+}
+
+extend type Mutation {
+  "Authenticated user"
+  cmsLogin(email: String!, password: String!): User!
+
+  "Log out authenticated user"
+  cmsLogout: User @guard
+
+  "Generate texts from prompts and passed file IDs"
+  compose(prompt: String!, context: String, files: [String!]): String
+
+  "Generate images from prompts and passed file IDs"
+  imagine(prompt: String!, context: String, files: [String!]): [String!]
+
+  "Manage the page tree and add new pages from prompts and passed file IDs"
+  manage(prompt: String!, context: String, files: [String!]): String
+
+  "Transcribe uploaded audio file"
+  transcribe(file: Upload!): String
+
+  "Translate texts"
+  translate(texts: [String!]!, to: String!, from: String, context: String): [String!]!
+
+
+  "Add a new page below the page referenced by 'parent' and before the page referenced by 'ref' (or append if NULL)"
+  addPage(input: PageInput!, parent: ID, ref: ID, elements: [ID!], files: [ID!]): Page
+    @canModel(ability: "add", model: "\\Aimeos\\Cms\\Models\\Page")
+
+  "Move the page below the page referenced by 'parent' and before the page referenced by 'ref' (or append if NULL)"
+  movePage(id: ID!, parent: ID, ref: ID): Page
+    @canModel(ability: "move", model: "\\Aimeos\\Cms\\Models\\Page")
+
+  "Update the values of an existing page"
+  savePage(id: ID!, input: PageInput!, elements: [ID!], files: [ID!]): Page
+    @canModel(ability: "save", model: "\\Aimeos\\Cms\\Models\\Page")
+
+  "Delete an existing page"
+  dropPage(id: [ID!]!): [Page]!
+    @canModel(ability: "drop", model: "\\Aimeos\\Cms\\Models\\Page")
+
+  "Restore an existing page"
+  keepPage(id: [ID!]!): [Page]!
+    @canModel(ability: "keep", model: "\\Aimeos\\Cms\\Models\\Page")
+
+  "Purge an existing page"
+  purgePage(id: [ID!]!): [Page]!
+    @canModel(ability: "purge", model: "\\Aimeos\\Cms\\Models\\Page")
+
+  "Publish page data"
+  pubPage(id: [ID!]!, at: DateTime): [Page]!
+    @canModel(ability: "publish", model: "\\Aimeos\\Cms\\Models\\Page")
+
+
+  "Add a new shared content element with file references"
+  addElement(input: ElementInput!, files: [ID!]): Element
+    @canModel(ability: "add", model: "\\Aimeos\\Cms\\Models\\Element")
+
+  "Update an existing shared content element"
+  saveElement(id: ID!, input: ElementInput!, files: [ID!]): Element
+    @canModel(ability: "save", model: "\\Aimeos\\Cms\\Models\\Element")
+
+  "Delete an existing shared content element"
+  dropElement(id: [ID!]!): [Element]!
+    @canModel(ability: "drop", model: "\\Aimeos\\Cms\\Models\\Element")
+
+  "Restore an existing shared content element"
+  keepElement(id: [ID!]!): [Element]!
+    @canModel(ability: "keep", model: "\\Aimeos\\Cms\\Models\\Element")
+
+  "Purge an existing shared content element"
+  purgeElement(id: [ID!]!): [Element]!
+    @canModel(ability: "purge", model: "\\Aimeos\\Cms\\Models\\Element")
+
+  "Publish an existing shared content element"
+  pubElement(id: [ID!]!, at: DateTime): [Element]!
+    @canModel(ability: "publish", model: "\\Aimeos\\Cms\\Models\\Element")
+
+
+  "Adds a new file upload, optionally with preview and the description of the file"
+  addFile(input: FileInput, file: Upload, preview: Upload): File
+    @canModel(ability: "add", model: "\\Aimeos\\Cms\\Models\\File")
+
+  "Update an existing file"
+  saveFile(id: ID!, input: FileInput!, file: Upload, preview: RemoveableUpload): File
+    @canModel(ability: "save", model: "\\Aimeos\\Cms\\Models\\File")
+
+  "Delete an existing file"
+  dropFile(id: [ID!]!): [File]!
+    @canModel(ability: "drop", model: "\\Aimeos\\Cms\\Models\\File")
+
+  "Restore an existing file"
+  keepFile(id: [ID!]!): [File]!
+    @canModel(ability: "keep", model: "\\Aimeos\\Cms\\Models\\File")
+
+  "Purge an existing file"
+  purgeFile(id: [ID!]!): [File]!
+    @canModel(ability: "purge", model: "\\Aimeos\\Cms\\Models\\File")
+
+  "Publish file data"
+  pubFile(id: [ID!]!, at: DateTime): [File]!
+    @canModel(ability: "publish", model: "\\Aimeos\\Cms\\Models\\File")
+}
+
+type Page {
+  "Unique page ID"
+  id: ID!
+
+  "Translation ID of all pages with the same content in different languages"
+  related_id: ID
+
+  "ID of the parent page or NULL if it's a root page"
+  parent_id: ID
+
+  "ISO language code, e.g. 'en', 'en-GB' or empty for default language"
+  lang: String!
+
+  "Unique URL segment of the page"
+  path: String
+
+  "Domain name the root page (!) is responsible for"
+  domain: String
+
+  "Short page name for menus"
+  name: String
+
+  "Descriptive page title"
+  title: String
+
+  "If not empty, the path or URL the browser is redirected to"
+  to: String
+
+  "Tag name to identify a page, e.g. for the starting point of a navigation structure"
+  tag: String
+
+  "Theme name assigned to the page"
+  theme: String
+
+  "Type of the page for using different theme templates"
+  type: String
+
+  "Arbitrary header data"
+  meta: JSON!
+
+  "Arbitrary configuration settings"
+  config: JSON!
+
+  "List of content"
+  content: JSON!
+
+  "Visibility status of the page, 0=inactive, 1=visible, 2=hidden in navigation"
+  status: Int!
+
+  "Cache lifetime in minutes"
+  cache: Int!
+
+  "Name of the last user who added, updated or deleted the page"
+  editor: String!
+
+  "Date/time value when the page was created"
+  created_at: String!
+
+  "Date/time value when the page was last modified"
+  updated_at: String!
+
+  "Date/time value when the page was deleted or NULL if it's available"
+  deleted_at: String
+
+  "If node has children"
+  has: Boolean!
+
+  "Relation to the parent page or NULL if it's a root page"
+  parent: Page
+
+  "Relation to the children of the current page"
+  children: [Page!]! @paginate
+
+  "Relation to the ancestors of the current page up to the root page"
+  ancestors: [Page!]!
+
+  "List of shared content elements assigned to the page"
+  elements: [Element!]! @belongsToMany
+
+  "List of files assigned to the page"
+  files: [File!]! @belongsToMany
+
+  "List of versions for the page meta data"
+  versions: [Version!]! @morphMany
+
+  "Latest version of the page meta data"
+  latest: Version @hasOne
+
+  "Published version of the page meta data"
+  published: Version @hasOne
+}
+
+input PageFilter {
+  "Unique page IDs"
+  id: [ID!]
+
+  "Translation ID of all pages with the same content in different languages"
+  related_id: ID
+
+  "ID of the parent page or NULL if it's a root page"
+  parent_id: ID
+
+  "ISO language code, e.g. 'en', 'en-GB' or empty for default language"
+  lang: String
+
+  "Unique URL segment of the page"
+  path: String
+
+  "Domain name the root page (!) is responsible for"
+  domain: String
+
+  "Short page name for menus"
+  name: String
+
+  "Descriptive page title"
+  title: String
+
+  "If not empty, the path or URL the browser is redirected to"
+  to: String
+
+  "Tag name to identify a page, e.g. for the starting point of a navigation structure"
+  tag: String
+
+  "Theme name assigned to the page"
+  theme: String
+
+  "Type of the page for using different theme templates"
+  type: String
+
+  "Arbitrary header data"
+  meta: String
+
+  "Arbitrary configuration settings"
+  config: String
+
+  "List of content"
+  content: String
+
+  "Visibility status of the page, 0=inactive, 1=visible, 2=hidden in navigation"
+  status: Int
+
+  "Cache lifetime in minutes"
+  cache: Int
+
+  "Name of the last user who added, updated or deleted the page"
+  editor: String
+
+  "Search for this string in any text field"
+  any: String
+}
+
+input PageInput {
+  "Translation ID of all pages with the same content in different languages"
+  related_id: ID
+
+  "ISO language code, e.g. 'en', 'en-GB' or empty for default language"
+  lang: String
+
+  "Unique URL segment of the page"
+  path: String
+
+  "Domain name the page is assigned to"
+  domain: String
+
+  "Short page name for menus"
+  name: String
+
+  "Descriptive page title"
+  title: String
+
+  "If not empty, the path or URL the browser is redirected to"
+  to: String
+
+  "Tag name to identify a page, e.g. for the starting point of a navigation structure"
+  tag: String
+
+  "Theme name assigned to the page"
+  theme: String
+
+  "Type of the page for using different theme templates"
+  type: String
+
+  "Arbitrary page header"
+  meta: JSON
+
+  "Arbitrary configuration settings"
+  config: JSON
+
+  "List of content"
+  content: JSON
+
+  "Visibility status of the page, 0=inactive, 1=visible, 2=hidden in navigation"
+  status: Int
+
+  "Cache lifetime in minutes"
+  cache: Int
+}
+
+type Element {
+  "Unique element ID"
+  id: ID!
+
+  "Type of the content element"
+  type: String!
+
+  "ISO language code, e.g. 'en', 'en-GB' or empty for default language"
+  lang: String
+
+  "Arbitrary string which describes the content element"
+  name: String
+
+  "Arbitrary content element"
+  data: JSON!
+
+  "Name of the last user who added, updated or deleted the content element"
+  editor: String!
+
+  "Date/time value when the content element was created"
+  created_at: String!
+
+  "Date/time value when the content element was last modified"
+  updated_at: String!
+
+  "Date/time value when the content element was deleted or NULL if it's available"
+  deleted_at: String
+
+  "List of pages using the file"
+  bypages: [Page!]! @belongsToMany
+
+  "List of versions using the file"
+  byversions: [Version!]! @belongsToMany
+
+  "List of files assigned to the content element"
+  files: [File!]! @belongsToMany
+
+  "List of versioned data for the content element"
+  versions: [Version!]! @morphMany
+
+  "Latest version of the content element"
+  latest: Version @hasOne
+
+  "Published version of the content element"
+  published: Version @hasOne
+}
+
+input ElementFilter {
+  "Unique element IDs"
+  id: [ID!]
+
+  "Type of the content elements"
+  type: String
+
+  "ISO language code, e.g. 'en', 'en-GB' or empty for default language"
+  lang: String
+
+  "Arbitrary string which describes the content elements"
+  name: String
+
+  "Arbitrary content elements"
+  data: String
+
+  "Name of the last user who added, updated or deleted the content elements"
+  editor: String
+
+  "Search for this string in any text field"
+  any: String
+}
+
+input ElementInput {
+  "Type of the content element"
+  type: String!
+
+  "ISO language code, e.g. 'en', 'en-GB' or empty for default language"
+  lang: String
+
+  "Arbitrary string which describes the element"
+  name: String
+
+  "Arbitrary content element data"
+  data: JSON!
+}
+
+type File {
+  "Unique ID of the stored file"
+  id: ID!
+
+  "Mime type of the stored file"
+  mime: String
+
+  "ISO language code, e.g. 'en', 'en-GB' or empty for default language"
+  lang: String
+
+  "Descriptive name of the file"
+  name: String
+
+  "Description of the file in different languages with ISO language code as key"
+  description: JSON
+
+  "Transcribtion of the file content in different languages with ISO language code as key"
+  transcription: JSON
+
+  "Relative path to the stored file"
+  path: String!
+
+  "Preview images of the stored file if any"
+  previews: JSON!
+
+  "Name of the last user who added, updated or deleted the file"
+  editor: String!
+
+  "Date/time value when the file was created"
+  created_at: String!
+
+  "Date/time value when the file was last modified"
+  updated_at: String!
+
+  "Date/time value when the file was deleted or NULL if it's available"
+  deleted_at: String
+
+  "List of elements using the file"
+  byelements: [Element!]! @belongsToMany
+
+  "List of pages using the file"
+  bypages: [Page!]! @belongsToMany
+
+  "List of versions using the file"
+  byversions: [Version!]! @belongsToMany
+
+  "Latest version of the file"
+  latest: Version @hasOne
+
+  "List of versioned data for the file"
+  versions: [Version!]! @morphMany
+}
+
+input FileFilter {
+  "IDs of the stored files"
+  id: [ID!]
+
+  "Mime type of the stored files"
+  mime: String
+
+  "ISO language code, e.g. 'en', 'en-GB' or empty for default language"
+  lang: String
+
+  "Descriptive name of the stored files"
+  name: String
+
+  "Name of the last user who added, updated or deleted the files"
+  editor: String
+
+  "Search for this string in any text field"
+  any: String
+}
+
+input FileInput {
+  "ISO language code, e.g. 'en', 'en-GB' or empty for default language"
+  lang: String
+
+  "Descriptive name of the stored file"
+  name: String
+
+  "URL or relative path within the storage of the file"
+  path: String
+
+  "Preview images of the stored file if any"
+  previews: JSON
+
+  "Description of the file in different languages with ISO language code as key"
+  description: JSON
+
+  "Transcribtion of the file content in different languages with ISO language code as key"
+  transcription: JSON
+}
+
+type Version {
+  "Unique version ID"
+  id: ID!
+
+  "ID of the page or element"
+  versionable_id: ID!
+
+  "Model class name of the versioned item"
+  versionable_type: String!
+
+  "ISO language code, e.g. 'en', 'en-GB' or empty for default language"
+  lang: String
+
+  "Arbitrary versioned data"
+  data: JSON!
+
+  "Arbitrary versioned page config, content and meta data"
+  aux: JSON
+
+  "List of shared content elements assigned to the version"
+  elements: [Element!]! @belongsToMany
+
+  "List of files used in the data or content property"
+  files: [File!]
+
+  "If versioned is currently published or not"
+  published: Boolean!
+
+  "ISO date when the version should be published"
+  publish_at: String
+
+  "Name of the last user who added, updated or deleted the versioned data"
+  editor: String!
+
+  "Date/time value when the versioned data was created"
+  created_at: String!
+}
