@@ -42,7 +42,7 @@
 </script>
 
 <template>
-  <v-dialog :modelValue="modelValue" max-width="1200" scrollable>
+  <v-dialog :modelValue="modelValue" @afterLeave="$emit('update:modelValue', false)" max-width="1200" scrollable>
     <v-card>
       <template v-slot:append>
         <v-btn v-if="!readonly && !error"
@@ -66,8 +66,9 @@
         <Fields
           v-model:data="element.data"
           v-model:files="element.files"
-          :readonly="readonly"
           :fields="fields(element.type)"
+          :readonly="readonly"
+          :type="element.type"
           :assets="assets"
           @error="error = element._error = $event"
         />

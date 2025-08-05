@@ -20,12 +20,11 @@
 
     data() {
       return {
-        clip: null,
         menu: {},
         items: [],
         loading: true,
-        checked: false,
-        isChecked: false,
+        checked: null,
+        clip: null,
         term: '',
       }
     },
@@ -48,13 +47,21 @@
       })
     },
 
+    mounted() {
+      this.checked = false // required for isChecked() to work correctly
+    },
+
     computed: {
       canTrash() {
-        return this.isChecked && this.$refs.tree?.statsFlat.some(stat => stat.checked && !stat.data.deleted_at)
+        return this.isChecked && this.$refs.tree?.statsFlat.some(stat => stat._checked && !stat.data.deleted_at)
+      },
+
+      isChecked() {
+        return this.checked || this.$refs.tree?.statsFlat.some(stat => stat._checked)
       },
 
       isTrashed() {
-        return this.isChecked && this.$refs.tree?.statsFlat.some(stat => stat.checked && stat.data.deleted_at)
+        return this.isChecked && this.$refs.tree?.statsFlat.some(stat => stat._checked && stat.data.deleted_at)
       },
     },
 
@@ -81,11 +88,14 @@
             throw result.errors
           }
 
-          item.id = result.data.addPage.id
-          item.published = true
+          if(!result.data.addPage) {
+            throw new Error('No data in addPage mutation result')
+          }
 
-          this.$refs.tree.add(item)
-          this.$emit('select', item)
+          const page = {...result.data.addPage}
+
+          this.$refs.tree.add(page)
+          this.$emit('select', page)
         }).catch(error => {
           this.messages.add(this.$gettext('Error adding root page'), 'error')
           this.$log(`PageList::add(): Error adding root page`, error)
@@ -143,7 +153,7 @@
       create(attr = {}) {
         return Object.assign({
           path: '_' + Math.floor(Math.random() * 10000),
-          lang: this.languages.current || this.languages.default(),
+          lang: this.$vuetify.locale.current || this.languages.default(),
           status: 0,
           cache: 5
         }, attr)
@@ -167,7 +177,7 @@
         }
 
         const list = (stat ? [stat] : this.$refs.tree.statsFlat.filter(stat => {
-          return stat.checked && stat.data?.id
+          return stat._checked && stat.data?.id
         }))
 
         if(!list.length) {
@@ -254,20 +264,9 @@
       fields() {
         return `id
           parent_id
-          lang
-          path
-          domain
-          name
-          title
-          to
-          tag
-          type
-          theme
-          status
-          cache
-          editor
-          updated_at
+          created_at
           deleted_at
+          editor
           has
           latest {
             id
@@ -350,7 +349,7 @@
         }
 
         const stats = stat ? [stat] : this.$refs.tree.statsFlat.filter(stat => {
-          return stat.checked && stat.data.id && stat.data.deleted_at
+          return stat._checked && stat.data.id && stat.data.deleted_at
         })
         const list = stats.filter(stat => {
           return stats.indexOf(stat.parent) === -1
@@ -565,7 +564,7 @@
         }
 
         const list = stat ? [stat] : this.$refs.tree.statsFlat.filter(stat => {
-          return stat.checked && stat.data.id && !stat.data.published
+          return stat._checked && stat.data.id && !stat.data.published
         })
 
         if(!list.length) {
@@ -606,7 +605,7 @@
         }
 
         const list = stat ? [stat] : this.$refs.tree.statsFlat.filter(stat => {
-          return stat.checked && stat.data.id
+          return stat._checked && stat.data.id
         })
 
         if(!list.length) {
@@ -729,7 +728,7 @@
         }
 
         const list = stat ? [stat] : this.$refs.tree.statsFlat.filter(stat => {
-          return stat.checked && stat.data.id
+          return stat._checked && stat.data.id
         })
 
         list.forEach(stat => {
@@ -788,7 +787,7 @@
 
       toggle() {
         this.$refs.tree.statsFlat.forEach(stat => {
-          stat.checked = !stat.checked
+          stat._checked = !stat._checked
         })
       },
 
@@ -831,19 +830,10 @@
       },
 
 
-      updateChecked(val) {
-        if(!val) {
-          this.isChecked = this.$refs.tree?.statsFlat.some(stat => stat.checked)
-        } else {
-          this.isChecked = true
-        }
-      },
-
-
       url(node) {
         return this.app.urlpage
-          .replace(/:domain/, node.domain || '')
-          .replace(/:path/, node.path || '')
+          .replace(/_domain_/, node.domain || '')
+          .replace(/_path_/, node.path || '')
           .replace(/\/+$/, '')
       }
     },
@@ -931,7 +921,6 @@
   <Draggable ref="tree"
     v-model="items"
     @change="change()"
-    @check:node="updateChecked($event.checked)"
     :defaultOpen="false"
     :disableDrag="!auth.can('page:move')"
     :rtl="$vuetify.locale.isRtl"
@@ -953,7 +942,7 @@
           variant="flat"
         />
 
-        <v-checkbox-btn v-model="stat.checked" :class="{draft: !node.published}" />
+        <v-checkbox-btn v-model="stat._checked" :class="{draft: !node.published}" />
 
         <v-menu v-if="node.id">
           <template #activator="{ props }">
@@ -1128,8 +1117,7 @@
 
   .tree-node-inner .spinner {
     transform: rotate(90deg);
-    margin-inline-end: 6px;
-    padding: 8px;
+    padding: 14px;
     height: 48px;
     width: 48px;
   }

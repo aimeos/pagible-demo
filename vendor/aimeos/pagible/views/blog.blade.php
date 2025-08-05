@@ -1,9 +1,9 @@
 @pushOnce('css')
-<link type="text/css" rel="stylesheet" href="{{ cmsasset('vendor/cms/blog.css') }}">
+<link type="text/css" rel="stylesheet" href="{{ cmsasset('vendor/cms/theme/blog.css') }}">
 @endPushOnce
 
 @pushOnce('js')
-<script defer src="{{ cmsasset('vendor/cms/blog.js') }}"></script>
+<script defer src="{{ cmsasset('vendor/cms/theme/blog.js') }}"></script>
 @endPushOnce
 
 @if(@$data->title)
@@ -18,7 +18,7 @@
                         @include('cms::pic', ['file' => $file])
                     @endif
                     <h3>{{ cms($item, 'title') }}</h3>
-                    <p>{{ $article->lead }}</p>
+                    <p>{{ @$article->text }}</p>
                 @else
                     <h3>{{ cms($item, 'title') }}</h3>
                 @endif

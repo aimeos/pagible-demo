@@ -14,7 +14,7 @@
 
     emits: ['update:item', 'update:file', 'error'],
 
-    inject: ['compose', 'locales', 'translate', 'txlocales'],
+    inject: ['compose', 'locales', 'translate', 'txlocales', 'url'],
 
     data() {
       return {
@@ -470,17 +470,6 @@
           this.covering = false
         })
       },
-
-
-      url(path, proxy = false) {
-        if(proxy && path.startsWith('http')) {
-          return this.app.urlproxy.replace(/:url/, encodeURIComponent(path))
-        }
-        if(path.startsWith('blob:') || path.startsWith('http')) {
-          return path
-        }
-        return this.app.urlfile.replace(/\/+$/g, '') + '/' + path
-      }
     },
 
     watch: {
@@ -497,7 +486,7 @@
 
 <template>
   <v-container>
-    <v-sheet>
+    <v-sheet class="scroll">
       <v-row>
         <v-col cols="12" md="6">
           <v-text-field ref="name"

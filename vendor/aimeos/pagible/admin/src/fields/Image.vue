@@ -33,15 +33,6 @@
           console.error(error)
           return false
         })
-      },
-
-
-      srcset(map) {
-        let list = []
-        for(const key in map) {
-          list.push(`${this.url(map[key])} ${key}w`)
-        }
-        return list.join(', ')
       }
     }
   }
@@ -130,7 +121,7 @@
   </Teleport>
 
   <Teleport to="body">
-    <FileAiDialog v-model="vcreate" @add="select($event); vcreate = false" />
+    <FileAiDialog v-model="vcreate" @add="select($event); vcreate = false" :context="context" />
   </Teleport>
 
   <Teleport to="body">

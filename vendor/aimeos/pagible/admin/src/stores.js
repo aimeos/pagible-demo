@@ -8,9 +8,10 @@ const app = document.querySelector('#app');
 export const useAppStore = defineStore('app', {
   state: () => ({
     urladmin: app?.dataset.urladmin || '/cmsadmin',
-    urlproxy: app?.dataset.urlproxy || '/cmsproxy?url=:url',
-    urlpage: app?.dataset.urlpage || '/:path',
+    urlproxy: app?.dataset.urlproxy || '/cmsproxy?url=_url_',
+    urlpage: app?.dataset.urlpage || '/_path_',
     urlfile: app?.dataset.urlfile || '/storage',
+    multidomain: parseInt(app?.dataset.multidomain) || 0,
   })
 })
 
@@ -364,8 +365,7 @@ export const useLanguageStore = defineStore('language', {
       "zh": "中文",
       "zu": "isiZulu"
     },
-    available: useConfigStore().get('locales', ['en']),
-    current: null,
+    available: useConfigStore().get('locales', ['en'])
   }),
 
   actions: {

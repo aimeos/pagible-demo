@@ -38,8 +38,8 @@
       change(code) {
         import(`../../i18n/${code}.json`).then(translations => {
           this.i18n.translations = translations.default || translations
-          this.i18n.current = code
           this.$vuetify.locale.current = code
+          this.i18n.current = code
         })
       }
     }

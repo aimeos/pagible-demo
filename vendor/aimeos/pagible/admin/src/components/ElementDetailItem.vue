@@ -57,7 +57,7 @@
 
 <template>
   <v-container>
-    <v-sheet>
+    <v-sheet class="scroll">
       <v-row>
         <v-col cols="12" md="6">
           <v-text-field ref="name"
@@ -89,6 +89,7 @@
             :fields="fields(item.type)"
             :readonly="readonly"
             :assets="assets"
+            :type="item.type"
             @error="$emit('error', $event)"
             @change="$emit('update:item', item)"
           />

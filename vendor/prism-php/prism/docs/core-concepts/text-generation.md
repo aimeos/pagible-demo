@@ -109,8 +109,6 @@ $response = Prism::text()
     ->asText();
 ```
 
-For detailed information about supported media types and transfer methods, see the [input modalities documentation](/input-modalities/).
-
 ## Message Chains and Conversations
 
 For interactive conversations, use message chains to maintain context:

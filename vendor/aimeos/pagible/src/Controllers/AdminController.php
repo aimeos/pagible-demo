@@ -14,7 +14,17 @@ class AdminController extends Controller
 {
     public function index()
     {
-        return view('cms::admin');
+        $nonce = base64_encode(random_bytes(16));
+        return response()
+            ->view('cms::layouts.admin', compact('nonce'))
+            ->header('Content-Security-Policy',
+                "base-uri 'self';" .
+                "default-src 'self' data: blob:;" .
+                "style-src 'self' 'unsafe-inline';" .
+                "script-src 'self' 'nonce-{$nonce}';" .
+                "img-src 'self' data: blob: http: https:;" .
+                "media-src 'self' data: blob: http: https:;"
+            );
     }
 
 

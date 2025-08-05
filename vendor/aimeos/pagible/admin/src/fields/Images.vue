@@ -18,13 +18,14 @@
       VueDraggable
     },
 
-    inject: ['openView'],
+    inject: ['openView', 'url', 'srcset'],
 
     props: {
       'modelValue': {type: Array, default: () => []},
       'config': {type: Object, default: () => {}},
       'assets': {type: Object, default: () => {}},
       'readonly': {type: Boolean, default: false},
+      'context': {type: Object},
     },
 
     emits: ['update:modelValue', 'error', 'addFile', 'removeFile'],
@@ -106,11 +107,12 @@
               image.src = this.url(Object.values(data.previews)[0])
             }).then(() => {
               this.images[idx] = data
-              this.$emit('addFile', data.id)
+              this.$emit('addFile', data)
               URL.revokeObjectURL(path)
             })
           }).catch(error => {
-            this.$log(`Images::addFile(): Error uploading images`, ev, error)
+            this.messages.add(this.$gettext(`Error adding file %{path}`, {path: file.name}), 'error')
+            this.$log(`Images::addFile(): Error adding file`, ev, error)
           })
 
           promises.push(promise)
@@ -152,30 +154,13 @@
 
         items.forEach(item => {
           this.images.push(item)
-          this.$emit('addFile', item.id)
+          this.$emit('addFile', item)
         })
 
         this.$emit('update:modelValue', this.images.map(item => ({id: item.id, type: 'file'})))
         this.vfiles = false
         this.vurls = false
         this.validate()
-      },
-
-
-      srcset(map) {
-        let list = []
-        for(const key in map) {
-          list.push(`${this.url(map[key])} ${key}w`)
-        }
-        return list.join(', ')
-      },
-
-
-      url(path) {
-        if(path.startsWith('http') || path.startsWith('blob:')) {
-          return path
-        }
-        return this.app.urlfile.replace(/\/+$/g, '') + '/' + path
       },
 
 
@@ -205,7 +190,7 @@
 </script>
 
 <template>
-  <VueDraggable v-model="images" :disabled="readonly" @change="change()" draggable=".image" group="images" class="images" animation="500">
+  <VueDraggable v-model="images" :disabled="readonly" @update="change()" draggable=".image" group="images" class="images" animation="500">
 
     <div v-for="(item, idx) in images" :key="idx" :class="{readonly: readonly}" class="image" @click="open(item)">
       <v-progress-linear v-if="item.uploading"
@@ -271,7 +256,7 @@
   </Teleport>
 
   <Teleport to="body">
-    <FileAiDialog v-model="vcreate" @add="select($event); vcreate = false" />
+    <FileAiDialog v-model="vcreate" @add="select($event); vcreate = false" :context="context" />
   </Teleport>
 
   <Teleport to="body">

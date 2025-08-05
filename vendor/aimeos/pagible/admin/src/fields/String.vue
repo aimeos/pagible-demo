@@ -12,6 +12,7 @@
       'config': {type: Object, default: () => {}},
       'assets': {type: Object, default: () => {}},
       'readonly': {type: Boolean, default: false},
+      'context': {type: Object},
     },
 
     emits: ['update:modelValue', 'error'],
@@ -44,7 +45,7 @@
 </script>
 
 <template>
-  <v-text-field ref="field"
+  <v-textarea
     :readonly="readonly"
     :class="config.class"
     :counter="config.max"
@@ -59,5 +60,7 @@
     density="comfortable"
     hide-details="auto"
     variant="outlined"
-  ></v-text-field>
+    auto-grow
+    rows="1"
+  ></v-textarea>
 </template>

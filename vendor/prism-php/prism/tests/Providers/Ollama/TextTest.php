@@ -7,7 +7,6 @@ namespace Tests\Providers\Ollama;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Tool;
 use Prism\Prism\Prism;
 use Prism\Prism\ValueObjects\Media\Image;
@@ -115,7 +114,7 @@ describe('Image support', function (): void {
                 new UserMessage(
                     'What is this image',
                     additionalContent: [
-                        Image::fromLocalPath('tests/Fixtures/dimond.png'),
+                        Image::fromLocalPath('tests/Fixtures/diamond.png'),
                     ],
                 ),
             ])
@@ -128,7 +127,7 @@ describe('Image support', function (): void {
             expect($message['content'])->toBe('What is this image');
 
             expect($message['images'][0])->toContain(
-                base64_encode(file_get_contents('tests/Fixtures/dimond.png'))
+                base64_encode(file_get_contents('tests/Fixtures/diamond.png'))
             );
 
             return true;
@@ -145,7 +144,7 @@ describe('Image support', function (): void {
                     'What is this image',
                     additionalContent: [
                         Image::fromBase64(
-                            base64_encode(file_get_contents('tests/Fixtures/dimond.png')),
+                            base64_encode(file_get_contents('tests/Fixtures/diamond.png')),
                             'image/png'
                         ),
                     ],
@@ -160,24 +159,10 @@ describe('Image support', function (): void {
             expect($message['content'])->toBe('What is this image');
 
             expect($message['images'][0])->toContain(
-                base64_encode(file_get_contents('tests/Fixtures/dimond.png'))
+                base64_encode(file_get_contents('tests/Fixtures/diamond.png'))
             );
 
             return true;
         });
     });
 });
-
-it('throws an exception with multiple system prompts', function (): void {
-    Http::preventStrayRequests();
-
-    $response = Prism::text()
-        ->using('ollama', 'qwen2.5:14b')
-        ->withSystemPrompts([
-            new SystemMessage('MODEL ADOPTS ROLE of [PERSONA: Nyx the Cthulhu]!'),
-            new SystemMessage('But my friends call my Nyx.'),
-        ])
-        ->withPrompt('Who are you?')
-        ->asText();
-
-})->throws(PrismException::class, 'Ollama does not support multiple system prompts using withSystemPrompt / withSystemPrompts. However, you can provide additional system prompts by including SystemMessages in with withMessages.');

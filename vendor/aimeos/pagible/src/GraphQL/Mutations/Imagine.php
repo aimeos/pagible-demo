@@ -23,14 +23,20 @@ final class Imagine
             throw new Exception( 'Prompt must not be empty' );
         }
 
-        $files = [];
+        $files = collect();
+        $input = $args['prompt'];
         $prompt = join( "\n\n", array_filter( [
             view( 'cms::prompts.imagine' )->render(),
             $args['context'] ?? '',
-            $args['prompt']
+            $input
         ] ) );
 
-        $prism = Prism::image()->using( config( 'cms.ai.image', 'openai' ), config( 'cms.ai.image-model', 'dall-e-3' ) );
+        $model = config( 'cms.ai.image-model', 'dall-e-3' );
+        $prism = Prism::image()->using( config( 'cms.ai.image', 'openai' ), $model )
+            ->withClientOptions( [
+                'timeout' => 60,
+                'connect_timeout' => 10,
+            ] );
 
         if( !empty( $ids = $args['files'] ?? null ) )
         {
@@ -54,21 +60,33 @@ final class Imagine
                     'video' => Video::fromStoragePath( $file->path, $disk ),
                     default => Document::fromStoragePath( $file->path, $disk ),
                 };
-            } )->values()->toArray();
+            } )->values();
         }
 
-        $response = $prism->withPrompt( $prompt, $files )->generate();
+        $response = $prism->withPrompt( $prompt, $files->toArray() )
+            ->whenProvider( 'openai', fn( $request ) => $request
+                ->withProviderOptions( [
+                    'image' => $files->first()?->base64(),
+                    'size' => match( $model ) {
+                        'gpt-image-1' => '1536x1024',
+                        'dall-e-3' => '1792x1024',
+                        'dall-e-2' => '1024x1024',
+                        default => 'auto',
+                    }
+                ] )
+            )
+            ->generate();
 
         $prompt = collect( $response->images )
             ->map( fn( $image ) => $image->hasRevisedPrompt() ? $image->revisedPrompt : null )
             ->filter()
-            ->first() ?? $prompt;
+            ->first() ?? $input;
 
-        $urls = collect( $response->images )
-            ->map( fn( $image ) => $image->hasUrl() ? $image->url : null )
+        $images = collect( $response->images )
+            ->map( fn( $image ) => $image->base64 ?? Image::fromUrl( $image->url )->base64() )
             ->filter()
             ->toArray();
 
-        return array_merge( [$prompt], $urls );
+        return array_merge( [$prompt], $images );
     }
 }

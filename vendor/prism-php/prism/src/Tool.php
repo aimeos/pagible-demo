@@ -38,6 +38,15 @@ class Tool
     /** @var Closure():string|callable():string */
     protected $fn;
 
+    /** @var null|Closure(Throwable,array<int|string,mixed>):string */
+    protected ?Closure $failedHandler = null;
+
+    public function __construct()
+    {
+        // Initialize with default error handler by default
+        $this->failedHandler = fn (Throwable $e, array $params): string => $this->getDefaultFailedMessage($e, $params);
+    }
+
     public function as(string $name): self
     {
         $this->name = $name;
@@ -55,6 +64,23 @@ class Tool
     public function using(Closure|callable $fn): self
     {
         $this->fn = $fn;
+
+        return $this;
+    }
+
+    /**
+     * @param  Closure(Throwable,array<int|string,mixed>):string  $handler
+     */
+    public function failed(Closure $handler): self
+    {
+        $this->failedHandler = $handler;
+
+        return $this;
+    }
+
+    public function withoutErrorHandling(): self
+    {
+        $this->failedHandler = null;
 
         return $this;
     }
@@ -180,6 +206,14 @@ class Tool
     }
 
     /**
+     * @return null|Closure(Throwable,array<int|string,mixed>):string
+     */
+    public function failedHandler(): ?Closure
+    {
+        return $this->failedHandler;
+    }
+
+    /**
      * @param  string|int|float  $args
      *
      * @throws PrismException|Throwable
@@ -194,12 +228,128 @@ class Tool
             }
 
             return $value;
-        } catch (ArgumentCountError|Error|InvalidArgumentException|TypeError $e) {
+        } catch (Throwable $e) {
+            if ($this->failedHandler instanceof Closure) {
+                $providedParams = $this->extractProvidedParams($args);
+
+                return ($this->failedHandler)($e, $providedParams);
+            }
+
+            if ($e instanceof TypeError || $e instanceof InvalidArgumentException) {
+                throw PrismException::invalidParameterInTool($this->name, $e);
+            }
+
             if ($e::class === Error::class && ! str_starts_with($e->getMessage(), 'Unknown named parameter')) {
                 throw $e;
             }
 
-            throw PrismException::invalidParameterInTool($this->name, $e);
+            if (str_starts_with($e->getMessage(), 'Unknown named parameter')) {
+                throw PrismException::invalidParameterInTool($this->name, $e);
+            }
+
+            // Re-throw other exceptions
+            throw $e;
         }
+    }
+
+    /**
+     * @param  array<int|string,mixed>  $providedParams
+     */
+    protected function getDefaultFailedMessage(Throwable $e, array $providedParams): string
+    {
+        $errorType = $this->classifyToolError($e);
+
+        return match ($errorType) {
+            'validation' => $this->formatValidationError($e, $providedParams),
+            'runtime' => $this->formatRuntimeError($e),
+            default => $this->formatRuntimeError($e),
+        };
+    }
+
+    protected function classifyToolError(Throwable $e): string
+    {
+        $isValidationError = $e instanceof TypeError
+            || ($e instanceof Error && str_contains($e->getMessage(), 'Unknown named parameter'));
+
+        return $isValidationError ? 'validation' : 'runtime';
+    }
+
+    /**
+     * @param  array<int|string,mixed>  $providedParams
+     */
+    protected function formatValidationError(Throwable $e, array $providedParams): string
+    {
+        $errorType = $this->determineValidationErrorType($e);
+        $expectedParams = $this->formatExpectedParameters();
+        $receivedParams = $this->formatReceivedParameters($providedParams);
+
+        return sprintf(
+            'Parameter validation error: %s. Expected: [%s]. Received: %s. Please provide correct parameter types and names.',
+            $errorType,
+            $expectedParams,
+            $receivedParams
+        );
+    }
+
+    protected function formatRuntimeError(Throwable $e): string
+    {
+        return sprintf(
+            'Tool execution error: %s. This error occurred during tool execution, not due to invalid parameters.',
+            $e->getMessage()
+        );
+    }
+
+    protected function determineValidationErrorType(Throwable $e): string
+    {
+        return match (true) {
+            $e instanceof ArgumentCountError => 'Missing required parameters',
+            $e instanceof TypeError && str_contains($e->getMessage(), 'must be of type') => 'Type mismatch',
+            str_contains($e->getMessage(), 'Unknown named parameter') => 'Unknown parameters',
+            default => 'Invalid parameters',
+        };
+    }
+
+    protected function formatExpectedParameters(): string
+    {
+        return collect($this->parameters)
+            ->map(fn (Schema $param): string => sprintf(
+                '%s (%s%s)',
+                $param->name(),
+                class_basename($param),
+                in_array($param->name(), $this->requiredParameters) ? ', required' : ''
+            ))
+            ->join(', ');
+    }
+
+    /**
+     * @param  array<int|string,mixed>  $providedParams
+     */
+    protected function formatReceivedParameters(array $providedParams): string
+    {
+        return json_encode($providedParams) ?: '{}';
+    }
+
+    /**
+     * @param  array<int|string,mixed>  $args
+     * @return array<int|string,mixed>
+     */
+    protected function extractProvidedParams(array $args): array
+    {
+        // If args is already an associative array (from tool calls), return as is
+        if (! array_is_list($args)) {
+            return $args;
+        }
+
+        // Otherwise map positional args to parameter names
+        $paramNames = array_keys($this->parameters);
+        $result = [];
+
+        foreach ($args as $index => $value) {
+            if (isset($paramNames[$index])) {
+                $result[$paramNames[$index]] = $value;
+            }
+        }
+
+        return $result;
     }
 }

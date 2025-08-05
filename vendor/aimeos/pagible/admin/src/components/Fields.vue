@@ -9,6 +9,7 @@
       'assets': {type: Object, default: () => {}},
       'readonly': {type: Boolean, default: false},
       'fields': {type: Object, required: true},
+      'type': {type: String, default: ''},
     },
 
     emits: ['change', 'error', 'update:files'],
@@ -29,19 +30,24 @@
     },
 
     methods: {
-      addFile(id) {
-        const ids = Array.isArray(id) ? id : [id]
+      addFile(item) {
+        if(!item?.id) {
+          this.$log(`Fields::addFile(): Invalid item without ID`, item)
+          return
+        }
+
         const files = [...this.files]
 
-        files.push(...ids)
+        files.push(item.id)
+        this.assets[item.id] = item
         this.$emit('update:files', files)
       },
 
 
       composeText(code) {
         const context = [
-          'generate for: ' + (this.fields[code].label || code),
-          'required output format: ' + this.fields[code].type,
+          'generate for field "' + (this.fields[code].label || code) + '"',
+          'required output format is "' + this.fields[code].type + '"',
           this.fields[code].min ? 'minimum characters: ' + this.fields[code].min : null,
           this.fields[code].max ? 'maximum characters: ' + this.fields[code].max : null,
           this.fields[code].placeholder ? 'hint text: ' + this.fields[code].placeholder : null,
@@ -65,15 +71,16 @@
 
 
       removeFile(id) {
-        const ids = Array.isArray(id) ? id : [id]
+        if(!id) {
+          this.$log(`Fields::removeFile(): Invalid ID`, id)
+          return
+        }
+
         const files = [...this.files]
+        const idx = files.findIndex(fileid => fileid === id)
 
-        for(const id of ids) {
-          const idx = files.findIndex(fileid => fileid === id)
-
-          if(idx !== -1) {
-            files.splice(idx, 1)
-          }
+        if(idx !== -1) {
+          files.splice(idx, 1)
         }
 
         this.$emit('update:files', files)
@@ -86,7 +93,6 @@
 
 
       translateText(code, lang) {
-
         this.translating[code] = true
 
         this.translate([this.data[code]], lang).then(result => {
@@ -155,6 +161,7 @@
     <component ref="field"
       :is="toName(field.type)"
       :key="field.type + '-' + code"
+      :context="data"
       :assets="assets"
       :config="field"
       :readonly="readonly"
@@ -185,5 +192,6 @@
     text-transform: capitalize;
     font-weight: bold;
     margin-bottom: 4px;
+    min-height: 48px;
   }
 </style>

@@ -5,7 +5,7 @@
   import HistoryDialog from '../components/HistoryDialog.vue'
   import PageDetailItem from '../components/PageDetailItem.vue'
   import PageDetailContent from '../components/PageDetailContent.vue'
-  import PageDetailPreview from '../components/PageDetailPreview.vue'
+  import PageDetailEditor from '../components/PageDetailEditor.vue'
   import { useAuthStore, useDrawerStore, useLanguageStore, useMessageStore, useSchemaStore } from '../stores'
 
 
@@ -16,7 +16,7 @@
       HistoryDialog,
       PageDetailItem,
       PageDetailContent,
-      PageDetailPreview
+      PageDetailEditor
     },
 
     inject: ['closeView', 'compose', 'translate', 'txlocales'],
@@ -59,6 +59,15 @@
     }),
 
     computed: {
+      currentAssets() {
+        const fileIds = this.fileIds()
+
+        return Object.fromEntries(
+          Object.entries(this.assets || {}).filter(([key, value]) => fileIds.includes(key))
+        )
+      },
+
+
       hasChanged() {
         return Object.values(this.changed).some(entry => entry)
       },
@@ -96,89 +105,8 @@
         query: gql`query($id: ID!) {
           page(id: $id) {
             id
-            lang
-            path
-            domain
-            name
-            title
-            to
-            tag
-            type
-            theme
-            status
-            cache
-            meta
-            config
-            content
-            editor
-            updated_at
-            deleted_at
-            files {
-              id
-              lang
-              mime
-              name
-              path
-              previews
-              description
-              updated_at
-              editor
-            }
-            elements {
-              id
-              type
-              data
-              editor
-              updated_at
-              files {
-                id
-                lang
-                mime
-                name
-                path
-                previews
-                description
-                updated_at
-                editor
-              }
-            }
             latest {
-              id
-              published
-              data
-              aux
-              editor
-              created_at
-              files {
-                id
-                lang
-                mime
-                name
-                path
-                previews
-                description
-                updated_at
-                editor
-              }
-              elements {
-                id
-                type
-                data
-                name
-                editor
-                updated_at
-                files {
-                  id
-                  lang
-                  mime
-                  name
-                  path
-                  previews
-                  description
-                  updated_at
-                  editor
-                }
-              }
+              ${this.fields()}
             }
           }
         }`,
@@ -190,53 +118,19 @@
           throw result
         }
 
-        const page = result.data.page
-
         this.reset()
-        this.assets = {}
-        this.elements = {}
-        this.latest = page.latest
+        this.latest = result?.data?.page?.latest
 
-        if(this.latest?.aux) {
-          const aux = JSON.parse(this.latest.aux)
-          this.item.content = aux.content ?? []
-          this.item.config = aux.config ?? {}
-          this.item.meta = aux.meta ?? {}
-        } else {
-          this.item.content = JSON.parse(page.content ?? '{}')
-          this.item.config = JSON.parse(page.config ?? '{}')
-          this.item.meta = JSON.parse(page.meta ?? '{}')
-        }
+        Object.assign(this.item, JSON.parse(this.latest?.data || '{}'))
 
-        for(const entry of (this.latest?.elements || page.elements || [])) {
-          this.elements[entry.id] = {
-            ...entry,
-            data: JSON.parse(entry.data || '{}'),
-            files: (entry.files || []).map(file => {
-              return {
-                ...file,
-                previews: JSON.parse(file.previews || '{}'),
-                description: JSON.parse(file.description || '{}')
-              }
-            })
-          }
-        }
+        const aux = JSON.parse(this.latest?.aux || '{}')
+        this.item.content = aux.content ?? []
+        this.item.config = aux.config ?? {}
+        this.item.meta = aux.meta ?? {}
 
-        for(const entry of (this.latest?.files || page.files || [])) {
-          this.assets[entry.id] = {
-            ...entry,
-            previews: JSON.parse(entry.previews || '{}'),
-            description: JSON.parse(entry.description || '{}')
-          }
-        }
-
-        for(const entry of this.item.content) {
-          if(entry.files && Array.isArray(entry.files)) {
-            entry.files = entry.files.filter(id => {
-              return typeof this.assets[id] !== 'undefined'
-            })
-          }
-        }
+        this.assets = this.files(this.latest?.files || [])
+        this.elements = this.elems(this.latest?.elements || [])
+        this.item.content = this.obsolete(this.item.content)
       }).catch(error => {
         this.messages.add(this.$gettext('Error fetching page'), 'error')
         this.$log(`PageDetail::watch(item): Error fetching page`, error)
@@ -285,10 +179,118 @@
       },
 
 
+      elems(entries) {
+        const map = {}
+
+        for(const entry of entries) {
+          map[entry.id] = {
+            ...entry,
+            data: JSON.parse(entry.data || '{}'),
+            files: Object.values(this.files(entry.files || []))
+          }
+        }
+
+        return map
+      },
+
+
+      fields() {
+        return `id
+              aux
+              data
+              published
+              publish_at
+              created_at
+              editor
+              files {
+                id
+                lang
+                mime
+                name
+                path
+                previews
+                description
+                transcription
+                updated_at
+                editor
+              }
+              elements {
+                id
+                type
+                name
+                data
+                editor
+                updated_at
+                files {
+                  id
+                  lang
+                  mime
+                  name
+                  path
+                  previews
+                  description
+                  transcription
+                  updated_at
+                  editor
+                }
+              }`
+      },
+
+
+      fileIds() {
+        const files = []
+
+        for(const entry of (this.item.content || [])) {
+          files.push(...(entry.files || []))
+        }
+
+        for(const key in (this.item.meta || {})) {
+          files.push(...(this.item.meta[key].files || []))
+        }
+
+        for(const key in (this.item.config || {})) {
+          files.push(...(this.item.config[key].files || []))
+        }
+
+        return files.filter((id, idx, self) => {
+          return self.indexOf(id) === idx
+        })
+      },
+
+
+      files(entries) {
+        const map = {}
+
+        for(const entry of entries) {
+          map[entry.id] = {
+            ...entry,
+            previews: JSON.parse(entry.previews || '{}'),
+            description: JSON.parse(entry.description || '{}'),
+            transcription: JSON.parse(entry.transcription || '{}'),
+          }
+        }
+
+        return map
+      },
+
+
       invalidate() {
         const cache = this.$apollo.provider.defaultClient.cache
         cache.evict({id: 'Page:' + this.item.id})
         cache.gc()
+      },
+
+
+      obsolete(content) {
+        for(const entry of content) {
+          if(entry.files && Array.isArray(entry.files)) {
+            entry.files = entry.files.filter(id => {
+              return typeof this.assets[id] !== 'undefined'
+            })
+          }
+        }
+
+        return content
       },
 
 
@@ -360,11 +362,6 @@
             return valid
           }
 
-          const files = []
-          for(const entry of (this.item.content || [])) {
-            files.push(...(entry.files || []))
-          }
-
           const meta = {}
           for(const key in (this.item.meta || {})) {
             meta[key] = {
@@ -372,7 +369,6 @@
               data: this.item.meta[key].data || {},
               files: this.item.meta[key].files || [],
             }
-            files.push(...(this.item.meta[key].files || []))
           }
 
           const config = {}
@@ -382,7 +378,6 @@
               data: this.item.config[key].data || {},
               files: this.item.config[key].files || [],
             }
-            files.push(...(this.item.config[key].files || []))
           }
 
           return this.$apollo.mutate({
@@ -410,9 +405,7 @@
                 content: JSON.stringify(this.clean(this.item.content, 'content'))
               },
               elements: Object.keys(this.elements),
-              files: files.filter((id, idx, self) => {
-                return self.indexOf(id) === idx
-              }),
+              files: this.fileIds(),
             }
           }).then(response => {
             if(response.errors) {
@@ -521,6 +514,10 @@
       use(version) {
         Object.assign(this.item, version.data)
 
+        this.assets = version.files
+        this.elements = this.elems(version.elements || [])
+        this.item.content = this.obsolete(this.item.content)
+
         this.changed['content'] = true
         this.changed['page'] = true
 
@@ -553,13 +550,7 @@
             page(id: $id) {
               id
               versions {
-                id
-                published
-                publish_at
-                data
-                aux
-                editor
-                created_at
+                ${this.fields()}
               }
             }
           }`,
@@ -573,6 +564,7 @@
 
           return (result.data.page.versions || []).map(v => {
             const item = {...v, data: Object.assign(JSON.parse(v.data || '{}'), JSON.parse(v.aux || '{}'))}
+            item.files = this.files(v.files || [])
             delete item.aux
             return item
           }).reverse() // latest versions first
@@ -709,7 +701,7 @@
         </v-window-item>
 
         <v-window-item value="editor">
-          <PageDetailPreview
+          <PageDetailEditor
             :save="{fcn: save, count: savecnt}"
             :item="item"
             :assets="assets"
@@ -755,6 +747,8 @@
           config: clean(item.config, 'config'),
           content: clean(item.content, 'content'),
         },
+        elements: latest?.elements || [],
+        files: currentAssets
       }"
       :load="() => versions(item.id)"
       @use="use($event)"

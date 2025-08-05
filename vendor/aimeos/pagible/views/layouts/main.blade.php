@@ -7,7 +7,7 @@
         <meta http-equiv="Content-Security-Policy" content="
             base-uri 'self';
             default-src 'self';
-            img-src 'self' data:;
+            img-src 'self' data: blob:;
             media-src 'self' data: blob:;
             style-src 'self' https://hcaptcha.com https://*.hcaptcha.com;
             script-src 'self' https://hcaptcha.com https://*.hcaptcha.com;
@@ -21,23 +21,28 @@
             @includeFirst(cmsviews($page, $item), cmsdata($page, $item))
         @endforeach
 
-        <link href="{{ cmsasset('vendor/cms/pico.min.css') }}" rel="stylesheet">
+        <link href="{{ cmsasset('vendor/cms/theme/pico.min.css') }}" rel="stylesheet">
 
         @stack('css')
 
-        <link href="{{ cmsasset('vendor/cms/cms.css') }}" rel="stylesheet">
+        <link href="{{ cmsasset('vendor/cms/theme/cms.css') }}" rel="stylesheet">
 
         @stack('js')
 
-        <script defer src="{{ cmsasset('vendor/cms/cms.js') }}"></script>
+        <script defer src="{{ cmsasset('vendor/cms/theme/cms.js') }}"></script>
 
         @if(\Aimeos\Cms\Permission::can('page:save', auth()->user()))
-            <script defer src="{{ cmsasset('vendor/cms/admin.js') }}"></script>
+            <link href="{{ cmsasset('vendor/cms/admin/editor.css') }}" rel="stylesheet">
+            <script defer src="{{ cmsasset('vendor/cms/admin/editor.js') }}"></script>
         @endif
     </head>
     <body class="theme-{{ cms($page, 'theme') ?: 'cms' }} type-{{ cms($page, 'type') ?: 'page' }}">
         @yield('header')
         @yield('main')
         @yield('footer')
+
+        <footer class="copyright">
+            &copy; {{ date('Y') }} {{ config('app.name') }}
+        </footer>
     </body>
 </html>

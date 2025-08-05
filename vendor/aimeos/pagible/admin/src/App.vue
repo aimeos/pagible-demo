@@ -1,35 +1,40 @@
 <script>
   import gql from 'graphql-tag'
   import { computed, markRaw, provide } from 'vue'
-  import { useLanguageStore, useMessageStore } from './stores'
+  import { useAppStore, useLanguageStore, useMessageStore } from './stores'
 
   export default {
     data() {
       return {
-        viewStack: [],
+        viewStack: []
       }
     },
 
     provide() {
       return {
-        debounce: this.debouncer,
+        debounce: this.debounce,
         openView: this.open,
         closeView: this.close,
-        compose: this.composeText,
-        translate: this.translateText,
-        txlocales: this.txlangs,
-        locales: this.langs,
+        compose: this.compose,
+        translate: this.translate,
+        txlocales: this.txlocales,
+        locales: this.locales,
+        slugify: this.slugify,
+        srcset: this.srcset,
+        url: this.url,
       }
     },
 
     setup() {
       const languages = useLanguageStore()
       const messages = useMessageStore()
-      return { languages, messages }
+      const app = useAppStore()
+
+      return { app, languages, messages }
     },
 
     methods: {
-      debouncer(func, delay) {
+      debounce(func, delay) {
         let timer
 
         return function(...args) {
@@ -67,12 +72,12 @@
       },
 
 
-      composeText(prompt, context = [], files = []) {
+      compose(prompt, context = [], files = []) {
         prompt = String(prompt).trim()
 
         if(!prompt) {
           this.messages.add(this.$gettext('Prompt is required for generating text'), 'error')
-          return Promise.reject(new Error('Prompt is required'))
+          return Promise.resolve('')
         }
 
         if(!Array.isArray(context)) {
@@ -98,12 +103,12 @@
           return result.data?.compose?.replace(/^"(.*)"$/, '$1') || ''
         }).catch(error => {
           this.messages.add(this.$gettext('Error generating text'), 'error')
-          this.$log(`App::composeText(): Error generating text`, error)
+          this.$log(`App::compose(): Error generating text`, error)
         })
       },
 
 
-      langs(none = false) {
+      locales(none = false) {
         const list = []
 
         if(none) {
@@ -118,7 +123,26 @@
       },
 
 
-      translateText(texts, to, from = null, context = null) {
+      slugify(text) {
+        if(!text) return ''
+        return text
+          .replace(/[?&=%#@!$^*()+=\[\]{}|\\"'<>;:.,_\s]/gu, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+          .toLowerCase()
+      },
+
+
+      srcset(map) {
+        let list = []
+        for(const key in (map || {})) {
+          list.push(`${this.url(map[key])} ${key}w`)
+        }
+        return list.join(', ')
+      },
+
+
+      translate(texts, to, from = null, context = null) {
         if(!Array.isArray(texts)) {
           texts = [texts].filter(v => !!v)
         }
@@ -149,12 +173,12 @@
           return result.data?.translate || []
         }).catch(error => {
           this.messages.add(this.$gettext('Error translating texts'), 'error')
-          this.$log(`App::translateText(): Error translating texts`, error)
+          this.$log(`App::translate(): Error translating texts`, error)
         })
       },
 
 
-      txlangs(current = null) {
+      txlocales(current = null) {
         const list = []
         const supported = [
           'ar', 'bg', 'cs', 'da', 'de', 'el', 'en', 'en-GB', 'en-US', 'es', 'et', 'fi', 'fr',
@@ -169,6 +193,21 @@
         })
 
         return list
+      },
+
+
+      url(path, proxy = false) {
+        if(!path) return ''
+
+        if(proxy && path.startsWith('http')) {
+          return this.app.urlproxy.replace(/_url_/, encodeURIComponent(path))
+        }
+
+        if(path.startsWith('http') || path.startsWith('blob:')) {
+          return path
+        }
+
+        return this.app.urlfile.replace(/\/+$/g, '') + '/' + path
       }
     }
   }
@@ -177,14 +216,12 @@
 <template>
   <v-app>
     <transition-group name="slide-stack">
-      <v-layout key="list" class="view" style="z-index: 10">
+      <v-layout ref="baseview" key="list" class="view" style="z-index: 10">
         <router-view />
       </v-layout>
 
-      <v-layout v-for="(view, i) in viewStack" :key="i" class="view" :style="{ zIndex: 10 + i }">
-        <div class="view-scroll">
-          <component :is="view.component" v-bind="view.props" />
-        </div>
+      <v-layout ref="view" v-for="(view, i) in viewStack" :key="i" class="view" :style="{ zIndex: 11 + i }">
+        <component :is="view.component" v-bind="view.props" />
       </v-layout>
     </transition-group>
 
@@ -193,17 +230,21 @@
 </template>
 
 <style>
+  html {
+    position: absolute;
+    overflow: hidden;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    top: 0;
+  }
+
   .view {
     background: rgb(var(--v-theme-background));
     position: absolute !important;
-    inset: 0;
-  }
-
-  .view-scroll {
+    min-height: 100%;
     width: 100%;
-    overflow-y: scroll;
   }
-
 
   /* Slide animation */
   .slide-stack-enter-active,

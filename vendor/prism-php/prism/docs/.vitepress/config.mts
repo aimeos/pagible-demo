@@ -119,6 +119,10 @@ export default defineConfig({
                 link: "/core-concepts/image-generation",
               },
               {
+                text: "Audio",
+                link: "/core-concepts/audio",
+              },
+              {
                 text: "Schemas",
                 link: "/core-concepts/schemas",
               },

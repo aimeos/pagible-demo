@@ -1,11 +1,11 @@
 @extends('cms::layouts.main')
 
 @pushOnce('css')
-<link href="{{ cmsasset('vendor/cms/pico.nav.min.css') }}" rel="stylesheet">
+<link href="{{ cmsasset('vendor/cms/theme/pico.nav.min.css') }}" rel="stylesheet">
 @endPushOnce
 
 @pushOnce('css')
-<link href="{{ cmsasset('vendor/cms/pico.dropdown.min.css') }}" rel="stylesheet">
+<link href="{{ cmsasset('vendor/cms/theme/pico.dropdown.min.css') }}" rel="stylesheet">
 @endPushOnce
 
 @section('header')
@@ -34,7 +34,7 @@
                                     <summary role>{{ cms($item, 'name') }}</summary>
                                     <ul class="right">
                                         @foreach($item->children as $subItem)
-                                            @if(cms($subItem, 'status') <= 1)
+                                            @if(cms($subItem, 'status') == 1)
                                                 <li>
                                                     <a href="{{ cmsroute($subItem) }}" class="{{ !$page->isSelfOrDescendantOf($subItem) ?: 'active' }} contrast">
                                                         {{ cms($subItem, 'name') }}

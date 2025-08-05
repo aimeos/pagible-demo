@@ -1,7 +1,7 @@
 <script>
   import gql from 'graphql-tag'
   import FileListItems from './FileListItems.vue'
-  import { useAppStore } from '../stores'
+  import { useAppStore, useMessageStore } from '../stores'
 
   export default {
     components: {
@@ -15,9 +15,13 @@
 
     emits: ['update:modelValue', 'add'],
 
+    inject: ['slugify', 'url'],
+
     setup() {
+      const messages = useMessageStore()
       const app = useAppStore()
-      return { app }
+
+      return { app, messages }
     },
 
     data() {
@@ -30,21 +34,35 @@
       }
     },
 
+    beforeUpdate() {
+      this.input = [this.context?.title, this.context?.text, this.context?.description].filter(Boolean).join("\n")
+    },
+
+    unmounted() {
+      this.items.forEach(item => {
+        if(item.path.startsWith('blob:')) {
+          URL.revokeObjectURL(item.path)
+        }
+      })
+
+      this.similar = []
+      this.items = []
+    },
+
+
     methods: {
       add(item) {
+        if(!item.path.startsWith('blob:')) {
+          this.$emit('add', [item])
+          return
+        }
+
         this.loading = true
 
-        fetch(this.app.urlproxy.replace(':url', encodeURIComponent(item.path)), {
-            credentials: 'include',
-            method: 'GET'
-        }).then(response => {
-          if(!response.ok) {
-            throw new Error(`Failed to fetch ${item.path}`, response)
-          }
-
+        fetch(item.path).then(response => {
           return response.blob()
         }).then(blob => {
-          const filename = item.name.replaceAll(' ', '-') + '_' + (new Date()).toISOString().replace(/[^0-9]/g, '') + '.png'
+          const filename = this.slugify(item.name) + '_' + (new Date()).toISOString().replace(/[^0-9]/g, '') + '.png'
 
           return this.$apollo.mutate({
             mutation: gql`mutation($input: FileInput, $file: Upload) {
@@ -74,12 +92,30 @@
           }
 
           Object.assign(item, response.data.addFile, {previews: JSON.parse(response.data.addFile.previews || '{}')})
+          // this.$refs.filelist.invalidate()
           this.$emit('add', [item])
         }).catch(error => {
-          this.$log(`FileAiDialog::add(): Error adding file for ${item.path}`, error)
+          this.messages.add(this.$gettext(`Error adding file %{path}`, {path: item?.path}), 'error')
+          this.$log(`FileAiDialog::add(): Error adding file`, error)
         }).finally(() => {
           this.loading = false
         })
+      },
+
+
+      base64ToBlob(base64, mimeType = 'image/png') {
+        if(!base64) {
+          return null
+        }
+
+        const binary = atob(base64);
+        const byteArray = new Uint8Array(binary.length);
+
+        for(let i = 0; i < binary.length; i++) {
+          byteArray[i] = binary.charCodeAt(i);
+        }
+
+        return new Blob([byteArray], { type: mimeType });
       },
 
 
@@ -92,13 +128,13 @@
         this.original = this.input
 
         this.$apollo.mutate({
-          mutation: gql`mutation($prompt: String!, $context: String, $images: [String!]) {
-            imagine(prompt: $prompt, context: $context, images: $images)
+          mutation: gql`mutation($prompt: String!, $context: String, $files: [String!]) {
+            imagine(prompt: $prompt, context: $context, files: $files)
           }`,
           variables: {
-            prompt: this.input,
-            context: this.context ? $gettext('Context in JSON format') + ":\n" + JSON.stringify(this.context) : '',
-            images: this.similar.map(item => item.path),
+            prompt: "Create as suitable image for:\n" + this.input,
+            context: this.context ? "Context in JSON format:\n" + JSON.stringify(this.context) : '',
+            files: this.similar.map(item => item.path),
           }
         }).then(response => {
           if(response.errors) {
@@ -109,26 +145,16 @@
           const list = response.data.imagine
           this.input = list.shift() || this.input
 
-          list.forEach(url => {
-            fetch(this.app.urlproxy.replace(':url', encodeURIComponent(url)), {
-                credentials: 'include',
-                method: 'HEAD'
-            }).then(response => {
-              if(!response.ok) {
-                throw new Error(`Failed to fetch ${url}`, response)
-              }
-
+          list.forEach(base64 => {
               this.items.unshift({
-                path: url,
-                mime: response.headers?.get('Content-Type'),
-                name: name.slice(0, name.lastIndexOf(' ', 100))
+                path: URL.createObjectURL(this.base64ToBlob(base64)),
+                name: name.slice(0, name.length > 100 ? name.lastIndexOf(' ', 100) : 100),
+                mime: 'image/png'
               })
-            }).catch(error => {
-              this.$log(`FileAiDialog::create(): Error fetching ${url}`, error)
-            })
           })
         }).catch(error => {
-          this.$log(`FileAiDialog::create(): Error creating files`, error)
+          this.messages.add(this.$gettext('Error creating file'), 'error')
+          this.$log(`FileAiDialog::create(): Error creating file`, error)
         }).finally(() => {
           this.loading = false
         })
@@ -145,14 +171,6 @@
       },
 
 
-      url(path) {
-        if(path.startsWith('http') || path.startsWith('blob:')) {
-          return path
-        }
-        return this.app.urlfile.replace(/\/+$/g, '') + '/' + path
-      },
-
-
       use(item) {
         if(!this.similar.find(entry => entry.path === item.path)) {
           this.similar.push(item)
@@ -163,7 +181,7 @@
 </script>
 
 <template>
-  <v-dialog :modelValue="modelValue" max-width="1200" scrollable>
+  <v-dialog :modelValue="modelValue" @afterLeave="$emit('update:modelValue', false)" max-width="1200" scrollable>
     <v-card :loading="loading ? 'primary' : false">
       <template v-slot:append>
         <v-btn
@@ -216,7 +234,8 @@
           </v-list>
         </div>
 
-        <div v-if="similar.length">
+        <!-- Not supported by Prism API yet -->
+        <!--div v-if="similar.length">
           <v-tabs>
             <v-tab>{{ $gettext('Use images of this style') }}</v-tab>
           </v-tabs>
@@ -234,7 +253,7 @@
         <v-tabs>
           <v-tab>{{ $gettext('Select similar images') }}</v-tab>
         </v-tabs>
-        <FileListItems :filter="{mime: 'image/'}" @select="use($event)" />
+        <FileListItems ref="filelist" :filter="{mime: 'image/'}" @select="use($event)" /-->
       </v-card-text>
     </v-card>
   </v-dialog>

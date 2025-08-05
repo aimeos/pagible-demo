@@ -6,10 +6,6 @@ See the [provider support table](/getting-started/introduction.html#provider-sup
 
 Note however that provider support may differ by model. If you receive error messages with a provider that Prism indicates is supported, check the provider's documentation as to whether the model you are using supports images.
 
-::: tip
-For other media types like videos, audio files, and YouTube videos, see the [Media documentation](/input-modalities/media.html).
-:::
-
 ## Getting started
 
 To add an image to your prompt, use the `withPrompt` method with an `Image` value object:
@@ -34,8 +30,8 @@ $response = Prism::text()
     ->withPrompt(
         "What's in this image?",
         [Image::fromStoragePath(
-            path: '/path/to/image.jpg', 
-            disk: 'my-disk' // optional - omit/null for default disk
+            path: '/path/to/image.jpg',
+            diskName: 'my-disk' // optional - omit/null for default disk
         )]
     )
     ->asText();
@@ -87,9 +83,9 @@ $response = Prism::text()
     ->asText();
 ```
 
-## Transfer mediums 
+## Transfer mediums
 
-Providers are not consistent in their support of sending raw contents, base64 and/or URLs (as noted above). 
+Providers are not consistent in their support of sending raw contents, base64 and/or URLs (as noted above).
 
 Prism tries to smooth over these rough edges, but its not always possible.
 

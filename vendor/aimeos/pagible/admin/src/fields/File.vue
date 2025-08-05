@@ -14,13 +14,14 @@
       FileDialog
     },
 
-    inject: ['openView'],
+    inject: ['openView', 'url', 'srcset'],
 
     props: {
       'modelValue': {type: [Object, null], default: () => null},
       'config': {type: Object, default: () => {}},
       'assets': {type: Object, default: () => {}},
       'readonly': {type: Boolean, default: false},
+      'context': {type: Object},
     },
 
     emits: ['update:modelValue', 'error', 'addFile', 'removeFile'],
@@ -50,17 +51,17 @@
     },
 
     methods: {
-      add(files) {
+      add(file) {
         if(!this.auth.can('file:add')) {
           this.messages.add(this.$gettext('Permission denied'), 'error')
           return
         }
 
-        if(!files?.length) {
+        if(!file) {
           return
         }
 
-        const path = URL.createObjectURL(files[0])
+        const path = URL.createObjectURL(file)
         this.file = {path: path, uploading: true}
 
         return this.$apollo.mutate({
@@ -76,7 +77,7 @@
             }
           }`,
           variables: {
-            file: files[0]
+            file: file
           },
           context: {
             hasUpload: true
@@ -92,8 +93,8 @@
 
           return this.handle(data, path)
         }).catch(error => {
-          this.messages.add(this.$gettext('Error uploading file'), 'error')
-          this.$log(`File::addFile(): Error uploading file`, ev, error)
+          this.messages.add(this.$gettext(`Error adding file %{path}`, {path: files[0]?.name}), 'error')
+          this.$log(`File::addFile(): Error adding file`, ev, error)
         }).finally(() => {
           this.selected = null
         })
@@ -107,7 +108,7 @@
         }
 
         this.file = {...item}
-        this.$emit('addFile', item.id)
+        this.$emit('addFile', item)
         this.$emit('update:modelValue', {id: item.id, type: 'file'})
         this.validate()
 
@@ -148,17 +149,9 @@
         const item = items.shift()
 
         this.file = {...item}
-        this.$emit('addFile', item.id)
+        this.$emit('addFile', item)
         this.$emit('update:modelValue', {id: item.id, type: 'file'})
         this.validate()
-      },
-
-
-      url(path) {
-        if(path.startsWith('http') || path.startsWith('blob:')) {
-          return path
-        }
-        return this.app.urlfile.replace(/\/+$/g, '') + '/' + path
       },
 
 
