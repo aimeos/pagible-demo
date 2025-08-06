@@ -3,8 +3,8 @@
 use Aimeos\Cms\Controllers;
 use Illuminate\Support\Facades\Route;
 
-\LaravelJsonApi\Laravel\Facades\JsonApiRoute::server("cms")->prefix("cms")->resources(function ($server) {
-    $server->resource("pages", \Aimeos\Cms\JsonApi\V1\Controllers\JsonapiController::class)->readOnly();
+\LaravelJsonApi\Laravel\Facades\JsonApiRoute::server('cms')->prefix('cms')->resources(function ($server) {
+    $server->resource('pages', \Aimeos\Cms\JsonApi\V1\Controllers\JsonapiController::class)->readOnly();
 });
 
 Route::get('cmsadmin/{path?}', [Controllers\AdminController::class, 'index'])

@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '2f427d93e7c1c73568c529708c3a135eb32f2c6b',
+        'reference' => '87ee59b9efe5f95ccbccba299e3254a449ccaa23',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'aimeos/pagible' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '64818fbca76d5de81a50fdd9300deb2119ee8fb6',
+            'reference' => 'b98df0bb1450f2f0761faeb73a0d3d78a6a6dbf4',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible',
             'aliases' => array(
@@ -61,9 +61,9 @@
             'dev_requirement' => false,
         ),
         'doctrine/dbal' => array(
-            'pretty_version' => '4.3.1',
-            'version' => '4.3.1.0',
-            'reference' => 'ac336c95ea9e13433d56ca81c308b39db0e1a2a7',
+            'pretty_version' => '4.3.2',
+            'version' => '4.3.2.0',
+            'reference' => '7669f131d43b880de168b2d2df9687d152d6c762',
             'type' => 'library',
             'install_path' => __DIR__ . '/../doctrine/dbal',
             'aliases' => array(),
@@ -543,7 +543,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '2f427d93e7c1c73568c529708c3a135eb32f2c6b',
+            'reference' => '87ee59b9efe5f95ccbccba299e3254a449ccaa23',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
