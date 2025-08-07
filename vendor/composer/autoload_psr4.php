@@ -57,6 +57,7 @@ return array(
     'PhpOption\\' => array($vendorDir . '/phpoption/phpoption/src/PhpOption'),
     'Nuwave\\Lighthouse\\' => array($vendorDir . '/nuwave/lighthouse/src'),
     'NunoMaduro\\Collision\\' => array($vendorDir . '/nunomaduro/collision/src'),
+    'Nette\\' => array($vendorDir . '/nette/utils/src'),
     'Neomerx\\JsonApi\\' => array($vendorDir . '/laravel-json-api/neomerx-json-api/src'),
     'Monolog\\' => array($vendorDir . '/monolog/monolog/src/Monolog'),
     'Mockery\\' => array($vendorDir . '/mockery/mockery/library/Mockery'),

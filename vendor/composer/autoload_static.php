@@ -199,6 +199,7 @@ class ComposerStaticInit3a2e4a865a32ad7405eb07756c6ddd83
         array (
             'Nuwave\\Lighthouse\\' => 18,
             'NunoMaduro\\Collision\\' => 21,
+            'Nette\\' => 6,
             'Neomerx\\JsonApi\\' => 16,
         ),
         'M' => 
@@ -499,6 +500,10 @@ class ComposerStaticInit3a2e4a865a32ad7405eb07756c6ddd83
         'NunoMaduro\\Collision\\' => 
         array (
             0 => __DIR__ . '/..' . '/nunomaduro/collision/src',
+        ),
+        'Nette\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/nette/utils/src',
         ),
         'Neomerx\\JsonApi\\' => 
         array (
