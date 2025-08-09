@@ -2,6 +2,22 @@
 
 All notable changes of the PHPUnit 11.5 release series are documented in this file using the [Keep a CHANGELOG](https://keepachangelog.com/) principles.
 
+## [11.5.29] - 2025-08-09
+
+### Added
+
+* [#6297](https://github.com/sebastianbergmann/phpunit/issues/6297): `--check-php-configuration` CLI option for checking whether PHP is configured for testing
+
+### Changed
+
+* `#[IgnorePhpunitDeprecations]` is now considered for test runner deprecations (where applicable)
+
+### Fixed
+
+* [#6160](https://github.com/sebastianbergmann/phpunit/issues/6160): Baseline file in a subdirectory contains absolute paths
+* Errors due to invalid data provided using `#[TestWith]` or `#[TestWithJson]` attributes are now properly reported
+* The `DataProviderMethodFinished` event is now also emitted when the provided data set has an invalid key
+
 ## [11.5.28] - 2025-07-31
 
 ### Fixed
@@ -257,6 +273,7 @@ All notable changes of the PHPUnit 11.5 release series are documented in this fi
 * [#6055](https://github.com/sebastianbergmann/phpunit/issues/6055): `assertNotContainsOnly()` (use `assertContainsNotOnlyArray()`, `assertContainsNotOnlyBool()`, `assertContainsNotOnlyCallable()`, `assertContainsNotOnlyFloat()`, `assertContainsNotOnlyInt()`, `assertContainsNotOnlyIterable()`, `assertContainsNotOnlyNumeric()`, `assertContainsNotOnlyObject()`, `assertContainsNotOnlyResource()`, `assertContainsNotOnlyClosedResource()`, `assertContainsNotOnlyScalar()`, or `assertContainsNotOnlyString()` instead)
 * [#6059](https://github.com/sebastianbergmann/phpunit/issues/6059): `containsOnly()` (use `containsOnlyArray()`, `containsOnlyBool()`, `containsOnlyCallable()`, `containsOnlyFloat()`, `containsOnlyInt()`, `containsOnlyIterable()`, `containsOnlyNumeric()`, `containsOnlyObject()`, `containsOnlyResource()`, `containsOnlyClosedResource()`, `containsOnlyScalar()`, or `containsOnlyString()` instead)
 
+[11.5.29]: https://github.com/sebastianbergmann/phpunit/compare/11.5.28...11.5.29
 [11.5.28]: https://github.com/sebastianbergmann/phpunit/compare/11.5.27...11.5.28
 [11.5.27]: https://github.com/sebastianbergmann/phpunit/compare/11.5.26...11.5.27
 [11.5.26]: https://github.com/sebastianbergmann/phpunit/compare/11.5.25...11.5.26

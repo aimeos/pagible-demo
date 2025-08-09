@@ -562,6 +562,8 @@
         @update:modelValue="$emit('update:content', $event)"
         :disabled="panel.length || !auth.can('page:save')"
         :modelValue="content"
+        :forceFallback="true"
+        fallbackTolerance="10"
         draggable=".content"
         group="content">
 
