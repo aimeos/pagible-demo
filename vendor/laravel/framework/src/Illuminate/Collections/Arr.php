@@ -263,13 +263,9 @@ class Arr
             return value($default);
         }
 
-        foreach ($array as $key => $value) {
-            if ($callback($value, $key)) {
-                return $value;
-            }
-        }
+        $key = array_find_key($array, $callback);
 
-        return value($default);
+        return $key !== null ? $array[$key] : value($default);
     }
 
     /**
@@ -561,13 +557,7 @@ class Arr
      */
     public static function every($array, callable $callback)
     {
-        foreach ($array as $key => $value) {
-            if (! $callback($value, $key)) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($array, $callback);
     }
 
     /**
@@ -579,13 +569,7 @@ class Arr
      */
     public static function some($array, callable $callback)
     {
-        foreach ($array as $key => $value) {
-            if ($callback($value, $key)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($array, $callback);
     }
 
     /**
@@ -975,6 +959,23 @@ class Arr
         $array[array_shift($keys)] = $value;
 
         return $array;
+    }
+
+    /**
+     * Push an item into an array using "dot" notation.
+     *
+     * @param  \ArrayAccess|array  $array
+     * @param  string|int|null  $key
+     * @param  mixed  $values
+     * @return array
+     */
+    public static function push(ArrayAccess|array &$array, string|int|null $key, mixed ...$values): array
+    {
+        $target = static::array($array, $key, []);
+
+        array_push($target, ...$values);
+
+        return static::set($array, $key, $target);
     }
 
     /**

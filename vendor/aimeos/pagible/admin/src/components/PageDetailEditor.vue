@@ -185,7 +185,8 @@
         @click="edit()"
         :title="$gettext('Edit element')"
         icon="mdi-pencil"
-        variant="flat"
+        variant="text"
+        elevation="0"
       />
       <v-btn v-if="index !== -1"
         @click="vschemas = true; pos = 0"
@@ -266,7 +267,7 @@
     color: rgb(var(--v-theme-surface));
     border-radius: 50%;
     position: absolute;
-    bottom: 10px;
+    bottom: 50px;
     right: 20px;
     z-index: 1000;
     opacity: 0.85;

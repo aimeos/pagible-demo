@@ -435,7 +435,7 @@
       <v-menu location="bottom left">
         <template #activator="{ props }">
           <v-btn v-bind="props"
-            :disabled="!isChecked && this.embed"
+            :disabled="!isChecked"
             append-icon="mdi-menu-down"
             variant="text"
           >{{ $gettext('Actions') }}</v-btn>
@@ -476,13 +476,15 @@
         @click="vgrid = true"
         :title="$gettext('Grid view')"
         icon="mdi-view-grid-outline"
-        variant="flat"
+        variant="text"
+        elevation="0"
       />
       <v-btn v-if="vgrid"
         @click="vgrid = false"
         :title="$gettext('List view')"
         icon="mdi-format-list-bulleted-square"
-        variant="flat"
+        variant="text"
+        elevation="0"
       />
 
       <v-menu location="bottom right">
@@ -604,6 +606,7 @@
       :title="$gettext('Add files')"
       icon="mdi-folder-plus"
       color="primary"
+      variant="flat"
     />
   </div>
 </template>
@@ -651,7 +654,7 @@
 
   .items.grid .v-list-item {
     grid-template-rows: max-content;
-    border: 1px solid rgb(var(--v-theme-primary));
+    border: 1px solid rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
   }
 
   .items.grid .v-list-item .item-check,
@@ -661,16 +664,9 @@
     opacity: 0.66;
     border-radius: 50%;
     position: absolute;
-    display: none;
+    display: block;
     z-index: 2;
     top: 0;
-  }
-
-  .items.grid .v-list-item:hover .item-menu,
-  .items.grid .v-list-item:hover .item-check,
-  .items.grid .v-list-item .item-check.draft,
-  .items.grid .v-list-item .item-check:has(input:checked) {
-    display: block;
   }
 
   .items.grid .v-list-item .item-check {
@@ -693,5 +689,14 @@
 
   .items.grid .item-open {
     display: none;
+  }
+
+  .items.grid .item-content {
+    flex-direction: column;
+  }
+
+  .items.grid .item-aux {
+    text-align: start;
+    width: 100%;
   }
 </style>

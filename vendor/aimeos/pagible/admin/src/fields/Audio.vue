@@ -15,7 +15,7 @@
   <v-row>
     <v-col cols="12" md="6">
       <div class="files" :class="{readonly: readonly}">
-        <div v-if="file.id" class="file" @click="open(file)" :title="$gettext('Edit file')">
+        <div v-if="file.id" class="file" @click="open(file)" :title="$gettext('Edit')">
           <v-progress-linear v-if="file.uploading"
             color="primary"
             height="5"
@@ -28,49 +28,59 @@
             controls
           />
 
-          <v-btn v-if="!readonly"
-            @click.stop="menu = !menu"
-            :title="$gettext('Open menu')"
-            icon="mdi-dots-vertical"
-            class="btn-overlay"
-            variant="flat"
-          />
-          <v-menu v-if="menu">
+          <v-menu v-if="file.id && !readonly">
             <template v-slot:activator="{ props }">
-              <div class="menu-overlay">
-                <v-btn
-                  @click.stop="open(file)"
-                  :title="$gettext('Edit file')"
-                  icon="mdi-pencil"
-                  variant="flat"
-                />
-                <v-btn
-                  @click.stop="remove()"
-                  :title="$gettext('Remove file')"
-                  icon="mdi-trash-can"
-                  variant="flat"
-                />
-              </div>
+              <v-btn v-bind="props"
+                :title="$gettext('Open menu')"
+                icon="mdi-dots-vertical"
+                class="btn-overlay"
+                variant="text"
+                elevation="0"
+              />
             </template>
+            <v-list>
+              <v-list-item v-if="auth.can('file:view')">
+                <v-btn
+                  @click="open(file)"
+                  prepend-icon="mdi-pencil"
+                  variant="text"
+                  elevation="0">
+                  {{ $gettext('Edit') }}
+                </v-btn>
+              </v-list-item>
+              <v-list-item>
+                <v-btn
+                  @click="remove()"
+                  prepend-icon="mdi-trash-can"
+                  variant="text"
+                  elevation="0">
+                  {{ $gettext('Remove') }}
+                </v-btn>
+              </v-list-item>
+            </v-list>
           </v-menu>
         </div>
+
         <div v-else-if="!readonly" class="file">
           <v-btn v-if="auth.can('file:view')"
             @click="vfiles = true"
             :title="$gettext('Add file')"
             icon="mdi-button-cursor"
-            variant="flat"
+            variant="text"
+            elevation="0"
           ></v-btn>
           <v-btn
             @click="vurls = true"
             :title="$gettext('Add file from URL')"
             icon="mdi-link-variant-plus"
-            variant="flat"
+            variant="text"
+            elevation="0"
           ></v-btn>
           <v-btn
             :title="$gettext('Upload file')"
             icon="mdi-upload"
-            variant="flat">
+            variant="text"
+            elevation="0">
             <v-file-input
               v-model="selected"
               @update:modelValue="add($event)"
