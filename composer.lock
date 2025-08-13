@@ -12,12 +12,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "e3b82ed7ec6c9ca20d832c7bdbb9d62015a02cd3"
+                "reference": "fc8034271f8992ee3b5dfa159b6c1c126ccdbfb9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/e3b82ed7ec6c9ca20d832c7bdbb9d62015a02cd3",
-                "reference": "e3b82ed7ec6c9ca20d832c7bdbb9d62015a02cd3",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/fc8034271f8992ee3b5dfa159b6c1c126ccdbfb9",
+                "reference": "fc8034271f8992ee3b5dfa159b6c1c126ccdbfb9",
                 "shasum": ""
             },
             "require": {
@@ -80,7 +80,7 @@
                 "issues": "https://github.com/aimeos/pagible/issues",
                 "source": "https://github.com/aimeos/pagible/tree/master"
             },
-            "time": "2025-08-13T23:03:45+00:00"
+            "time": "2025-08-13T23:31:43+00:00"
         },
         {
             "name": "brick/math",

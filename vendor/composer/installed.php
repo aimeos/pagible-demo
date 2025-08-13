@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '8c31771af97b60789fd3ed2e8edc3ae58a9ec502',
+        'reference' => '9b1472f058e80c696c9be0dc58e4228b68e5b924',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'aimeos/pagible' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'e3b82ed7ec6c9ca20d832c7bdbb9d62015a02cd3',
+            'reference' => 'fc8034271f8992ee3b5dfa159b6c1c126ccdbfb9',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible',
             'aliases' => array(
@@ -543,7 +543,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '8c31771af97b60789fd3ed2e8edc3ae58a9ec502',
+            'reference' => '9b1472f058e80c696c9be0dc58e4228b68e5b924',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
