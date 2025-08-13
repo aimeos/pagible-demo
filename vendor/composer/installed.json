@@ -7,12 +7,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "d2bbda4d4f932ac212dfbea6764dae0630c3c03e"
+                "reference": "e3b82ed7ec6c9ca20d832c7bdbb9d62015a02cd3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/d2bbda4d4f932ac212dfbea6764dae0630c3c03e",
-                "reference": "d2bbda4d4f932ac212dfbea6764dae0630c3c03e",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/e3b82ed7ec6c9ca20d832c7bdbb9d62015a02cd3",
+                "reference": "e3b82ed7ec6c9ca20d832c7bdbb9d62015a02cd3",
                 "shasum": ""
             },
             "require": {
@@ -34,7 +34,7 @@
                 "om/potrans": "dev-master",
                 "orchestra/testbench": "^9.0||^10.0"
             },
-            "time": "2025-08-13T22:46:29+00:00",
+            "time": "2025-08-13T23:03:45+00:00",
             "default-branch": true,
             "type": "library",
             "extra": {
