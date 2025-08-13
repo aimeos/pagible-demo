@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '4cfa23c25653ba10bad9bd84234c14a0cce5b28e',
+        'reference' => 'ab975d553c2f71a1d3f9ffe646868ff5bd7a7443',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'aimeos/pagible' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'e69db2c03cb0387ece714a5f7d754d1e2051db59',
+            'reference' => 'd2bbda4d4f932ac212dfbea6764dae0630c3c03e',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible',
             'aliases' => array(
@@ -543,7 +543,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '4cfa23c25653ba10bad9bd84234c14a0cce5b28e',
+            'reference' => 'ab975d553c2f71a1d3f9ffe646868ff5bd7a7443',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -981,8 +981,8 @@
         'psr/log-implementation' => array(
             'dev_requirement' => false,
             'provided' => array(
-                0 => '3.0.0',
-                1 => '1.0|2.0|3.0',
+                0 => '1.0|2.0|3.0',
+                1 => '3.0.0',
             ),
         ),
         'psr/simple-cache' => array(
