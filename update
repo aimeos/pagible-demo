@@ -1,0 +1,8 @@
+#/bin/bash
+
+echo no | composer up
+php artisan vendor:publish --force --provider=Aimeos\\Cms\\CmsServiceProvider
+git add .
+git commit -m "Package update"
+git push
+kubectl -n demo rollout restart deployment.apps/pagible-demo
