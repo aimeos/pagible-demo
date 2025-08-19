@@ -62,8 +62,6 @@ class Text
             ),
         );
 
-        $this->responseBuilder->addResponseMessage($responseMessage);
-
         $request->addMessage($responseMessage);
 
         return match ($this->mapFinishReason($data)) {

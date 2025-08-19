@@ -225,12 +225,15 @@ class Page extends Model
     /**
      * Get the navigation for the page.
      *
+     * @param int $level Starting level for the navigation (default: 0 for root page)
      * @return \Kalnoy\Nestedset\Collection Collection of ancestor pages
      */
-    public function nav() : \Kalnoy\Nestedset\Collection
+    public function nav( $level = 0 ) : \Kalnoy\Nestedset\Collection
     {
-        $root = $this->ancestors->first() ?: $this;
-        return $root?->subtree?->toTree() ?: new \Kalnoy\Nestedset\Collection();
+        return $this->withDepth()->ancestorsAndSelf( $this->id )
+            ->skip( $level )->first()
+            ?->subtree?->toTree()
+            ?? new \Kalnoy\Nestedset\Collection();
     }
 
 
@@ -337,7 +340,7 @@ class Page extends Model
                 'id', 'tenant_id', 'parent_id', 'lang', 'path', 'domain', 'to', 'name', 'title',
                 'status', 'created_at', 'updated_at', 'deleted_at', '_lft', '_rgt'
             )
-            ->having( 'depth', '<=', ( $this->depth ?? 0 ) + 3 )
+            ->having( 'depth', '<=', ( $this->depth ?? 0 ) + config( 'cms.navdepth', 2 ) )
             ->defaultOrder();
 
         return new DescendantsRelation( $builder, $this );

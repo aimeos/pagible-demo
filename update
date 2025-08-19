@@ -1,6 +1,7 @@
 #/bin/bash
 
 echo no | composer up
+rm -r public/vendor/cms/admin/
 php artisan vendor:publish --force --provider=Aimeos\\Cms\\CmsServiceProvider
 git add .
 git commit -m "Package update"

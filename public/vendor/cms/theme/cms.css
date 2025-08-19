@@ -1,6 +1,8 @@
 :root {
     --pico-nav-breadcrumb-divider: '>';
+    --pico-block-spacing-vertical: 0;
     --pico-nav-element-spacing-horizontal: 1rem;
+    --pico-nav-element-spacing-vertical: 0.75rem;
     --pico-nav-link-spacing-vertical: 0.625rem;
     --pico-nav-link-spacing-horizontal: 0.625rem;
 }
@@ -8,19 +10,6 @@
 body {
     line-height: 1.6;
     scroll-behavior: smooth;
-}
-
-body.type-page {
-    --pico-block-spacing-vertical: 0;
-    --pico-block-spacing-horizontal: 0;
-}
-
-body.type-page .cms-content .container {
-    padding: 60px 10px;
-}
-
-body.type-page .cms-content > :nth-of-type(3n) {
-    background-color: var(--pico-background-color);
 }
 
 nav ol:first-of-type, nav ul:first-of-type,
@@ -70,18 +59,31 @@ header nav details[open] summary::after {
     transform: rotate(0.5turn) translateX(0);
 }
 
-header nav details.dropdown > summary + ul.right {
+header nav details.dropdown > summary + ul.align {
     left: auto;
     right: 0;
 }
 
+[dir="rtl"] header nav details.dropdown > summary + ul.align {
+    right: auto;
+    left: 0;
+}
+
+header nav .brand {
+    flex-grow: 1;
+}
+
 header nav .menu-open,
-header nav .menu-close {
+header nav .menu-close,
+header nav .sidebar-open,
+header nav .sidebar-close {
     display: none;
 }
 
 header nav .menu-open button,
-header nav .menu-close button {
+header nav .menu-close button,
+header nav .sidebar-open button,
+header nav .sidebar-close button {
     background: none;
     border: none;
     padding: 1rem;
@@ -131,18 +133,8 @@ details summary {
     line-height: inherit;
 }
 
-h1, h2 {
+h1, h2, h3 {
     text-align: center;
-}
-
-.type-page .heading h1,
-.type-page .heading h2,
-.type-page .heading h3 {
-    margin: 0;
-}
-
-.type-page .text p:last-of-type {
-    margin-bottom: 0;
 }
 
 img {
@@ -155,7 +147,8 @@ img {
 }
 
 .code .container,
-.text .container {
+.text .container,
+.heading .container {
     max-width: 960px !important;
 }
 
@@ -219,11 +212,13 @@ img {
 }
 
 footer,
-.copyright {
+footer h1,
+footer h2,
+footer h3{
     background-color: var(--pico-primary-background);
     color: var(--pico-primary-inverse);
 }
 
-.copyright {
+footer.copyright {
     text-align: center;
 }

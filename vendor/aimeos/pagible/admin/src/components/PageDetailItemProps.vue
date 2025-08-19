@@ -75,7 +75,7 @@
 
       setPath(focused) {
         if(!focused && this.item.path?.at(0) === '_') {
-          this.updatePath(this.item.name)
+          this.updatePath(this.item.title)
         }
       },
 
@@ -88,6 +88,7 @@
 
       updatePath(value) {
         this.update('path', this.slugify(value))
+        this.checkPath()
       },
 
 
@@ -187,8 +188,8 @@
             :readonly="readonly"
             :modelValue="item.path"
             :label="$gettext('URL path')"
-            @update:modelValue="updatePath($event); messages.path = null"
-            @change="checkPath()"
+            @update:modelValue="update('path', $event)"
+            @change="updatePath($event.target.value)"
             variant="underlined"
             maxlength="255"
             counter="255"
