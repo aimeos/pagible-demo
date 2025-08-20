@@ -133,8 +133,12 @@ details summary {
     line-height: inherit;
 }
 
-h1, h2, h3 {
+h1, h2 {
     text-align: center;
+}
+
+p {
+    overflow: auto;
 }
 
 img {
@@ -209,6 +213,11 @@ img {
 
 .table caption {
     text-align: center;
+}
+
+ol ol, ul ul, ol ul, ul ol {
+    margin-bottom: 0;
+    margin-top: 0;
 }
 
 footer,

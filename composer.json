@@ -40,7 +40,7 @@
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
             "rm -r public/vendor/cms/admin/",
-            "@php artisan vendor:publish --force --provider=Aimeos\\\\Cms\\\\CmsServiceProvider"
+            "@php artisan vendor:publish --force --provider=Aimeos\\\\Cms\\\\CmsServiceProvider",
             "@php artisan migrate --force"
         ],
         "post-root-package-install": [

@@ -270,6 +270,8 @@ static function isInputType($type): bool
  *
  * @return (Type&NamedType)|null
  *
+ * @phpstan-return ($type is null ? null : Type&NamedType)
+ *
  * @api
  */
 static function getNamedType(?GraphQL\Type\Definition\Type $type): ?GraphQL\Type\Definition\Type
@@ -1327,10 +1329,10 @@ visitor API:
 3. Generic visitors that trigger upon entering and leaving any node.
 
    Visitor::visit($ast, [
-      'enter' => function ($node) {
+   'enter' => function (Node $node) {
    // enter any node
    },
-   'leave' => function ($node) {
+   'leave' => function (Node $node) {
    // leave any node
    }
    ]);
@@ -1350,7 +1352,7 @@ visitor API:
    ]
    ]);
 
-@phpstan-type NodeVisitor callable(Node): (VisitorOperation|null|false|void)
+@phpstan-type NodeVisitor callable(Node): (VisitorOperation|Node|NodeList<Node>|null|false|void)
 @phpstan-type VisitorArray array<string, NodeVisitor>|array<string, array<string, NodeVisitor>>
 
 @see \GraphQL\Tests\Language\VisitorTest
