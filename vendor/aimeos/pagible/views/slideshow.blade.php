@@ -1,5 +1,5 @@
 @pushOnce('css')
-<link type="text/css" rel="stylesheet" href="{{ cmsasset('vendor/cms/theme/slideshow.css') }}">
+<link href="{{ cmsasset('vendor/cms/theme/slideshow.css') }}" rel="stylesheet">
 @endPushOnce
 
 @pushOnce('js')
@@ -15,7 +15,7 @@
 	<div class="slider-container">
 		@foreach($data->files ?? [] as $item)
 			@if($file = cms($files, @$item->id))
-				@include('cms::pic', ['file' => $file])
+				@include('cms::pic', ['file' => $file, 'sizes' => '(max-width: 1180px) 100vw, 1180px'])
 			@else
 				<!-- no image file -->
 			@endif

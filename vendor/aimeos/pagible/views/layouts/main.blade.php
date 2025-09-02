@@ -33,6 +33,8 @@
         @if(\Aimeos\Cms\Permission::can('page:save', auth()->user()))
             <link href="{{ cmsasset('vendor/cms/admin/editor.css') }}" rel="stylesheet">
             <script defer src="{{ cmsasset('vendor/cms/admin/editor.js') }}"></script>
+        @else
+            <script defer src="{{ cmsasset('vendor/cms/theme/stats.js') }}"></script>
         @endif
     </head>
     <body class="theme-{{ cms($page, 'theme') ?: 'cms' }} type-{{ cms($page, 'type') ?: 'page' }}">
@@ -125,17 +127,8 @@
 
         @yield('main')
 
-        <footer class="cms-content" data-section="footer">
-            @foreach($content['footer'] ?? [] as $item)
-                @if($el = cmsref($page, $item))
-                    <div id="{{ cmsattr(@$item->id) }}" class="{{ cmsattr(@$el->type) }}">
-                        <div class="container">
-                            @includeFirst(cmsviews($page, $el), cmsdata($page, $el))
-                        </div>
-                    </div>
-                @endif
-            @endforeach
-        </footer>
+        @yield('footer')
+
         <footer class="copyright">
             &copy; {{ date('Y') }} {{ config('app.name') }}
         </footer>

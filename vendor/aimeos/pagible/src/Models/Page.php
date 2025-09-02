@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
@@ -99,8 +100,6 @@ class Page extends Model
         'title',
         'type',
         'theme',
-        'config',
-        'content',
         'status',
         'cache',
     ];
@@ -111,6 +110,29 @@ class Page extends Model
      * @var string
      */
     protected $table = 'cms_pages';
+
+
+    /**
+     * Get query ancestors of the node.
+     *
+     * @return  AncestorsRelation
+     */
+    public function ancestors()
+    {
+        $query = $this->newScopedQuery()->setModel(new Nav());
+        return new AncestorsRelation($query, $this);
+    }
+
+
+    /**
+     * Relation to children.
+     *
+     * @return HasMany
+     */
+    public function children()
+    {
+        return $this->hasMany(Nav::class, $this->getParentIdName())->defaultOrder()->setModel(new Nav());
+    }
 
 
     /**
@@ -223,6 +245,17 @@ class Page extends Model
 
 
     /**
+     * Get the menu for the page.
+     *
+     * @return DescendantsRelation Eloquent relationship to the descendants of the page
+     */
+    public function menu() : DescendantsRelation
+    {
+        return ( $this->ancestors->first() ?? $this )?->subtree();
+    }
+
+
+    /**
      * Get the navigation for the page.
      *
      * @param int $level Starting level for the navigation (default: 0 for root page)
@@ -234,6 +267,17 @@ class Page extends Model
             ->skip( $level )->first()
             ?->subtree?->toTree()
             ?? new \Kalnoy\Nestedset\Collection();
+    }
+
+
+    /**
+     * Relation to the parent.
+     *
+     * @return BelongsTo
+     */
+    public function parent()
+    {
+        return $this->belongsTo(Nav::class, $this->getParentIdName())->setModel(new Nav());
     }
 
 
@@ -261,7 +305,10 @@ class Page extends Model
             $this->files()->sync( $version->files ?? [] );
             $this->elements()->sync( $version->elements ?? [] );
 
-            $this->fill( (array) $version->data + (array) $version->aux );
+            $this->fill( (array) $version->data );
+            $this->content = @$version->aux->content;
+            $this->config = @$version->aux->config;
+            $this->meta = @$version->aux->meta;
             $this->editor = $version->editor;
             $this->save();
 
@@ -270,6 +317,7 @@ class Page extends Model
 
         }, 3 );
 
+        Cache::forget( static::key( $this ) );
         return $this;
     }
 
@@ -341,7 +389,8 @@ class Page extends Model
                 'status', 'created_at', 'updated_at', 'deleted_at', '_lft', '_rgt'
             )
             ->having( 'depth', '<=', ( $this->depth ?? 0 ) + config( 'cms.navdepth', 2 ) )
-            ->defaultOrder();
+            ->defaultOrder()
+            ->setModel(new Nav());
 
         return new DescendantsRelation( $builder, $this );
     }

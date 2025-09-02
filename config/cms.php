@@ -13,12 +13,16 @@ return [
     |
     */
     'ai' => [
-        'text' => env( 'CMS_AI_TEXT', 'gemini' ),
-        'text-model' => env( 'CMS_AI_TEXT_MODEL', 'gemini-2.0-flash' ),
-        'image' => env( 'CMS_AI_IMAGE', 'openai' ),
-        'image-model' => env( 'CMS_AI_IMAGE_MODEL', 'dall-e-3' ),
-        'audio' => env( 'CMS_AI_AUDIO', 'openai' ),
-        'audio-model' => env( 'CMS_AI_AUDIO_MODEL', 'whisper-1' ),
+        'maxtoken' => env( 'CMS_AI_MAXTOKEN' ), // maxium tokenss per request
+
+        'text' => env( 'CMS_AI_TEXT' ),                 // gemini
+        'text-model' => env( 'CMS_AI_TEXT_MODEL' ),     // gemini-2.5-flash
+        'struct' => env( 'CMS_AI_STRUCT' ),             // gemini
+        'struct-model' => env( 'CMS_AI_STRUCT_MODEL' ), // gemini-2.5-flash
+        'image' => env( 'CMS_AI_IMAGE' ),               // openai
+        'image-model' => env( 'CMS_AI_IMAGE_MODEL' ),   // dall-e-3
+        'audio' => env( 'CMS_AI_AUDIO' ),               // openai
+        'audio-model' => env( 'CMS_AI_AUDIO_MODEL' ),   // whisper-1
     ],
 
     /*
@@ -74,6 +78,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | JSON:API settings
+    |--------------------------------------------------------------------------
+    |
+    | The "jsonapi_maxdepth" setting defines the maximum depth of the JSON:API
+    | resource relationships that will be included in the response.
+    | Example: 1 = include=children; 2 = include=children,children.children
+    |
+    */
+    'jsonapi_maxdepth' => env( 'CMS_JSONAPI_MAXDEPTH', 1 ),
+
+    /*
+    |--------------------------------------------------------------------------
     | Multi-domain support
     |--------------------------------------------------------------------------
     |
@@ -91,7 +107,7 @@ return [
     | The maximum depth of the navigation tree menu that will be displayed.
     |
     */
-    'navdepth' => env( 'CMS_NAVDEPTH', 2 ),
+    'menu_maxdepth' => env( 'CMS_MENU_MAXDEPTH', 2 ),
 
     /*
     |--------------------------------------------------------------------------

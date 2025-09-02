@@ -4,12 +4,22 @@
 <link href="{{ cmsasset('vendor/cms/theme/layout-docs.css') }}" rel="stylesheet">
 @endPushOnce
 
+@once('prism')
+    @pushOnce('css')
+    <link href="{{ cmsasset('vendor/cms/theme/prism.css') }}" rel="stylesheet">
+    @endPushOnce
+
+    @pushOnce('js')
+    <script defer src="{{ cmsasset('vendor/cms/theme/prism.js') }}"></script>
+    @endPushOnce
+@endOnce
+
 
 @section('main')
     <main>
         <nav class="sidebar">
             <ul class="menu">
-                @foreach($page->nav(2) as $item)
+                @foreach($page->nav(1) as $item)
                     @if(cms($item, 'status') == 1)
                         <li>
                             @if($item->children->count() && $page->isSelfOrDescendantOf($item))
@@ -39,8 +49,6 @@
                                 </a>
                             @endif
                         </li>
-                    @else
-                        @break
                     @endif
                 @endforeach
             </ul>
@@ -62,4 +70,19 @@
             </div>
         </div>
     </main>
+@endsection
+
+
+@section('footer')
+    <footer class="cms-content" data-section="footer">
+        @foreach($content['footer'] ?? [] as $item)
+            @if($el = cmsref($page, $item))
+                <div id="{{ cmsattr(@$item->id) }}" class="{{ cmsattr(@$el->type) }}">
+                    <div class="container">
+                        @includeFirst(cmsviews($page, $el), cmsdata($page, $el))
+                    </div>
+                </div>
+            @endif
+        @endforeach
+    </footer>
 @endsection

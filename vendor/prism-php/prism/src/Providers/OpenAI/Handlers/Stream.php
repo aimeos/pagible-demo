@@ -16,6 +16,7 @@ use Prism\Prism\Exceptions\PrismChunkDecodeException;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Exceptions\PrismRateLimitedException;
 use Prism\Prism\Providers\OpenAI\Concerns\BuildsTools;
+use Prism\Prism\Providers\OpenAI\Concerns\ProcessRateLimits;
 use Prism\Prism\Providers\OpenAI\Maps\FinishReasonMap;
 use Prism\Prism\Providers\OpenAI\Maps\MessageMap;
 use Prism\Prism\Providers\OpenAI\Maps\ToolChoiceMap;
@@ -33,6 +34,7 @@ class Stream
 {
     use BuildsTools;
     use CallsTools;
+    use ProcessRateLimits;
 
     public function __construct(protected PendingRequest $client) {}
 
@@ -120,13 +122,13 @@ class Stream
             if (data_get($data, 'type') === 'response.completed') {
                 yield new Chunk(
                     text: '',
+                    chunkType: ChunkType::Meta,
                     usage: new Usage(
                         promptTokens: data_get($data, 'response.usage.input_tokens'),
                         completionTokens: data_get($data, 'response.usage.output_tokens'),
                         cacheReadInputTokens: data_get($data, 'response.usage.input_tokens_details.cached_tokens'),
                         thoughtTokens: data_get($data, 'response.usage.output_tokens_details.reasoning_tokens')
                     ),
-                    chunkType: ChunkType::Meta,
                 );
             }
         }

@@ -75,10 +75,19 @@ class GraphqlTest extends TestAbstract
         $this->seed( CmsSeeder::class );
 
         $file = File::firstOrFail();
-        $fake = ImageResponseFake::make();
+        $image = base64_encode( file_get_contents( __DIR__ . '/assets/image.png' ) );
 
-        Prism::fake( [$fake] );
-        $image = \Prism\Prism\ValueObjects\Media\Image::fromUrl( $fake->firstImage()?->url )->base64();
+        Prism::fake( [new \Prism\Prism\Images\Response(
+            images: [
+                new \Prism\Prism\ValueObjects\GeneratedImage(
+                    revisedPrompt: null,
+                    base64: $image,
+                ),
+            ],
+            usage: new \Prism\Prism\ValueObjects\Usage(0, 0),
+            meta: new \Prism\Prism\ValueObjects\Meta('fake', 'fake'),
+            additionalContent: [],
+        )] );
 
         $response = $this->actingAs( $this->user )->graphQL( "
             mutation {
@@ -95,9 +104,100 @@ class GraphqlTest extends TestAbstract
     }
 
 
+    public function testRefine()
+    {
+        Prism::fake( [
+            \Prism\Prism\Testing\StructuredResponseFake::make()->withStructured( [
+                'contents' => [[
+                    'id' => 'content-1',
+                    'type' => 'text',
+                    'data' => [
+                        ['name' => 'title', 'value' => 'Generated title'],
+                        ['name' => 'body', 'value' => 'Generated body content'],
+                    ]
+                ] ]
+            ] )
+        ] );
+
+        $response = $this->actingAs( $this->user )->graphQL( '
+            mutation($prompt: String!, $content: JSON!, $type: String, $context: String) {
+                refine(prompt: $prompt, content: $content, type: $type, context: $context)
+            }
+        ', [
+            'prompt' => 'Refine this content',
+            'context' => 'Testing refine mutation',
+            'type' => 'content',
+            'content' => json_encode( [ [
+                'id' => 'content-1',
+                'type' => 'text',
+                'data' => [
+                    'title' => 'Old title',
+                    'body' => 'Old body'
+                ]
+            ] ] ),
+        ] );
+
+        $response->assertJson( [
+            'data' => [
+                'refine' => json_encode( [ [
+                    'id' => 'content-1',
+                    'type' => 'text',
+                    'data' => [
+                        'title' => 'Generated title',
+                        'body' => 'Generated body content'
+                    ]
+                ] ] )
+            ]
+        ] );
+    }
+
+
+    public function testSynthesize()
+    {
+        $this->seed( CmsSeeder::class );
+
+        $file = File::firstOrFail();
+        $fake = \Prism\Prism\Testing\TextResponseFake::make()
+            ->withSteps( collect( [
+                new \Prism\Prism\Text\Step(
+                    'text',
+                    \Prism\Prism\Enums\FinishReason::Stop,
+                    [
+                        new \Prism\Prism\ValueObjects\ToolCall( '1', 'summarize', ['text' => str_repeat( 'A', 80 )] ),
+                        new \Prism\Prism\ValueObjects\ToolCall( '2', 'classify', ['category' => 'example'] ),
+                    ],
+                    [],
+                    new \Prism\Prism\ValueObjects\Usage(0, 0),
+                    new \Prism\Prism\ValueObjects\Meta('fake', 'fake'),
+                    [],
+                    []
+                ),
+            ] ) )
+            ->withText('This is the generated response.');
+
+        \Prism\Prism\Prism::fake([$fake]);
+
+        $response = $this->actingAs($this->user)->graphQL('
+            mutation($prompt: String!, $context: String, $files: [String!]) {
+                synthesize(prompt: $prompt, context: $context, files: $files)
+            }
+        ', [
+            'prompt' => 'Refine this content',
+            'context' => 'Testing synthesize mutation',
+            'files'   => [$file->id],
+        ]);
+
+        $json = $response->json();
+
+        $this->assertStringStartsWith("Done\n---\n", $json['data']['synthesize']);
+        $this->assertStringContainsString('summarize', $json['data']['synthesize']);
+        $this->assertStringContainsString('classify', $json['data']['synthesize']);
+    }
+
+
     public function testTranscribe()
     {
-        Prism::fake( [new \Prism\Prism\Audio\TextResponse( 'Fake transcription' )] );
+        Prism::fake( [new \Prism\Prism\Audio\TextResponse( '[]' )] );
 
         $response = $this->actingAs( $this->user )->multipartGraphQL( [
             'query' => '
@@ -114,7 +214,7 @@ class GraphqlTest extends TestAbstract
             '0' => UploadedFile::fake()->create('test.mp3', 500, 'audio/mpeg'),
         ] )->assertJson( [
             'data' => [
-                'transcribe' => 'Fake transcription'
+                'transcribe' => "WEBVTT\n"
             ]
         ] );
     }

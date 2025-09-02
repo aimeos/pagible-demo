@@ -1,8 +1,10 @@
 <script>
   import gql from 'graphql-tag'
+  import isEqual from "fast-deep-equal"
   import Fields from './Fields.vue'
   import SchemaDialog from './SchemaDialog.vue'
   import { VueDraggable } from 'vue-draggable-plus'
+  import { toString } from 'mdast-util-to-string'
   import { toMarkdown } from 'mdast-util-to-markdown'
   import { fromMarkdown } from 'mdast-util-from-markdown'
   import { useAuthStore, useClipboardStore, useMessageStore, useSchemaStore, useSideStore } from '../stores'
@@ -26,6 +28,10 @@
     emits: ['error', 'update:content'],
 
     data: () => ({
+      chat: '',
+      response: '',
+      help: false,
+      refining: false,
       panel: [],
       menu: {},
       index: null,
@@ -203,6 +209,11 @@
             entries.push(this.content[i])
             this.content.splice(i, 1)
             idx = i
+
+            const pi = this.panel.indexOf(i)
+            if(pi !== -1) {
+              this.panel.splice(pi, 1)
+            }
           }
         }
 
@@ -248,6 +259,62 @@
         this.$emit('update:content', this.content)
         this.checked = false
         this.store()
+      },
+
+
+      refine() {
+        const prompt = this.chat.trim()
+
+        if(!this.chat) {
+          return
+        }
+
+        this.refining = true
+
+        this.$apollo.mutate({
+          mutation: gql`mutation($prompt: String!, $content: JSON!, $type: String, $context: String) {
+            refine(prompt: $prompt, content: $content, type: $type, context: $context)
+          }`,
+          variables: {
+            prompt: prompt,
+            content: JSON.stringify(this.content),
+            type: 'content',
+            context: null
+          }
+        }).then(result => {
+          if(result.errors) {
+            throw result
+          }
+
+          const map = Object.fromEntries(this.content.map(item => [item.id, item]))
+          const content = JSON.parse(result.data?.refine || '[]')
+
+          if(content.length) {
+            content.forEach(item => {
+              if(!item.id) {
+                item.id = uid()
+              }
+
+              item.group = this.section
+
+              if(!isEqual(item, map[item.id] || {})) {
+                item._changed = true
+              }
+            })
+
+            this.$emit('update:content', content)
+          }
+
+          this.refining = null
+          this.chat = ''
+        }).catch(error => {
+          this.messages.add(this.$gettext('Error refining content') + ":\n" + error, 'error')
+          this.$log(`PageDetailContentList::refine(): Error refining content`, error)
+        }).finally(() => {
+          setTimeout(() => {
+            this.refining = false
+          }, 3000)
+        })
       },
 
 
@@ -355,7 +422,7 @@
           this.$emit('update:content', this.content)
           this.store()
         }).catch(error => {
-          this.messages.add(this.$gettext('Unable to make element shared'), 'error')
+          this.messages.add(this.$gettext('Unable to make element shared') + ":\n" + error, 'error')
           this.$log(`PageDetailContentList::share(): Error making element shared`, idx, error)
         })
       },
@@ -384,12 +451,11 @@
         for(const node of ast.children) {
           switch(node.type) {
             case 'code': {
-              list.push({id: uid(), type: 'code', group: this.section, data: {lang: node.lang || null, text: node.value}})
+              list.push({id: uid(), type: 'code', group: this.section, data: {lang: node.lang || null, text: node.value.trim()}})
               break
             }
             case 'heading': {
-              const text = node.children.map(child => child.value).join('')
-              list.push({id: uid(), type: 'heading', group: this.section, data: {title: text.trim(), level: String(node.depth) }})
+              list.push({id: uid(), type: 'heading', group: this.section, data: {title: toString(node).trim(), level: String(node.depth) }})
               break
             }
             case 'table': {
@@ -403,7 +469,7 @@
             }
             default: {
               // Convert unhandled node types back to raw Markdown
-              list.push({id: uid(), type: 'text', group: this.section, data: {text: toMarkdown(node)}})
+              list.push({id: uid(), type: 'text', group: this.section, data: {text: toMarkdown(node).trim()}})
             }
           }
         }
@@ -447,7 +513,7 @@
           .map(v => v && typeof v !== 'object' && typeof v !== 'boolean' ? v : null)
           .filter(v => !!v)
           .join(' - '))
-          .substring(0, 50) || this.$pgettext('st', el.type) || ''
+          .substring(0, 100) || this.$pgettext('st', el.type) || ''
       },
 
 
@@ -507,12 +573,68 @@
           return result.every(r => r)
         });
       }
+    },
+
+    watch: {
+      content: {
+        handler() {
+          this.validate().then(val => {
+            this.$emit('error', !val)
+          })
+        },
+      }
     }
   }
 </script>
 
 <template>
   <div v-observe-visibility="store">
+
+    <v-textarea
+      v-model="chat"
+      :loading="refining"
+      :placeholder="$gettext('Describe the task you want to perform')"
+      variant="outlined"
+      class="prompt"
+      rounded="lg"
+      hide-details
+      autofocus
+      auto-grow
+      clearable
+      outlined
+      rows="1"
+    >
+      <template #prepend>
+        <v-icon @click="help = !help">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M15.07,11.25L14.17,12.17C13.45,12.89 13,13.5 13,15H11V14.5C11,13.39 11.45,12.39 12.17,11.67L13.41,10.41C13.78,10.05 14,9.55 14,9C14,7.89 13.1,7 12,7A2,2 0 0,0 10,9H8A4,4 0 0,1 12,5A4,4 0 0,1 16,9C16,9.88 15.64,10.67 15.07,11.25M13,19H11V17H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
+          </svg>
+        </v-icon>
+      </template>
+      <template #append>
+        <v-icon @click="refining || refine()"
+          @keydown.enter="refining || refine()"
+          :title="refining ? $gettext('Refining ...') : $gettext('Refine content based on prompt')">
+          <svg v-if="refining === false" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2A10,10 0 0,1 22,12M6,13H14L10.5,16.5L11.92,17.92L17.84,12L11.92,6.08L10.5,7.5L14,11H6V13Z" />
+          </svg>
+          <svg v-if="refining === true" class="spinner" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <circle class="spin1" cx="4" cy="12" r="3"/>
+            <circle class="spin1 spin2" cx="12" cy="12" r="3"/>
+            <circle class="spin1 spin3" cx="20" cy="12" r="3"/>
+          </svg>
+          <svg v-if="refining === null" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
+          </svg>
+        </v-icon>
+      </template>
+    </v-textarea>
+    <div v-if="help" class="help">
+      <ul>
+        <li>{{ $gettext('AI can add or improve content based on your input') }}</li>
+        <li>{{ $gettext('It can take a long time depending on the task and content size') }}</li>
+      </ul>
+    </div>
 
     <div class="header">
       <div v-if="auth.can('page:save')" class="bulk">
@@ -634,7 +756,7 @@
             <div class="element-title">{{ el.type === 'reference' ? elements[el.refid]?.name : title(el) }}</div>
             <div class="element-type">{{ $pgettext('st', el.type) }}</div>
           </v-expansion-panel-title>
-          <v-expansion-panel-text>
+          <v-expansion-panel-text eager>
 
             <Fields v-if="el.type === 'reference'"
               :data="elements[el.refid]?.data || {}"
@@ -661,7 +783,7 @@
     </v-expansion-panels>
 
     <div v-if="auth.can('page:save')" class="btn-group">
-      <v-btn @click="vschemas = true"
+      <v-btn @click="index = null; vschemas = true"
         :title="$gettext('Add element')"
         icon="mdi-view-grid-plus"
         color="primary"
@@ -682,8 +804,8 @@
 </template>
 
 <style scoped>
-.header {
-  margin-top: 8px;
+.prompt {
+  margin-bottom: 16px;
 }
 
 .bulk {
@@ -727,5 +849,13 @@
 .icon-shared {
   color: rgb(var(--v-theme-warning));
   margin-inline-end: 4px;
+}
+
+.help {
+  color: rgb(var(--v-theme-on-surface));
+  background-color: rgb(var(--v-theme-surface-light));
+  padding: 16px 24px 16px 32px ;
+  margin-bottom: 16px;
+  border-radius: 8px;
 }
 </style>

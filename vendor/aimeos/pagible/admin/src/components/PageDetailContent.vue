@@ -129,15 +129,18 @@
           </v-window-item>
         </v-window>
       </div>
+      <div v-else>
+        <div class="subtabs"></div>
 
-      <PageDetailContentList v-else ref="content"
-        :item="item"
-        :assets="assets"
-        :content="item.content || []"
-        :elements="elements"
-        @error="$emit('error', $event)"
-        @update:content="item.content = $event; this.$emit('change', 'content')"
-      />
+        <PageDetailContentList ref="content"
+          :item="item"
+          :assets="assets"
+          :content="item.content || []"
+          :elements="elements"
+          @error="$emit('error', $event)"
+          @update:content="item.content = $event; this.$emit('change', 'content')"
+        />
+      </div>
     </v-sheet>
   </v-container>
 </template>
@@ -150,5 +153,9 @@
 
   .v-sheet.scroll {
     max-height: calc(100vh - 96px);
+  }
+
+  .subtabs {
+    margin-bottom: 16px;
   }
 </style>

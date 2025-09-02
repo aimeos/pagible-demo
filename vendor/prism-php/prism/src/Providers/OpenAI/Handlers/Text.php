@@ -11,7 +11,9 @@ use Prism\Prism\Concerns\CallsTools;
 use Prism\Prism\Enums\FinishReason;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Providers\OpenAI\Concerns\BuildsTools;
+use Prism\Prism\Providers\OpenAI\Concerns\ExtractsCitations;
 use Prism\Prism\Providers\OpenAI\Concerns\MapsFinishReason;
+use Prism\Prism\Providers\OpenAI\Concerns\ProcessRateLimits;
 use Prism\Prism\Providers\OpenAI\Concerns\ValidatesResponse;
 use Prism\Prism\Providers\OpenAI\Maps\MessageMap;
 use Prism\Prism\Providers\OpenAI\Maps\ToolCallMap;
@@ -20,6 +22,7 @@ use Prism\Prism\Text\Request;
 use Prism\Prism\Text\Response;
 use Prism\Prism\Text\ResponseBuilder;
 use Prism\Prism\Text\Step;
+use Prism\Prism\ValueObjects\MessagePartWithCitations;
 use Prism\Prism\ValueObjects\Messages\AssistantMessage;
 use Prism\Prism\ValueObjects\Messages\ToolResultMessage;
 use Prism\Prism\ValueObjects\Meta;
@@ -30,10 +33,15 @@ class Text
 {
     use BuildsTools;
     use CallsTools;
+    use ExtractsCitations;
     use MapsFinishReason;
+    use ProcessRateLimits;
     use ValidatesResponse;
 
     protected ResponseBuilder $responseBuilder;
+
+    /** @var ?MessagePartWithCitations[] */
+    protected ?array $citations = null;
 
     public function __construct(protected PendingRequest $client)
     {
@@ -48,18 +56,17 @@ class Text
 
         $data = $response->json();
 
+        $this->citations = $this->extractCitations($data);
+
         $responseMessage = new AssistantMessage(
-            data_get($data, 'output.{last}.content.0.text') ?? '',
-            ToolCallMap::map(
-                array_filter(
-                    data_get($data, 'output', []),
-                    fn (array $output): bool => $output['type'] === 'function_call'
-                ),
-                array_filter(
-                    data_get($data, 'output', []),
-                    fn (array $output): bool => $output['type'] === 'reasoning'
-                ),
+            content: data_get($data, 'output.{last}.content.0.text') ?? '',
+            toolCalls: ToolCallMap::map(
+                array_filter(data_get($data, 'output', []), fn (array $output): bool => $output['type'] === 'function_call'),
+                array_filter(data_get($data, 'output', []), fn (array $output): bool => $output['type'] === 'reasoning'),
             ),
+            additionalContent: Arr::whereNotNull([
+                'citations' => $this->citations,
+            ]),
         );
 
         $request->addMessage($responseMessage);
@@ -156,10 +163,13 @@ class Text
             meta: new Meta(
                 id: data_get($data, 'id'),
                 model: data_get($data, 'model'),
+                rateLimits: $this->processRateLimits($clientResponse),
             ),
             messages: $request->messages(),
-            additionalContent: [],
             systemPrompts: $request->systemPrompts(),
+            additionalContent: Arr::whereNotNull([
+                'citations' => $this->citations,
+            ]),
         ));
     }
 }

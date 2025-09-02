@@ -62,7 +62,8 @@
         fetch(item.path).then(response => {
           return response.blob()
         }).then(blob => {
-          const filename = this.slugify(item.name) + '_' + (new Date()).toISOString().replace(/[^0-9]/g, '') + '.png'
+          const name = item.name.slice(0, item.name.length > 50 ? item.name.lastIndexOf(' ', 50) : 50) || 'ai-image'
+          const filename = this.slugify(name) + '_' + (new Date()).toISOString().replace(/[^0-9]/g, '') + '.png'
 
           return this.$apollo.mutate({
             mutation: gql`mutation($input: FileInput, $file: Upload) {
@@ -95,7 +96,7 @@
           // this.$refs.filelist.invalidate()
           this.$emit('add', [item])
         }).catch(error => {
-          this.messages.add(this.$gettext(`Error adding file %{path}`, {path: item?.path}), 'error')
+          this.messages.add(this.$gettext(`Error adding file %{path}`, {path: item?.path}) + ":\n" + error, 'error')
           this.$log(`FileAiDialog::add(): Error adding file`, error)
         }).finally(() => {
           this.loading = false
@@ -153,7 +154,7 @@
               })
           })
         }).catch(error => {
-          this.messages.add(this.$gettext('Error creating file'), 'error')
+          this.messages.add(this.$gettext('Error creating file') + ":\n" + error, 'error')
           this.$log(`FileAiDialog::create(): Error creating file`, error)
         }).finally(() => {
           this.loading = false

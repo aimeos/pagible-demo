@@ -1,5 +1,5 @@
 @pushOnce('css')
-<link type="text/css" rel="stylesheet" href="{{ cmsasset('vendor/cms/theme/contact.css') }}">
+<link href="{{ cmsasset('vendor/cms/theme/contact.css') }}" rel="stylesheet">
 @endPushOnce
 
 @pushOnce('js')
@@ -17,7 +17,6 @@
 
     @if(!app()->environment('local') && config('services.hcaptcha.sitekey'))
         <div class="h-captcha" data-sitekey="{{ config('services.hcaptcha.sitekey') }}"></div>
-        <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
     @endif
 
     <div class="errors"></div>

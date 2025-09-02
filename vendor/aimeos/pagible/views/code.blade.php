@@ -1,10 +1,18 @@
+@once('prism')
+    @pushOnce('css')
+    <link href="{{ cmsasset('vendor/cms/theme/prism.css') }}" rel="stylesheet">
+    @endPushOnce
+
+    @pushOnce('js')
+    <script defer src="{{ cmsasset('vendor/cms/theme/prism.js') }}"></script>
+    @endPushOnce
+@endOnce
+
 @pushOnce('css')
-<link type="text/css" rel="stylesheet" href="{{ cmsasset('vendor/cms/theme/prism.css') }}">
-<link type="text/css" rel="stylesheet" href="{{ cmsasset('vendor/cms/theme/code.css') }}">
+<link href="{{ cmsasset('vendor/cms/theme/code.css') }}" rel="stylesheet">
 @endPushOnce
 
 @pushOnce('js')
-<script defer src="{{ cmsasset('vendor/cms/theme/prism.js') }}"></script>
 <script defer src="{{ cmsasset('vendor/cms/theme/code.js') }}"></script>
 @endPushOnce
 

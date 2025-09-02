@@ -33,21 +33,21 @@ msgstr "id"
 #: src/components/FileListItems.vue:511
 #: src/fields/Audio.vue:105
 #: src/fields/File.vue:287
-#: src/fields/Image.vue:140
+#: src/fields/Image.vue:139
 #: src/fields/Video.vue:105
 msgid "mime"
 msgstr "마임"
 
 #: src/components/AsideMeta.vue:27
-#: src/components/ElementListItems.vue:475
+#: src/components/ElementListItems.vue:480
 #: src/components/FileListItems.vue:517
 #: src/fields/Audio.vue:109
 #: src/fields/File.vue:291
-#: src/fields/Image.vue:144
+#: src/fields/Image.vue:143
 #: src/fields/Video.vue:109
 #: src/views/ElementList.vue:119
 #: src/views/FileList.vue:116
-#: src/views/PageList.vue:272
+#: src/views/PageList.vue:274
 msgid "editor"
 msgstr "편집기"
 
@@ -58,7 +58,7 @@ msgstr "생성"
 #: src/components/AsideMeta.vue:35
 #: src/fields/Audio.vue:113
 #: src/fields/File.vue:295
-#: src/fields/Image.vue:148
+#: src/fields/Image.vue:147
 #: src/fields/Video.vue:113
 msgid "updated"
 msgstr "업데이트"
@@ -81,7 +81,7 @@ msgstr "이름"
 
 #: src/components/ElementDetailItem.vue:80
 #: src/components/FileDetailItem.vue:509
-#: src/components/PageDetailItemProps.vue:148
+#: src/components/PageDetailItemProps.vue:149
 msgid "Language"
 msgstr "언어"
 
@@ -125,7 +125,7 @@ msgstr "유형"
 #: src/components/FileDetailRefs.vue:145
 #: src/views/ElementList.vue:105
 #: src/views/FileList.vue:102
-#: src/views/PageList.vue:242
+#: src/views/PageList.vue:244
 msgid "Published"
 msgstr "게시됨"
 
@@ -148,7 +148,7 @@ msgstr "게시됨"
 #: src/components/FileListItems.vue:210
 #: src/components/FileListItems.vue:252
 #: src/components/FileListItems.vue:289
-#: src/components/PageDetailContentList.vue:286
+#: src/components/PageDetailContentList.vue:349
 #: src/components/PageListItems.vue:71
 #: src/components/PageListItems.vue:108
 #: src/components/PageListItems.vue:175
@@ -199,19 +199,19 @@ msgstr "공유 요소 제거 중 오류 발생"
 msgid "Error fetching shared elements"
 msgstr "공유 요소 가져오기 오류"
 
-#: src/components/ElementListItems.vue:417
-#: src/components/ElementListItems.vue:490
+#: src/components/ElementListItems.vue:422
+#: src/components/ElementListItems.vue:495
 #: src/components/FileListItems.vue:441
 #: src/components/FileListItems.vue:531
-#: src/components/PageDetailContentList.vue:526
-#: src/components/PageDetailContentList.vue:577
+#: src/components/PageDetailContentList.vue:635
+#: src/components/PageDetailContentList.vue:686
 #: src/components/PageListItems.vue:873
 #: src/components/PageListItems.vue:950
 msgid "Actions"
 msgstr "작업"
 
-#: src/components/ElementListItems.vue:421
-#: src/components/ElementListItems.vue:499
+#: src/components/ElementListItems.vue:426
+#: src/components/ElementListItems.vue:504
 #: src/components/FileListItems.vue:445
 #: src/components/FileListItems.vue:539
 #: src/components/PageListItems.vue:877
@@ -225,28 +225,28 @@ msgstr "작업"
 msgid "Publish"
 msgstr "게시"
 
-#: src/components/ElementListItems.vue:424
-#: src/components/ElementListItems.vue:551
-#: src/components/PageDetailContentList.vue:662
+#: src/components/ElementListItems.vue:429
+#: src/components/ElementListItems.vue:556
+#: src/components/PageDetailContentList.vue:774
 #: src/components/PageDetailItemConfig.vue:201
 #: src/components/PageDetailItemMeta.vue:200
 #: src/fields/Items.vue:229
 msgid "Add element"
 msgstr "요소 추가"
 
-#: src/components/ElementListItems.vue:427
-#: src/components/ElementListItems.vue:502
+#: src/components/ElementListItems.vue:432
+#: src/components/ElementListItems.vue:507
 #: src/components/FileListItems.vue:451
 #: src/components/FileListItems.vue:542
-#: src/components/PageDetailContentList.vue:530
-#: src/components/PageDetailContentList.vue:590
+#: src/components/PageDetailContentList.vue:639
+#: src/components/PageDetailContentList.vue:699
 #: src/components/PageListItems.vue:889
 #: src/components/PageListItems.vue:1035
 msgid "Delete"
 msgstr "휴지통"
 
-#: src/components/ElementListItems.vue:430
-#: src/components/ElementListItems.vue:505
+#: src/components/ElementListItems.vue:435
+#: src/components/ElementListItems.vue:510
 #: src/components/FileListItems.vue:454
 #: src/components/FileListItems.vue:545
 #: src/components/PageListItems.vue:892
@@ -254,8 +254,8 @@ msgstr "휴지통"
 msgid "Restore"
 msgstr "복원"
 
-#: src/components/ElementListItems.vue:433
-#: src/components/ElementListItems.vue:508
+#: src/components/ElementListItems.vue:438
+#: src/components/ElementListItems.vue:513
 #: src/components/FileListItems.vue:457
 #: src/components/FileListItems.vue:548
 #: src/components/PageListItems.vue:895
@@ -263,53 +263,55 @@ msgstr "복원"
 msgid "Purge"
 msgstr "퍼지"
 
-#: src/components/ElementListItems.vue:444
+#: src/components/ElementListItems.vue:449
 #: src/components/FileListItems.vue:466
-#: src/components/PageDetailContentList.vue:551
+#: src/components/PageDetailContentList.vue:660
 #: src/components/PageListItems.vue:904
 msgid "Search for"
 msgstr "검색"
 
-#: src/components/ElementListItems.vue:454
+#: src/components/ElementListItems.vue:459
 #: src/components/FileListItems.vue:493
 msgid "Sort by"
 msgstr "정렬 기준"
 
-#: src/components/ElementListItems.vue:458
 #: src/components/ElementListItems.vue:463
+#: src/components/ElementListItems.vue:468
 #: src/components/FileListItems.vue:497
 #: src/components/FileListItems.vue:502
 msgid "latest"
 msgstr "최신"
 
-#: src/components/ElementListItems.vue:458
-#: src/components/ElementListItems.vue:466
+#: src/components/ElementListItems.vue:463
+#: src/components/ElementListItems.vue:471
 #: src/components/FileListItems.vue:497
 #: src/components/FileListItems.vue:505
 msgid "oldest"
 msgstr "가장 오래된"
 
-#: src/components/ElementListItems.vue:469
+#: src/components/ElementListItems.vue:474
 #: src/components/FileListItems.vue:508
 #: src/fields/Audio.vue:97
 #: src/fields/File.vue:279
-#: src/fields/Image.vue:132
+#: src/fields/Image.vue:131
 #: src/fields/Video.vue:97
 msgid "name"
 msgstr "이름"
 
-#: src/components/ElementListItems.vue:472
+#: src/components/ElementListItems.vue:477
 msgid "type"
 msgstr "유형"
 
-#: src/components/ElementListItems.vue:533
+#: src/components/ElementListItems.vue:538
 #: src/components/FileListItems.vue:580
 #: src/components/HistoryDialog.vue:116
 #: src/components/PageListItems.vue:1075
+#: src/fields/Autocomplete.vue:155
+#: src/fields/Combobox.vue:18
 msgid "Loading"
 msgstr "로드 중"
 
-#: src/components/ElementListItems.vue:541
+#: src/components/ElementListItems.vue:546
 #: src/components/FileListItems.vue:589
 #: src/components/PageListItems.vue:1080
 msgid "No entries found"
@@ -455,12 +457,12 @@ msgid "Flip vertically"
 msgstr "세로로 뒤집기"
 
 #: src/components/FileDetailItem.vue:564
-msgid "Reset"
-msgstr "초기화"
-
-#: src/components/FileDetailItem.vue:565
 msgid "Download"
 msgstr "다운로드"
+
+#: src/components/FileDetailItem.vue:565
+msgid "Reset"
+msgstr "초기화"
 
 #: src/components/FileDetailItem.vue:584
 msgid "Use as cover image"
@@ -613,124 +615,149 @@ msgstr "되돌리기"
 msgid "Use version"
 msgstr "사용 버전"
 
-#: src/components/PageDetailContentList.vue:87
-#: src/components/PageDetailContentList.vue:98
-#: src/components/PageDetailContentList.vue:465
+#: src/components/PageDetailContentList.vue:94
+#: src/components/PageDetailContentList.vue:105
+#: src/components/PageDetailContentList.vue:527
 msgid "Content element not found"
 msgstr "콘텐츠 요소를 찾을 수 없습니다."
 
-#: src/components/PageDetailContentList.vue:293
+#: src/components/PageDetailContentList.vue:307
+msgid "Error refining content"
+msgstr "콘텐츠 정제 오류"
+
+#: src/components/PageDetailContentList.vue:356
 msgid "Element not found"
 msgstr "요소를 찾을 수 없음"
 
-#: src/components/PageDetailContentList.vue:298
+#: src/components/PageDetailContentList.vue:361
 msgid "Element is already shared"
 msgstr "요소가 이미 공유되었습니다."
 
-#: src/components/PageDetailContentList.vue:358
+#: src/components/PageDetailContentList.vue:421
 msgid "Unable to make element shared"
 msgstr "요소를 공유할 수 없습니다."
 
-#: src/components/PageDetailContentList.vue:377
+#: src/components/PageDetailContentList.vue:440
 msgid "Not available for this content element"
 msgstr "이 콘텐츠 요소에는 사용할 수 없습니다."
 
-#: src/components/PageDetailContentList.vue:472
+#: src/components/PageDetailContentList.vue:534
 msgid "Element is not shared"
 msgstr "요소가 공유되지 않습니다."
 
-#: src/components/PageDetailContentList.vue:533
-#: src/components/PageDetailContentList.vue:584
+#: src/components/PageDetailContentList.vue:582
+msgid "Describe the task you want to perform"
+msgstr "수행하려는 작업을 설명하세요."
+
+#: src/components/PageDetailContentList.vue:604
+msgid "Refining ..."
+msgstr "정제 ..."
+
+#: src/components/PageDetailContentList.vue:604
+msgid "Refine content based on prompt"
+msgstr "프롬프트에 따라 콘텐츠 구체화"
+
+#: src/components/PageDetailContentList.vue:621
+msgid "AI can add or improve content based on your input"
+msgstr "AI는 사용자의 입력에 따라 콘텐츠를 추가하거나 개선할 수 있습니다."
+
+#: src/components/PageDetailContentList.vue:622
+msgid "It can take a long time depending on the task and content size"
+msgstr "작업 및 콘텐츠 크기에 따라 시간이 오래 걸릴 수 있습니다."
+
+#: src/components/PageDetailContentList.vue:642
+#: src/components/PageDetailContentList.vue:693
 #: src/components/PageListItems.vue:975
 msgid "Copy"
 msgstr "복사"
 
-#: src/components/PageDetailContentList.vue:536
-#: src/components/PageDetailContentList.vue:587
+#: src/components/PageDetailContentList.vue:645
+#: src/components/PageDetailContentList.vue:696
 #: src/components/PageListItems.vue:972
 msgid "Cut"
 msgstr "컷"
 
-#: src/components/PageDetailContentList.vue:539
+#: src/components/PageDetailContentList.vue:648
 #: src/components/PageListItems.vue:978
 #: src/components/PageListItems.vue:996
 msgid "Paste"
 msgstr "붙여넣기"
 
-#: src/components/PageDetailContentList.vue:542
+#: src/components/PageDetailContentList.vue:651
+#: src/components/PageDetailContentList.vue:732
 msgid "Merge"
 msgstr "병합"
 
-#: src/components/PageDetailContentList.vue:596
+#: src/components/PageDetailContentList.vue:705
 msgid "Paste before"
 msgstr "앞에 붙여넣기"
 
-#: src/components/PageDetailContentList.vue:599
+#: src/components/PageDetailContentList.vue:708
 msgid "Paste after"
 msgstr "다음에 붙여넣기"
 
-#: src/components/PageDetailContentList.vue:602
+#: src/components/PageDetailContentList.vue:711
 msgid "Insert before"
 msgstr "앞에 삽입"
 
-#: src/components/PageDetailContentList.vue:605
+#: src/components/PageDetailContentList.vue:714
 msgid "Insert after"
 msgstr "다음에 삽입"
 
-#: src/components/PageDetailContentList.vue:611
+#: src/components/PageDetailContentList.vue:720
 msgid "Make shared"
 msgstr "공유 만들기"
 
-#: src/components/PageDetailContentList.vue:614
+#: src/components/PageDetailContentList.vue:723
 msgid "Merge copy"
 msgstr "복사본 병합"
 
-#: src/components/PageDetailContentList.vue:617
+#: src/components/PageDetailContentList.vue:726
 msgid "Change to"
 msgstr "로 변경"
 
-#: src/components/PageDetailContentList.vue:620
+#: src/components/PageDetailContentList.vue:729
 msgid "Split"
 msgstr "분할"
 
-#: src/components/PageDetailContentList.vue:626
+#: src/components/PageDetailContentList.vue:738
 msgid "Shared element"
 msgstr "공유 요소"
 
-#: src/components/PageDetailEditor.vue:52
+#: src/components/PageDetailEditor.vue:53
 msgid "Double-click to edit"
 msgstr "두 번 클릭하여 편집"
 
-#: src/components/PageDetailEditor.vue:186
+#: src/components/PageDetailEditor.vue:195
 msgid "Edit element"
 msgstr "요소 편집"
 
-#: src/components/PageDetailEditor.vue:193
+#: src/components/PageDetailEditor.vue:202
 msgid "Add element before"
 msgstr "앞에 요소 추가"
 
-#: src/components/PageDetailEditor.vue:199
+#: src/components/PageDetailEditor.vue:208
 msgid "Add element after"
 msgstr "다음에 요소 추가"
 
-#: src/components/PageDetailEditor.vue:205
+#: src/components/PageDetailEditor.vue:214
 #: src/fields/Items.vue:158
 msgid "Remove element"
 msgstr "요소 제거"
 
-#: src/components/PageDetailEditor.vue:212
+#: src/components/PageDetailEditor.vue:221
 msgid "Preview mode"
 msgstr "미리보기 모드"
 
-#: src/components/PageDetailEditor.vue:215
+#: src/components/PageDetailEditor.vue:224
 msgid "Not CMS content"
 msgstr "CMS 콘텐츠가 아님"
 
-#: src/components/PageDetailEditor.vue:222
+#: src/components/PageDetailEditor.vue:231
 msgid "Fullscreen mode"
 msgstr "전체 화면 모드"
 
-#: src/components/PageDetailEditor.vue:229
+#: src/components/PageDetailEditor.vue:238
 msgid "Exit fullscreen mode"
 msgstr "전체 화면 모드 종료"
 
@@ -759,99 +786,99 @@ msgstr "콘텐츠 요소 제거"
 msgid "The path is already in use by another page"
 msgstr "다른 페이지에서 이미 경로를 사용 중입니다."
 
-#: src/components/PageDetailItemProps.vue:130
-#: src/views/PageList.vue:261
+#: src/components/PageDetailItemProps.vue:131
+#: src/views/PageList.vue:263
 msgid "Disabled"
 msgstr "장애인"
 
-#: src/components/PageDetailItemProps.vue:131
-#: src/views/PageList.vue:259
+#: src/components/PageDetailItemProps.vue:132
+#: src/views/PageList.vue:261
 msgid "Enabled"
 msgstr "활성화됨"
 
-#: src/components/PageDetailItemProps.vue:132
+#: src/components/PageDetailItemProps.vue:133
 msgid "Hidden in navigation"
 msgstr "내비게이션에 숨겨져 있음"
 
-#: src/components/PageDetailItemProps.vue:136
+#: src/components/PageDetailItemProps.vue:137
 msgid "Status"
 msgstr "상태"
 
-#: src/components/PageDetailItemProps.vue:159
-#: src/components/PageDetailItemProps.vue:198
+#: src/components/PageDetailItemProps.vue:160
+#: src/components/PageDetailItemProps.vue:199
 #: src/fields/Table.vue:55
 #: src/views/Login.vue:93
 #: src/views/Login.vue:106
 msgid "Field is required"
 msgstr "필드 필수 입력"
 
-#: src/components/PageDetailItemProps.vue:163
+#: src/components/PageDetailItemProps.vue:164
 msgid "Page title"
 msgstr "페이지 제목"
 
-#: src/components/PageDetailItemProps.vue:173
+#: src/components/PageDetailItemProps.vue:174
 msgid "Page name"
 msgstr "페이지 이름"
 
-#: src/components/PageDetailItemProps.vue:183
+#: src/components/PageDetailItemProps.vue:184
 msgid "Path must not start with a slash (/)"
 msgstr "경로는 슬래시(/)로 시작하지 않아야 합니다."
 
-#: src/components/PageDetailItemProps.vue:189
+#: src/components/PageDetailItemProps.vue:190
 msgid "URL path"
 msgstr "URL 경로"
 
-#: src/components/PageDetailItemProps.vue:199
+#: src/components/PageDetailItemProps.vue:200
 msgid "Domain name is invalid"
 msgstr "도메인 이름이 유효하지 않습니다."
 
-#: src/components/PageDetailItemProps.vue:203
+#: src/components/PageDetailItemProps.vue:204
 msgid "Domain"
 msgstr "도메인"
 
-#: src/components/PageDetailItemProps.vue:217
+#: src/components/PageDetailItemProps.vue:218
 msgid "Theme"
 msgstr "테마"
 
-#: src/components/PageDetailItemProps.vue:225
+#: src/components/PageDetailItemProps.vue:226
 msgid "Page type"
 msgstr "페이지 유형"
 
-#: src/components/PageDetailItemProps.vue:235
+#: src/components/PageDetailItemProps.vue:236
 msgid "Page tag"
 msgstr "페이지 태그"
 
-#: src/components/PageDetailItemProps.vue:243
-#: src/views/PageList.vue:268
+#: src/components/PageDetailItemProps.vue:244
+#: src/views/PageList.vue:270
 msgid "No cache"
 msgstr "캐시 없음"
 
-#: src/components/PageDetailItemProps.vue:244
 #: src/components/PageDetailItemProps.vue:245
 #: src/components/PageDetailItemProps.vue:246
 #: src/components/PageDetailItemProps.vue:247
+#: src/components/PageDetailItemProps.vue:248
 msgid "%{num} minute"
 msgid_plural "%{num} minutes"
 msgstr[0] "%{num} 분"
 
-#: src/components/PageDetailItemProps.vue:248
 #: src/components/PageDetailItemProps.vue:249
 #: src/components/PageDetailItemProps.vue:250
 #: src/components/PageDetailItemProps.vue:251
 #: src/components/PageDetailItemProps.vue:252
+#: src/components/PageDetailItemProps.vue:253
 msgid "%{num} hour"
 msgid_plural "%{num} hours"
 msgstr[0] "%{num} 시간"
 
-#: src/components/PageDetailItemProps.vue:256
+#: src/components/PageDetailItemProps.vue:257
 msgid "Cache time"
 msgstr "캐시 시간"
 
-#: src/components/PageDetailItemProps.vue:269
+#: src/components/PageDetailItemProps.vue:270
 msgid "URL is not valid"
 msgstr "URL이 유효하지 않습니다."
 
-#: src/components/PageDetailItemProps.vue:273
+#: src/components/PageDetailItemProps.vue:274
 msgid "Redirect URL"
 msgstr "리디렉션 URL"
 
@@ -971,23 +998,19 @@ msgstr "분류되지 않음"
 msgid "Failed to load user"
 msgstr "사용자를 로드하지 못했습니다."
 
-#: src/components/User.vue:35
-msgid "Logout failed"
-msgstr "로그아웃 실패"
-
-#: src/components/User.vue:54
+#: src/components/User.vue:52
 msgid "Toggle light/dark mode"
 msgstr "밝음/어두움 모드 전환"
 
-#: src/components/User.vue:60
+#: src/components/User.vue:58
 msgid "Switch language"
 msgstr "언어 전환"
 
-#: src/components/User.vue:75
+#: src/components/User.vue:73
 msgid "User menu"
 msgstr "사용자 메뉴"
 
-#: src/components/User.vue:89
+#: src/components/User.vue:87
 msgid "Logout"
 msgstr "로그아웃"
 
@@ -1027,7 +1050,7 @@ msgstr "파일 업로드"
 
 #: src/fields/Audio.vue:101
 #: src/fields/File.vue:283
-#: src/fields/Image.vue:136
+#: src/fields/Image.vue:135
 #: src/fields/Video.vue:101
 msgid "description"
 msgstr "설명"
@@ -1255,13 +1278,13 @@ msgstr "연락처"
 
 #: src/strings.js:44
 msgctxt "st"
-msgid "meta"
-msgstr "메타"
+msgid "meta-tags"
+msgstr "메타 태그"
 
 #: src/strings.js:45
 msgctxt "st"
-msgid "social"
-msgstr "소셜"
+msgid "social-media"
+msgstr "소셜 미디어"
 
 #: src/strings.js:46
 msgctxt "st"
@@ -1467,11 +1490,11 @@ msgstr "사용 대상"
 #: src/views/FileList.vue:110
 #: src/views/FileList.vue:118
 #: src/views/PageList.vue:63
-#: src/views/PageList.vue:241
-#: src/views/PageList.vue:250
-#: src/views/PageList.vue:258
-#: src/views/PageList.vue:267
-#: src/views/PageList.vue:274
+#: src/views/PageList.vue:243
+#: src/views/PageList.vue:252
+#: src/views/PageList.vue:260
+#: src/views/PageList.vue:269
+#: src/views/PageList.vue:276
 msgid "All"
 msgstr "모두"
 
@@ -1489,49 +1512,49 @@ msgstr "탐색 열기"
 
 #: src/views/ElementList.vue:102
 #: src/views/FileList.vue:99
-#: src/views/PageList.vue:239
+#: src/views/PageList.vue:241
 msgid "publish"
 msgstr "게시"
 
 #: src/views/ElementList.vue:106
 #: src/views/FileList.vue:103
-#: src/views/PageList.vue:243
+#: src/views/PageList.vue:245
 msgid "Scheduled"
 msgstr "예약됨"
 
 #: src/views/ElementList.vue:107
 #: src/views/FileList.vue:104
-#: src/views/PageList.vue:244
+#: src/views/PageList.vue:246
 msgid "Drafts"
 msgstr "초안"
 
 #: src/views/ElementList.vue:111
 #: src/views/FileList.vue:108
-#: src/views/PageList.vue:248
+#: src/views/PageList.vue:250
 msgid "trashed"
 msgstr "휴지통"
 
 #: src/views/ElementList.vue:114
 #: src/views/FileList.vue:111
-#: src/views/PageList.vue:251
+#: src/views/PageList.vue:253
 msgid "Available only"
 msgstr "사용 가능"
 
 #: src/views/ElementList.vue:115
 #: src/views/FileList.vue:112
-#: src/views/PageList.vue:252
+#: src/views/PageList.vue:254
 msgid "Only trashed"
 msgstr "휴지통만"
 
 #: src/views/ElementList.vue:122
 #: src/views/FileList.vue:119
-#: src/views/PageList.vue:275
+#: src/views/PageList.vue:277
 msgid "Edited by me"
 msgstr "저에 의해 편집됨"
 
 #: src/views/ElementList.vue:126
 #: src/views/FileList.vue:123
-#: src/views/PageList.vue:279
+#: src/views/PageList.vue:281
 msgid "languages"
 msgstr "언어"
 
@@ -1630,41 +1653,49 @@ msgid "Content"
 msgstr "콘텐츠"
 
 #: src/views/PageList.vue:140
-msgid "Error sending request"
-msgstr "관리 요청 전송 중 오류 발생"
+msgid "Error synthesizing content"
+msgstr "콘텐츠 합성 오류"
 
 #: src/views/PageList.vue:183
 msgid "Describe the page and content you want to create"
 msgstr "만들려는 페이지와 콘텐츠를 설명합니다."
 
-#: src/views/PageList.vue:220
+#: src/views/PageList.vue:205
+msgid "Generating ..."
+msgstr "생성 ..."
+
+#: src/views/PageList.vue:205
+msgid "Generate page based on prompt"
+msgstr "프롬프트에 따라 페이지 생성"
+
+#: src/views/PageList.vue:222
 msgid "AI can create a page and content based on your input and add it to the page tree"
 msgstr "AI는 사용자의 입력에 따라 페이지와 콘텐츠를 생성하여 페이지 트리에 추가할 수 있습니다."
 
-#: src/views/PageList.vue:221
+#: src/views/PageList.vue:223
 msgid "Double click on the response in the input field to display full response"
 msgstr "입력 필드에서 응답을 두 번 클릭하여 전체 응답을 표시합니다."
 
-#: src/views/PageList.vue:232
+#: src/views/PageList.vue:234
 msgid "view"
 msgstr "보기"
 
-#: src/views/PageList.vue:234
+#: src/views/PageList.vue:236
 msgid "Tree"
 msgstr "트리"
 
-#: src/views/PageList.vue:235
+#: src/views/PageList.vue:237
 msgid "List"
 msgstr "목록"
 
-#: src/views/PageList.vue:256
+#: src/views/PageList.vue:258
 msgid "status"
 msgstr "상태"
 
-#: src/views/PageList.vue:260
+#: src/views/PageList.vue:262
 msgid "Hidden"
 msgstr "숨겨진"
 
-#: src/views/PageList.vue:265
+#: src/views/PageList.vue:267
 msgid "cache"
 msgstr "캐시"

@@ -130,7 +130,7 @@ class Fluent implements Arrayable, ArrayAccess, IteratorAggregate, Jsonable, Jso
     /**
      * Get all of the attributes from the fluent instance.
      *
-     * @param  array|mixed|null  $keys
+     * @param  mixed  $keys
      * @return array
      */
     public function all($keys = null)
@@ -201,6 +201,16 @@ class Fluent implements Arrayable, ArrayAccess, IteratorAggregate, Jsonable, Jso
     public function toJson($options = 0)
     {
         return json_encode($this->jsonSerialize(), $options);
+    }
+
+    /**
+     * Convert the fluent instance to pretty print formatted JSON.
+     *
+     * @return string
+     */
+    public function toPrettyJson()
+    {
+        return $this->toJson(JSON_PRETTY_PRINT);
     }
 
     /**
@@ -291,7 +301,7 @@ class Fluent implements Arrayable, ArrayAccess, IteratorAggregate, Jsonable, Jso
             return $this->macroCall($method, $parameters);
         }
 
-        $this->attributes[$method] = count($parameters) > 0 ? reset($parameters) : true;
+        $this->attributes[$method] = count($parameters) > 0 ? array_first($parameters) : true;
 
         return $this;
     }

@@ -118,10 +118,48 @@ class JsonapiTest extends TestAbstract
             $expected[] = ['type' => 'navs', 'id' => $item->id];
         }
 
-        $this->expectsDatabaseQueryCount( 1 );
+        $this->expectsDatabaseQueryCount( 3 );
         $response = $this->jsonApi()->expects( 'pages' )->includePaths( 'children.children' )->get( "cms/pages/{$page->id}" );
 
-        $response->assertStatus( 400 );
+        $response->assertStatus( 200 );
+    }
+
+
+    public function testPageIncludeMenu()
+    {
+        $this->seed( \Database\Seeders\CmsSeeder::class );
+
+        $page = \Aimeos\Cms\Models\Page::where('tag', 'root')->firstOrFail();
+        $expected = [];
+
+        foreach( $page->menu as $item ) {
+            $expected[] = ['type' => 'navs', 'id' => $item->id];
+        }
+
+        $this->expectsDatabaseQueryCount( 3 ); // page + ancestors + menu
+        $response = $this->jsonApi()->expects( 'pages' )->includePaths( 'menu' )->get( "cms/pages/{$page->id}" );
+
+        $response->assertFetchedOne( $page )->assertIncluded( $expected );
+        $this->assertEquals( 4, count( $expected ) );
+    }
+
+
+    public function testPageIncludeMenuChildren()
+    {
+        $this->seed( \Database\Seeders\CmsSeeder::class );
+
+        $page = \Aimeos\Cms\Models\Page::where('tag', 'root')->firstOrFail();
+        $expected = [];
+
+        foreach( $page->menu as $item ) {
+            $expected[] = ['type' => 'navs', 'id' => $item->id];
+        }
+
+        $this->expectsDatabaseQueryCount( 4 ); // page + ancestors + menu + children
+        $response = $this->jsonApi()->expects( 'pages' )->includePaths( 'menu,menu.children' )->get( "cms/pages/{$page->id}" );
+
+        $response->assertFetchedOne( $page )->assertIncluded( $expected );
+        $this->assertEquals( 4, count( $expected ) );
     }
 
 

@@ -134,7 +134,7 @@
           .map(v => v && typeof v !== 'object' && typeof v !== 'boolean' ? v : null)
           .filter(v => !!v)
           .join(' - '))
-          .substring(0, 50) || ''
+          .substring(0, 100) || this.$pgettext('st', el.type) || ''
       },
 
 
@@ -177,7 +177,7 @@
             <div class="element-title">{{ title(el) }}</div>
             <div class="element-type">{{ el.type }}</div>
           </v-expansion-panel-title>
-          <v-expansion-panel-text>
+          <v-expansion-panel-text eager>
 
             <Fields ref="field"
               v-model:data="el.data"
@@ -210,7 +210,11 @@
 
   <Teleport to="body">
     <v-dialog v-model="vschemas" @afterLeave="vschemas = false" scrollable width="auto">
-      <SchemaItems type="config" @add="add($event)" />
+      <v-card>
+        <v-card-text>
+          <SchemaItems type="config" @add="add($event)" />
+        </v-card-text>
+      </v-card>
     </v-dialog>
   </Teleport>
 </template>
