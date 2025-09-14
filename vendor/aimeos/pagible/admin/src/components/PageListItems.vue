@@ -279,6 +279,24 @@
       },
 
 
+      hydrate(entry) {
+          const item = entry.latest?.data ? JSON.parse(entry.latest.data) : {...entry}
+
+          return Object.assign(item, {
+            id: entry.id,
+            has: entry.has,
+            parent_id: entry.parent_id,
+            deleted_at: entry.deleted_at,
+            created_at: entry.created_at,
+            updated_at: entry.latest?.created_at || entry.updated_at,
+            editor: entry.latest?.editor || entry.editor,
+            published: entry.latest?.published ?? true,
+            publish_at: entry.latest?.publish_at || null,
+            latest: entry.latest,
+          })
+      },
+
+
       insert(stat, idx = null) {
         if(!this.auth.can('page:add')) {
           this.messages.add(this.$gettext('Permission denied'), 'error')
@@ -328,6 +346,7 @@
           }
 
           this.invalidate()
+          this.submenu()
         }).catch(error => {
           this.messages.add(this.$gettext('Error inserting page') + ":\n" + error, 'error')
           this.$log(`PageList::insert(): Error inserting page`, error)
@@ -452,12 +471,11 @@
           }
 
           this.invalidate()
+          this.submenu()
         }).catch(error => {
           this.messages.add(this.$gettext('Error moving page') + ":\n" + error, 'error')
           this.$log(`PageList::move(): Error moving page`, stat, idx, error)
         })
-
-        this.show()
       },
 
 
@@ -482,14 +500,16 @@
         return this.$apollo.query({
           query: gql`query($id: ID!) {
             page(id: $id) {
-              meta
-              config
-              content
-              files {
+              id
+              latest {
                 id
-              }
-              elements {
-                id
+                aux
+                files {
+                  id
+                }
+                elements {
+                  id
+                }
               }
             }
           }`,
@@ -500,6 +520,9 @@
           if(result.errors) {
             throw result.errors
           }
+
+          const latest = result?.data?.page?.latest
+          const aux = JSON.parse(latest?.aux || '{}')
 
           this.$apollo.mutate({
             mutation: gql`mutation ($input: PageInput!, $parent: ID, $ref: ID, $elements: [ID!], $files: [ID!]) {
@@ -520,15 +543,15 @@
                 cache: node.cache,
                 domain: node.domain,
                 related_id: node.id,
-                meta: result?.data?.page?.meta || '{}',
-                config: result?.data?.page?.config || '{}',
-                content: result?.data?.page?.content || '[]',
+                meta: JSON.stringify(aux?.meta || {}),
+                config: JSON.stringify(aux?.config || {}),
+                content: JSON.stringify(aux?.content || []),
                 path: node.path + '_' + Math.floor(Math.random() * 10000),
               },
               parent: parent ? parent.data.id : null,
               ref: refid,
-              elements: result?.data?.page?.elements.map(el => el.id) || [],
-              files: result?.data?.page?.files.map(file => file.id) || []
+              elements: latest?.elements.map(el => el.id) || [],
+              files: latest?.files.map(file => file.id) || []
             }
           }).then(result => {
             if(result.errors) {
@@ -540,10 +563,11 @@
             }
 
             const index = idx !== null ? this.$refs.tree.getSiblings(stat).indexOf(stat) + idx : 0
-            const item = result.data.addPage
+            const item = this.hydrate(result.data.addPage)
 
             this.$refs.tree.add(item, parent, index)
             this.invalidate()
+            this.submenu()
           }).catch(error => {
             this.messages.add(this.$gettext('Error copying page') + ":\n" + error, 'error')
             this.$log(`PageList::paste(): Error copying page`, stat, idx, error)
@@ -552,8 +576,6 @@
           this.messages.add(this.$gettext('Error fetching page') + ":\n" + error, 'error')
           this.$log(`PageList::paste(): Error fetching page`, node.id, error)
         })
-
-        this.show()
       },
 
 
@@ -709,18 +731,6 @@
       },
 
 
-      show(what = null) {
-        if(what === null) {
-          this.menu = {}
-        } else if(!this.menu[what]) {
-          this.menu = {}
-          this.menu[what] = true
-        } else {
-          this.menu[what] = false
-        }
-      },
-
-
       status(stat, val) {
         if(!this.auth.can('page:save')) {
           this.messages.add(this.$gettext('Permission denied'), 'error')
@@ -755,6 +765,15 @@
             this.$log(`PageList::status(): Error saving page`, stat, val, error)
           })
         })
+      },
+
+
+      submenu(what = null) {
+        if(what) {
+          this.menu[what] = !this.menu[what]
+        } else {
+          this.menu = {}
+        }
       },
 
 
@@ -794,20 +813,7 @@
 
       transform(result) {
         const pages = result.data.map(entry => {
-          const item = entry.latest?.data ? JSON.parse(entry.latest.data) : {...entry}
-
-          return Object.assign(item, {
-            id: entry.id,
-            has: entry.has,
-            parent_id: entry.parent_id,
-            deleted_at: entry.deleted_at,
-            created_at: entry.created_at,
-            updated_at: entry.latest?.created_at || entry.updated_at,
-            editor: entry.latest?.editor || entry.editor,
-            published: entry.latest?.published ?? true,
-            publish_at: entry.latest?.publish_at || null,
-            latest: entry.latest,
-          })
+          return this.hydrate(entry)
         })
 
         return {
@@ -936,7 +942,7 @@
         </svg>
         <v-btn v-else
           @click="load(stat, node)"
-          :class="{hidden: !node.has}"
+          :class="{hidden: !node.has && !stat.children.length}"
           :icon="stat.open ? 'mdi-menu-down' : 'mdi-menu-right'"
           :title="$gettext('Toggle child nodes')"
           variant="text"
@@ -975,7 +981,7 @@
               <v-btn prepend-icon="mdi-content-copy" variant="text" @click="copy(stat, node)">{{ $gettext('Copy') }}</v-btn>
             </v-list-item>
             <v-list-item v-if="clip && clip.type == 'copy' && !this.embed && auth.can('page:add')">
-              <v-btn prepend-icon="mdi-content-paste" variant="text" @click.stop="show('paste')">{{ $gettext('Paste') }}</v-btn>
+              <v-btn prepend-icon="mdi-content-paste" variant="text" @click.stop="submenu('paste')">{{ $gettext('Paste') }}</v-btn>
             </v-list-item>
             <v-fade-transition v-if="clip && clip.type == 'copy' && menu.paste && !this.embed && auth.can('page:add')">
               <v-list-item>
@@ -993,7 +999,7 @@
               </v-list-item>
             </v-fade-transition>
             <v-list-item v-if="clip && clip.type == 'cut' && auth.can('page:move')">
-              <v-btn prepend-icon="mdi-content-paste" variant="text" @click.stop="show('move')">{{ $gettext('Paste') }}</v-btn>
+              <v-btn prepend-icon="mdi-content-paste" variant="text" @click.stop="submenu('move')">{{ $gettext('Paste') }}</v-btn>
             </v-list-item>
             <v-fade-transition v-if="clip && clip.type == 'cut' && menu.move && auth.can('page:move')">
               <v-list-item>
@@ -1011,7 +1017,7 @@
               </v-list-item>
             </v-fade-transition>
             <v-list-item v-if="!this.embed && auth.can('page:add')">
-              <v-btn prepend-icon="mdi-content-paste" variant="text" @click.stop="show('insert')">{{ $gettext('Insert') }}</v-btn>
+              <v-btn prepend-icon="mdi-content-paste" variant="text" @click.stop="submenu('insert')">{{ $gettext('Insert') }}</v-btn>
             </v-list-item>
             <v-fade-transition v-if="menu.insert && !this.embed && auth.can('page:add')">
               <v-list-item>

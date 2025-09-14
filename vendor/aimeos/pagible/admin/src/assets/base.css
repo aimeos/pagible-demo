@@ -33,6 +33,10 @@ body {
   transform: scaleX(-1) !important;
 }
 
+.v-locale--is-rtl .v-pagination .v-btn .mdi.v-icon {
+  transform: unset !important;
+}
+
 .v-snackbar__content {
   text-align: center !important;
 }
@@ -56,7 +60,7 @@ body {
 
 .v-toolbar__prepend,
 .v-toolbar__append {
-  column-gap: 8px;
+  column-gap: 4px;
 }
 
 .v-app-bar-title {

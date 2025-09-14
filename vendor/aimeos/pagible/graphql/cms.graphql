@@ -77,6 +77,9 @@ extend type Mutation {
   "Refine existing page content"
   refine(prompt: String!, content: JSON!, type: String, context: String): JSON
 
+  "Get page metrics for the last X days"
+  metrics(url: String!, days: Int, lang: String): Stats
+
   "Synthesize pages and content from prompts and passed file IDs"
   synthesize(prompt: String!, context: String, files: [String!]): String
 
@@ -392,10 +395,10 @@ type Element {
   "Date/time value when the content element was deleted or NULL if it's available"
   deleted_at: String
 
-  "List of pages using the file"
+  "List of pages using the content element"
   bypages: [Page!]! @belongsToMany
 
-  "List of versions using the file"
+  "List of versions using the content element"
   byversions: [Version!]! @belongsToMany
 
   "List of files assigned to the content element"
@@ -577,4 +580,70 @@ type Version {
 
   "Date/time value when the versioned data was created"
   created_at: String!
+}
+
+type Stats {
+  "List of errors occurred"
+  errors: [String!]
+
+  "Number of page views by day"
+  views: [StatsNumber!]
+
+  "Number of page visits by day"
+  visits: [StatsNumber!]
+
+  "Number of conversions on page by day"
+  conversions: [StatsNumber!]
+
+  "Average page visit duration in seconds by day"
+  durations: [StatsNumber!]
+
+  "Number of page visits by countries"
+  countries: [StatsNumber!]
+
+  "Number of page visits by referring website"
+  referrers: [StatsNumber!]
+
+  "Page Speed related values for the page"
+  pagespeed: [StatsNumber!]
+
+  "Number of Google search impressions"
+  impressions: [StatsNumber!]
+
+  "Number of Google search clicks"
+  clicks: [StatsNumber!]
+
+  "Click-throgh rate in Google search results"
+  ctrs: [StatsNumber!]
+
+  "Google search queries with stats"
+  queries: [StatsQuery!]
+}
+
+type StatsNumber {
+  "Date in ISO format (YYYY-MM-DD) or string"
+  key: String!
+
+  "Number of page views or visits"
+  value: Float
+
+  "List of individual rows"
+  rows: [StatsNumber!]
+}
+
+type StatsQuery {
+  "Query string"
+  key: String!
+
+  "Number of page impressions in Google Search results"
+  impressions: Int
+
+  "Number of page clicks in  Google Search results"
+  clicks: Int
+
+  "Click through rate in  Google Search (between 0 and 1)"
+  ctr: Float
+
+  "Position in Google Search results"
+  position: Float
 }
