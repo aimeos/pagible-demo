@@ -12,12 +12,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/laravel-analytics-bridge.git",
-                "reference": "8af901642e5feac18507a07e35d14f4a11e1e1e0"
+                "reference": "0ecdba62c89de68041dfae3b4ed67915d04f5d10"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/laravel-analytics-bridge/zipball/8af901642e5feac18507a07e35d14f4a11e1e1e0",
-                "reference": "8af901642e5feac18507a07e35d14f4a11e1e1e0",
+                "url": "https://api.github.com/repos/aimeos/laravel-analytics-bridge/zipball/0ecdba62c89de68041dfae3b4ed67915d04f5d10",
+                "reference": "0ecdba62c89de68041dfae3b4ed67915d04f5d10",
                 "shasum": ""
             },
             "require": {
@@ -51,7 +51,7 @@
                 "issues": "https://github.com/aimeos/laravel-analytics-bridge/issues",
                 "source": "https://github.com/aimeos/laravel-analytics-bridge/tree/master"
             },
-            "time": "2025-09-12T08:05:07+00:00"
+            "time": "2025-09-15T14:51:58+00:00"
         },
         {
             "name": "aimeos/laravel-analytics-matomo",

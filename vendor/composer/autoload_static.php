@@ -753,8 +753,8 @@ class ComposerStaticInit3a2e4a865a32ad7405eb07756c6ddd83
         'Database\\Seeders\\' => 
         array (
             0 => __DIR__ . '/../..' . '/database/seeders',
-            1 => __DIR__ . '/..' . '/laravel/pint/database/seeders',
-            2 => __DIR__ . '/..' . '/aimeos/pagible/database/seeders',
+            1 => __DIR__ . '/..' . '/aimeos/pagible/database/seeders',
+            2 => __DIR__ . '/..' . '/laravel/pint/database/seeders',
         ),
         'Database\\Factories\\' => 
         array (
