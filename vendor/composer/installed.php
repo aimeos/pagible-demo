@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '4ab8e9936112e1da8621a901d964c18b2309a4bc',
+        'reference' => '5a43842e69bf3f9547e61d5279207743f0672e19',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -21,15 +21,24 @@
             ),
             'dev_requirement' => false,
         ),
-        'aimeos/pagible' => array(
+        'aimeos/laravel-analytics-matomo' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '653a0f1dd4486de42e222817f9331f6d29704a28',
+            'reference' => '9996627c5fc8882dabaf1d5258988344816a836b',
             'type' => 'library',
-            'install_path' => __DIR__ . '/../aimeos/pagible',
+            'install_path' => __DIR__ . '/../aimeos/laravel-analytics-matomo',
             'aliases' => array(
                 0 => '9999999-dev',
             ),
+            'dev_requirement' => false,
+        ),
+        'aimeos/pagible' => array(
+            'pretty_version' => '0.7.0',
+            'version' => '0.7.0.0',
+            'reference' => '653a0f1dd4486de42e222817f9331f6d29704a28',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../aimeos/pagible',
+            'aliases' => array(),
             'dev_requirement' => false,
         ),
         'brick/math' => array(
@@ -180,9 +189,9 @@
             'dev_requirement' => false,
         ),
         'google/apiclient-services' => array(
-            'pretty_version' => 'v0.411.1',
-            'version' => '0.411.1.0',
-            'reference' => '04c4a6caf7e443afc76f70827814656c7b03cbd1',
+            'pretty_version' => 'v0.412.0',
+            'version' => '0.412.0.0',
+            'reference' => '212b51a11caa98e71c97f08041cc58e3425b2e15',
             'type' => 'library',
             'install_path' => __DIR__ . '/../google/apiclient-services',
             'aliases' => array(),
@@ -596,7 +605,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '4ab8e9936112e1da8621a901d964c18b2309a4bc',
+            'reference' => '5a43842e69bf3f9547e61d5279207743f0672e19',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -1061,8 +1070,8 @@
         'psr/log-implementation' => array(
             'dev_requirement' => false,
             'provided' => array(
-                0 => '3.0.0',
-                1 => '1.0|2.0|3.0',
+                0 => '1.0|2.0|3.0',
+                1 => '3.0.0',
             ),
         ),
         'psr/simple-cache' => array(

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4aa1fe1380e5a493a5674eab15686cb4",
+    "content-hash": "78cb0e4d008f06f3c918d4c56a49acc6",
     "packages": [
         {
             "name": "aimeos/laravel-analytics-bridge",
@@ -54,8 +54,44 @@
             "time": "2025-09-12T08:05:07+00:00"
         },
         {
-            "name": "aimeos/pagible",
+            "name": "aimeos/laravel-analytics-matomo",
             "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aimeos/laravel-analytics-matomo.git",
+                "reference": "9996627c5fc8882dabaf1d5258988344816a836b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aimeos/laravel-analytics-matomo/zipball/9996627c5fc8882dabaf1d5258988344816a836b",
+                "reference": "9996627c5fc8882dabaf1d5258988344816a836b",
+                "shasum": ""
+            },
+            "require": {
+                "aimeos/laravel-analytics-bridge": "~1.0||dev-master",
+                "php": "^8.2"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Aimeos\\AnalyticsBridge\\Drivers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-2.1+"
+            ],
+            "description": "Matomo Analytics driver for Laravel Analytics Bridge",
+            "support": {
+                "issues": "https://github.com/aimeos/laravel-analytics-matomo/issues",
+                "source": "https://github.com/aimeos/laravel-analytics-matomo/tree/master"
+            },
+            "time": "2025-09-12T08:00:24+00:00"
+        },
+        {
+            "name": "aimeos/pagible",
+            "version": "0.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
@@ -87,7 +123,6 @@
                 "om/potrans": "dev-master",
                 "orchestra/testbench": "^9.0||^10.0"
             },
-            "default-branch": true,
             "type": "library",
             "extra": {
                 "laravel": {
@@ -126,7 +161,7 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible/issues",
-                "source": "https://github.com/aimeos/pagible/tree/master"
+                "source": "https://github.com/aimeos/pagible/tree/0.7.0"
             },
             "time": "2025-09-14T17:17:39+00:00"
         },
@@ -1053,16 +1088,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.411.1",
+            "version": "v0.412.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "04c4a6caf7e443afc76f70827814656c7b03cbd1"
+                "reference": "212b51a11caa98e71c97f08041cc58e3425b2e15"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/04c4a6caf7e443afc76f70827814656c7b03cbd1",
-                "reference": "04c4a6caf7e443afc76f70827814656c7b03cbd1",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/212b51a11caa98e71c97f08041cc58e3425b2e15",
+                "reference": "212b51a11caa98e71c97f08041cc58e3425b2e15",
                 "shasum": ""
             },
             "require": {
@@ -1091,9 +1126,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.411.1"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.412.0"
             },
-            "time": "2025-09-12T01:08:23+00:00"
+            "time": "2025-09-15T00:56:22+00:00"
         },
         {
             "name": "google/auth",
@@ -10724,7 +10759,7 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
-        "aimeos/pagible": 20
+        "aimeos/laravel-analytics-matomo": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

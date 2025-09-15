@@ -1,0 +1,15 @@
+{
+  "name": "aimeos/laravel-analytics-matomo",
+  "description": "Matomo Analytics driver for Laravel Analytics Bridge",
+  "type": "library",
+  "license": "LGPL-2.1+",
+  "autoload": {
+    "psr-4": {
+      "Aimeos\\AnalyticsBridge\\Drivers\\": "src/"
+    }
+  },
+  "require": {
+    "php": "^8.2",
+    "aimeos/laravel-analytics-bridge": "~1.0||dev-master"
+  }
+}

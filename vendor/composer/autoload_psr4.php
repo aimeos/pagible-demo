@@ -114,7 +114,7 @@ return array(
     'Doctrine\\Common\\Lexer\\' => array($vendorDir . '/doctrine/lexer/src'),
     'Dflydev\\DotAccessData\\' => array($vendorDir . '/dflydev/dot-access-data/src'),
     'DeepCopy\\' => array($vendorDir . '/myclabs/deep-copy/src/DeepCopy'),
-    'Database\\Seeders\\' => array($baseDir . '/database/seeders', $vendorDir . '/aimeos/pagible/database/seeders', $vendorDir . '/laravel/pint/database/seeders'),
+    'Database\\Seeders\\' => array($baseDir . '/database/seeders', $vendorDir . '/laravel/pint/database/seeders', $vendorDir . '/aimeos/pagible/database/seeders'),
     'Database\\Factories\\' => array($baseDir . '/database/factories', $vendorDir . '/laravel/pint/database/factories'),
     'Cron\\' => array($vendorDir . '/dragonmantank/cron-expression/src/Cron'),
     'Carbon\\Doctrine\\' => array($vendorDir . '/carbonphp/carbon-doctrine-types/src/Carbon/Doctrine'),
@@ -122,5 +122,6 @@ return array(
     'Brick\\Math\\' => array($vendorDir . '/brick/math/src'),
     'App\\' => array($baseDir . '/app', $vendorDir . '/laravel/pint/app'),
     'Aimeos\\Cms\\' => array($vendorDir . '/aimeos/pagible/src'),
+    'Aimeos\\AnalyticsBridge\\Drivers\\' => array($vendorDir . '/aimeos/laravel-analytics-matomo/src'),
     'Aimeos\\AnalyticsBridge\\' => array($vendorDir . '/aimeos/laravel-analytics-bridge/src'),
 );
