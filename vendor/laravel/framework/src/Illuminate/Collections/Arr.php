@@ -63,8 +63,10 @@ class Arr
 
     /**
      * Get an array item from an array using "dot" notation.
+     *
+     * @return array|null
      */
-    public static function array(ArrayAccess|array $array, string|int|null $key, ?array $default = null): array
+    public static function array(ArrayAccess|array $array, string|int|null $key, ?array $default = null)
     {
         $value = Arr::get($array, $key, $default);
 
@@ -228,7 +230,7 @@ class Arr
             return $array->offsetExists($key);
         }
 
-        if (is_float($key)) {
+        if (is_float($key) || is_null($key)) {
             $key = (string) $key;
         }
 
@@ -446,7 +448,7 @@ class Arr
         }
 
         if (! str_contains($key, '.')) {
-            return $array[$key] ?? value($default);
+            return value($default);
         }
 
         foreach (explode('.', $key) as $segment) {
