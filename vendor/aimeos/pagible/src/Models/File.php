@@ -144,15 +144,21 @@ class File extends Model
         $manager = ImageManager::withDriver( '\\Intervention\\Image\\Drivers\\' . $driver . '\Driver' );
         $ext = $manager->driver()->supports( 'image/webp' ) ? 'webp' : 'jpg';
 
-        if( !$manager->driver()->supports( $this->mime ) ) {
-            return $this;
-        }
-
         if( is_string( $resource ) && str_starts_with( $resource, 'http' ) ) {
             $resource = Http::withOptions( ['stream' => true] )->get( $resource )->getBody()->detach();
         }
 
-        $filename = $resource instanceof UploadedFile ? $resource->getClientOriginalName() : (string) $this->name;
+        if( $resource instanceof UploadedFile ) {
+            $filename = $resource->getClientOriginalName();
+            $mime = $resource->getClientMimeType();
+        } else {
+            $filename = $this->name;
+            $mime = $this->mime;
+        }
+
+        if( !$manager->driver()->supports( $mime ) ) {
+            return $this;
+        }
 
         $file = $manager->read( $resource );
 
@@ -261,9 +267,9 @@ class File extends Model
         DB::connection( $this->getConnectionName() )->transaction( function() use ( $version ) {
 
             $this->fill( (array) $version->data );
-            $this->previews = (array) $version->data->previews ?? [];
-            $this->path = $version->data->path;
-            $this->mime = $version->data->mime;
+            $this->previews = (array) $version->data?->previews ?? [];
+            $this->path = $version->data?->path;
+            $this->mime = $version->data?->mime;
             $this->editor = $version->editor;
             $this->save();
 
@@ -374,7 +380,7 @@ class File extends Model
 
         foreach( $versions->slice( $num ) as $version )
         {
-            if( $version->data->path ) {
+            if( $version->data?->path ) {
                 $paths[$version->data->path] = true;
             }
         }
@@ -384,13 +390,13 @@ class File extends Model
 
         foreach( $toDelete as $version )
         {
-            if( isset( $paths[$version->data->path] ) ) {
+            if( !$version->data?->path || isset( $paths[$version->data?->path] ) ) {
                 continue;
             }
 
             $disk->delete( $version->data->path );
 
-            foreach( $version->data['previews'] as $path ) {
+            foreach( $version->data?->previews ?? [] as $path ) {
                 $disk->delete( $path );
             }
         }
@@ -473,11 +479,11 @@ class File extends Model
             ->chunk( 100, function( $versions ) use ( $store ) {
                 foreach( $versions as $version )
                 {
-                    foreach( $version->data->previews ?? [] as $path ) {
+                    foreach( $version->data?->previews ?? [] as $path ) {
                         $store->delete( $path );
                     }
 
-                    if( $version->data->path ?? null ) {
+                    if( $version->data?->path ) {
                         $store->delete( $version->data->path );
                     }
                 }
