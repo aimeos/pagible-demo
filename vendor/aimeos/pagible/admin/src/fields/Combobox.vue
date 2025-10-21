@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import Autocomplete from './Autocomplete.vue'
 
@@ -17,7 +21,7 @@
     :placeholder="config.placeholder || ''"
     :multiple="config.multiple"
     :chips="config.multiple"
-    :modelValue="modelValue"
+    :modelValue="modelValue ?? config.default ?? null"
     @update:modelValue="$emit('update:modelValue', $event)"
     @update:search="search($event)"
     @update:menu="search('')"

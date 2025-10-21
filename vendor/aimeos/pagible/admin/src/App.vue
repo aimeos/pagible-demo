@@ -1,5 +1,10 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import gql from 'graphql-tag'
+  import { toMp3, transcription } from './audio'
   import { computed, markRaw, provide } from 'vue'
   import { useAppStore, useLanguageStore, useMessageStore } from './stores'
 
@@ -16,6 +21,7 @@
         openView: this.open,
         closeView: this.close,
         compose: this.compose,
+        transcribe: this.transcribe,
         translate: this.translate,
         txlocales: this.txlocales,
         locales: this.locales,
@@ -142,6 +148,32 @@
       },
 
 
+      transcribe(input) {
+        return toMp3(this.url(input, true)).then(blob => {
+          return this.$apollo.mutate({
+            mutation: gql`mutation($file: Upload!) {
+              transcribe(file: $file)
+            }`,
+            variables: {
+              file: new File([blob], 'audio.mp3', { type: 'audio/mpeg' })
+            },
+            context: {
+              hasUpload: true,
+            }
+          })
+        }).then(result => {
+          if(result.errors) {
+            throw result
+          }
+
+          return transcription(JSON.parse(result.data?.transcribe || '[]'))
+        }).catch(error => {
+          this.messages.add(this.$gettext('Error transcribing file') + ":\n" + error, 'error')
+          this.$log(`App::transcribe(): Error transcribing from media URL`, error)
+        })
+      },
+
+
       translate(texts, to, from = null, context = null) {
         if(!Array.isArray(texts)) {
           texts = [texts].filter(v => !!v)
@@ -198,6 +230,10 @@
 
       url(path, proxy = false) {
         if(!path) return ''
+
+        if(typeof path !== 'string') {
+          return path
+        }
 
         if(proxy && path.startsWith('http')) {
           return this.app.urlproxy.replace(/_url_/, encodeURIComponent(path))

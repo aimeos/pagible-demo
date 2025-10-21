@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license MIT, http://opensource.org/licenses/MIT
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
  */
 
 
@@ -82,6 +82,9 @@ class Page extends Model
         'meta' => 'object',
         'config' => 'object',
         'content' => 'object', // for object access in templates
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s',
+        'deleted_at' => 'datetime:Y-m-d H:i:s',
     ];
 
     /**
@@ -217,6 +220,54 @@ class Page extends Model
 
 
     /**
+     * Updated the search index for the page.
+     */
+    public function index()
+    {
+        Content::where( 'page_id', $this->id )->delete();
+
+        if( !$this->id || $this->status < 1 ) {
+            return;
+        }
+
+        $config = config( 'cms.schemas.content', [] );
+        $md = new \League\CommonMark\CommonMarkConverter();
+
+        foreach( (array) $this->content as $el )
+        {
+            $content = '';
+            $fields = (array) ( $config[@$el->type]['fields'] ?? [] );
+
+            if( empty( $fields ) ) {
+                continue;
+            }
+
+            foreach( (array) ( $el->data ?? [] ) as $name => $value )
+            {
+                if( isset( $fields[$name] )
+                    && ( $fields[$name]['searchable'] ?? true )
+                    && in_array( $fields[$name]['type'], ['markdown', 'plaintext', 'string', 'text'] )
+                ) {
+                    $content .= $value . "\n";
+                }
+            }
+
+            if( $content = trim( $content ) )
+            {
+                Content::create( [
+                    'page_id' => $this->id,
+                    'lang' => $this->lang ?? '',
+                    'domain' => $this->domain ?? '',
+                    'path' => $this->path . '#' . @$el->id,
+                    'title' => strip_tags( $md->convert( $this->title ) ),
+                    'content' => strip_tags( $md->convert( $content ) )
+                ] );
+            }
+        }
+    }
+
+
+    /**
      * Returns the cache key for the page.
      *
      * @param Page|string $page Page object or URL path
@@ -314,6 +365,8 @@ class Page extends Model
 
             $version->published = true;
             $version->save();
+
+            $this->index();
 
         }, 3 );
 

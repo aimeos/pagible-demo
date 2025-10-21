@@ -1,8 +1,12 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import gql from 'graphql-tag'
   import Cropper from 'cropperjs'
   import 'cropperjs/dist/cropper.css'
-  import { url2audio } from '../utils'
+  import { recording } from '../audio'
   import { useAppStore, useAuthStore, useLanguageStore, useMessageStore, useSideStore } from '../stores'
 
 
@@ -14,21 +18,24 @@
 
     emits: ['update:item', 'update:file', 'error'],
 
-    inject: ['compose', 'locales', 'translate', 'txlocales', 'url'],
+    inject: ['compose', 'locales', 'transcribe', 'translate', 'txlocales', 'url'],
 
     data() {
       return {
         transcribing: false,
         translating: false,
+        dictating: false,
         composing: false,
         cropping: false,
         covering: false,
         tabtrans: null,
         tabdesc: null,
-        cropper: null,
         cropLabel: null,
+        cropper: null,
+        audio: null,
         scaleX: 1,
         scaleY: 1,
+        menu: {},
       }
     },
 
@@ -241,6 +248,31 @@
       },
 
 
+      record() {
+        if(this.readonly) {
+          return this.messages.add(this.$gettext('Permission denied'), 'error')
+        }
+
+        if(!this.audio) {
+          return this.audio = recording().start()
+        }
+
+        this.audio.then(rec => {
+          this.dictating = true
+          this.audio = null
+
+          rec.stop().then(buffer => {
+            this.transcribe(buffer).then(transcription => {
+              const lang = this.desclangs[0] || this.item.lang || 'en'
+              this.update('description', Object.assign(this.item.description || {}, {[lang]: transcription.asText()}))
+            }).finally(() => {
+              this.dictating = false
+            })
+          })
+        })
+      },
+
+
       removeCover() {
         if(this.readonly) {
           return this.messages.add(this.$gettext('Permission denied'), 'error')
@@ -315,7 +347,7 @@
       },
 
 
-      transcribe() {
+      transcribeFile() {
         if(this.readonly) {
           return this.messages.add(this.$gettext('Permission denied'), 'error')
         }
@@ -326,28 +358,9 @@
 
         this.transcribing = true
 
-        url2audio(this.url(this.item.path, true)).then(blob => {
-          return this.$apollo.mutate({
-            mutation: gql`mutation($file: Upload!) {
-              transcribe(file: $file)
-            }`,
-            variables: {
-              file: new File([blob], 'audio.mp3', { type: 'audio/mpeg' })
-            },
-            context: {
-              hasUpload: true,
-            }
-          })
-        }).then(result => {
-          if(result.errors) {
-            throw result
-          }
-
+        this.transcribe(this.item.path).then(transcription => {
           const lang = this.desclangs[0] || this.item.lang || 'en'
-          this.update('transcription', Object.assign(this.item.transcription || {}, {[lang]: result.data?.transcribe || ''}))
-        }).catch(error => {
-          this.messages.add(this.$gettext('Error transcribing file') + ":\n" + error, 'error')
-          this.$log(`FileDetailItem::transcribe(): Error transcribing from media URL`, error)
+          this.update('transcription', Object.assign(this.item.transcription || {}, {[lang]: transcription.asText()}))
         }).finally(() => {
           this.transcribing = false
         })
@@ -543,34 +556,52 @@
                   icon="mdi-image-check"
                   class="no-rtl"
                 />
-                <v-menu v-else location="center">
+                <component v-else :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+                  v-model="menu['crop']"
+                  transition="scale-transition"
+                  location="end center"
+                  max-width="300">
+
                   <template #activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-crop" class="no-rtl" :title="$gettext('Crop image')" />
+                    <v-btn
+                      v-bind="props"
+                      :title="$gettext('Crop image')"
+                      icon="mdi-crop"
+                      class="no-rtl"
+                    />
                   </template>
-                  <v-list>
-                    <v-list-item>
-                      <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(ratio)">{{ $gettext('Original ratio') }}</v-btn>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(NaN)">{{ $gettext('No ratio') }}</v-btn>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(1)">{{ $gettext('Square') }}</v-btn>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(3/2)">3:2</v-btn>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(4/3)">4:3</v-btn>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(5/3)">5:3</v-btn>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(16/9)">16:9</v-btn>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
+
+                  <v-card>
+                    <v-toolbar density="compact">
+                      <v-toolbar-title>{{ $gettext('Crop image') }}</v-toolbar-title>
+                      <v-btn icon="mdi-close" @click="menu['crop'] = false" />
+                    </v-toolbar>
+
+                    <v-list @click="menu['crop'] = false">
+                      <v-list-item>
+                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(ratio)">{{ $gettext('Original ratio') }}</v-btn>
+                      </v-list-item>
+                      <v-list-item>
+                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(NaN)">{{ $gettext('No ratio') }}</v-btn>
+                      </v-list-item>
+                      <v-list-item>
+                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(1)">{{ $gettext('Square') }}</v-btn>
+                      </v-list-item>
+                      <v-list-item>
+                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(3/2)">3:2</v-btn>
+                      </v-list-item>
+                      <v-list-item>
+                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(4/3)">4:3</v-btn>
+                      </v-list-item>
+                      <v-list-item>
+                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(5/3)">5:3</v-btn>
+                      </v-list-item>
+                      <v-list-item>
+                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(16/9)">16:9</v-btn>
+                      </v-list-item>
+                    </v-list>
+                  </v-card>
+                </component>
               </div>
               <div class="toolbar-group">
                 <v-btn icon="mdi-rotate-left" class="no-rtl" @click="rotate(-90)" :title="$gettext('Rotate counter-clockwise')" />
@@ -616,7 +647,7 @@
             class="element"
             controls
           ></audio>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-binary" viewBox="0 0 16 16">
+          <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
             <path d="M7.05 11.885c0 1.415-.548 2.206-1.524 2.206C4.548 14.09 4 13.3 4 11.885c0-1.412.548-2.203 1.526-2.203.976 0 1.524.79 1.524 2.203m-1.524-1.612c-.542 0-.832.563-.832 1.612q0 .133.006.252l1.559-1.143c-.126-.474-.375-.72-.733-.72zm-.732 2.508c.126.472.372.718.732.718.54 0 .83-.563.83-1.614q0-.129-.006-.25zm6.061.624V14h-3v-.595h1.181V10.5h-.05l-1.136.747v-.688l1.19-.786h.69v3.633z"/>
             <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
           </svg>
@@ -624,7 +655,7 @@
       </v-row>
       <v-row>
         <v-col cols="12" class="description">
-          <v-label>
+          <div class="label">
             {{ $gettext('Descriptions') }}
             <div v-if="!readonly" class="actions">
               <v-btn v-if="Object.values(item.description || {}).find(v => !!v)"
@@ -633,7 +664,6 @@
                 :loading="translating"
                 icon="mdi-translate"
                 variant="text"
-                elevation="0"
               />
               <v-btn
                 @click="composeText()"
@@ -641,10 +671,17 @@
                 :loading="composing"
                 icon="mdi-creation"
                 variant="text"
-                elevation="0"
+              />
+              <v-btn
+                @click="record()"
+                :class="{dictating: audio}"
+                :icon="audio ? 'mdi-microphone-outline' : 'mdi-microphone'"
+                :title="$gettext('Dictate')"
+                :loading="dictating"
+                variant="text"
               />
             </div>
-          </v-label>
+          </div>
 
           <v-tabs v-model="tabdesc">
             <v-tab v-for="entry in locales()" :value="entry.value">{{ entry.title }}</v-tab>
@@ -668,7 +705,7 @@
       </v-row>
       <v-row v-if="item.mime?.startsWith('audio/') || item.mime?.startsWith('video/')">
         <v-col cols="12" class="transcription">
-          <v-label>
+          <div class="label">
             {{ $gettext('Transcriptions') }}
             <div v-if="!readonly" class="actions">
               <v-btn v-if="Object.values(item.transcription || {}).find(v => !!v)"
@@ -677,18 +714,16 @@
                 :loading="translating"
                 icon="mdi-translate"
                 variant="text"
-                elevation="0"
               />
               <v-btn
-                @click="transcribe()"
+                @click="transcribeFile()"
                 :title="$gettext('Transcribe file content')"
                 :loading="transcribing"
                 icon="mdi-creation"
                 variant="text"
-                elevation="0"
               />
             </div>
-          </v-label>
+          </div>
 
           <v-tabs v-model="tabtrans">
             <v-tab v-for="entry in locales()" :value="entry.value">{{ entry.title }}</v-tab>
@@ -701,7 +736,7 @@
                 :modelValue="item.transcription?.[entry.value] || ''"
                 :readonly="readonly"
                 variant="underlined"
-                rows="20"
+                rows="10"
                 auto-grow
                 clearable
               ></v-textarea>
@@ -780,8 +815,8 @@
     display: none;
   }
 
-  .description .v-label,
-  .transcription .v-label {
+  .description .label,
+  .transcription .label {
     display: flex;
     align-items: center;
     justify-content: space-between;

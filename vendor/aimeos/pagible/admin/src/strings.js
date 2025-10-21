@@ -1,3 +1,8 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
 // only for translation extraction
 
 if($pgettext) {
@@ -45,6 +50,8 @@ if($pgettext) {
     $pgettext('st', 'social-media')
     $pgettext('st', 'canonical')
     $pgettext('st', 'theme')
+    $pgettext('st', 'styles')
+    $pgettext('st', 'javascript')
 
     // field names
     $pgettext('fn', 'button')
@@ -68,7 +75,7 @@ if($pgettext) {
     $pgettext('fn', 'image')
     $pgettext('fn', 'images')
     $pgettext('fn', 'introduction')
-    $pgettext('fn', 'main image')
+    $pgettext('fn', 'load immediately')
     $pgettext('fn', 'source code')
 
     // AI response

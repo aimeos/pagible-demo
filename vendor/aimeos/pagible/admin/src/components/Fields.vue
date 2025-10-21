@@ -1,5 +1,10 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import gql from 'graphql-tag'
+  import { recording } from '../audio'
   import { useMessageStore } from '../stores'
 
   export default {
@@ -14,13 +19,16 @@
 
     emits: ['change', 'error', 'update:files'],
 
-    inject: ['compose', 'translate', 'txlocales'],
+    inject: ['compose', 'translate', 'transcribe', 'txlocales'],
 
     data() {
       return {
         translating: {},
+        dictating: {},
         composing: {},
         errors: {},
+        audio: {},
+        menu: {},
       }
     },
 
@@ -56,7 +64,7 @@
 
         this.composing[code] = true
 
-        this.compose(this.data[code] || 'Create suitable text based on the context', context).then(result => {
+        this.compose(this.data[code] || 'Create a suitable text based on the context', context).then(result => {
           this.update(code, result)
         }).finally(() => {
           this.composing[code] = false
@@ -67,6 +75,30 @@
       error(code, value) {
         this.errors[code] = value
         this.$emit('error', Object.values(this.errors).includes(true))
+      },
+
+
+      record(code) {
+        if(this.readonly) {
+          return this.messages.add(this.$gettext('Permission denied'), 'error')
+        }
+
+        if(!this.audio[code]) {
+          return this.audio[code] = recording().start()
+        }
+
+        this.audio[code].then(rec => {
+          this.dictating[code] = true
+          this.audio[code] = null
+
+          rec.stop().then(buffer => {
+            this.transcribe(buffer).then(transcription => {
+              this.update(code, transcription.asText())
+            }).finally(() => {
+              this.dictating[code] = false
+            })
+          })
+        })
       },
 
 
@@ -122,39 +154,60 @@
 
 <template>
   <div v-for="(field, code) in fields" :key="code" class="item" :class="{error: errors[code]}">
-    <v-label v-if="field.type !== 'hidden'">
+    <div v-if="field.type !== 'hidden'" class="label">
       {{ $pgettext('fn', field.label || code).replace(/-|_/g, ' ') }}
       <div v-if="!readonly && ['markdown', 'plaintext', 'string', 'text'].includes(field.type)" class="actions">
-        <v-menu location="center">
+        <component :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+          v-if="!readonly"
+          v-model="menu[code]"
+          transition="scale-transition"
+          location="end center"
+          max-width="300">
+
           <template #activator="{ props }">
-            <v-btn v-bind="props"
-              :title="$gettext('Translate %{code} field', {code: code})"
+            <v-btn
+              v-bind="props"
+              :title="$gettext('Translate')"
               :loading="translating[code]"
               icon="mdi-translate"
               variant="text"
-              elevation="0"
             />
           </template>
-          <v-list>
-            <v-list-item v-for="lang in txlocales()" :key="lang.code">
-              <v-btn
-                @click="translateText(code, lang.code)"
-                prepend-icon="mdi-arrow-right-thin"
-                variant="text"
-              >{{ lang.name }}</v-btn>
-            </v-list-item>
-          </v-list>
-        </v-menu>
+
+          <v-card>
+            <v-toolbar density="compact">
+              <v-toolbar-title>{{ $gettext('Translate') }}</v-toolbar-title>
+              <v-btn icon="mdi-close" @click="menu[code] = false" />
+            </v-toolbar>
+
+            <v-list @click="menu[code] = false">
+              <v-list-item v-for="lang in txlocales()" :key="lang.code">
+                <v-btn
+                  @click="translateText(code, lang.code)"
+                  prepend-icon="mdi-arrow-right-thin"
+                  variant="text"
+                >{{ lang.name }}</v-btn>
+              </v-list-item>
+            </v-list>
+          </v-card>
+        </component>
         <v-btn
-          :title="$gettext('Generate text for %{code} field', {code: code})"
+          :title="$gettext('Generate text')"
           :loading="composing[code]"
           @click="composeText(code)"
           icon="mdi-creation"
           variant="text"
-          elevation="0"
+        />
+        <v-btn
+          @click="record(code)"
+          :class="{dictating: audio[code]}"
+          :icon="audio[code] ? 'mdi-microphone-outline' : 'mdi-microphone'"
+          :title="$gettext('Dictate')"
+          :loading="dictating[code]"
+          variant="text"
         />
       </div>
-    </v-label>
+    </div>
     <component
       :is="toName(field.type)"
       :key="field.type + '-' + code"
@@ -182,7 +235,7 @@
     border-inline-start: 3px solid rgb(var(--v-theme-error));
   }
 
-  .v-label {
+  .label {
     display: flex;
     align-items: center;
     justify-content: space-between;

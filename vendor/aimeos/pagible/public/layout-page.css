@@ -1,14 +1,14 @@
+/**
+ * @license MIT, https://opensource.org/license/MIT
+ */
+
 :root {
     --pico-block-spacing-vertical: 0;
     --pico-block-spacing-horizontal: 0;
 }
 
 .cms-content .container {
-    padding: 60px 10px;
-}
-
-.cms-content > :nth-of-type(3n) {
-    background-color: var(--pico-primary-focus);
+    padding: 2rem min(5%, 2rem);
 }
 
 .heading h1,

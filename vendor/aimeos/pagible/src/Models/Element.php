@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license MIT, http://opensource.org/licenses/MIT
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
  */
 
 
@@ -55,6 +55,9 @@ class Element extends Model
     protected $casts = [
         'data' => 'object',
         'name' => 'string',
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s',
+        'deleted_at' => 'datetime:Y-m-d H:i:s',
     ];
 
     /**

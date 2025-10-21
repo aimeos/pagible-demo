@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
 namespace Tests;
 
 use Aimeos\Cms\Models\File;
@@ -215,7 +220,7 @@ class GraphqlTest extends TestAbstract
             '0' => UploadedFile::fake()->create('test.mp3', 500, 'audio/mpeg'),
         ] )->assertJson( [
             'data' => [
-                'transcribe' => "WEBVTT\n"
+                'transcribe' => '[]'
             ]
         ] );
     }

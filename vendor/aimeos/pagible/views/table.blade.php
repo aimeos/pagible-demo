@@ -1,29 +1,17 @@
-<table class="table">
-	@foreach(\League\Csv\Reader::createFromString( @$data->text ?? '' )->setDelimiter( ';' )->getRecords() as $rowidx => $row)
-		<tr>
+@if(@$data->title)
+	<h2>{{ $data->title }}</h2>
+@endif
+<div class="table-responsive">
+	@foreach(@$data->table ?? [] as $rowidx => $row)
+		<div class="table-row">
 			@foreach((array) $row as $colidx => $col)
-				@if($rowidx === 0 && @$data->header === 'row'
-					|| $colidx === 0 && @$data->header === 'col'
-					|| ($rowidx === 0 || $colidx === 0) && @$data->header === 'row+col')
-
-					<th>
-				@else
-					<td>
-				@endif
-
-				@markdown((string) $col)
-
-				@if($rowidx === 0 && @$data->header === 'row'
-					|| $colidx === 0 && @$data->header === 'col'
-					|| ($rowidx === 0 || $colidx === 0) && @$data->header === 'row+col')
-					</th>
-				@else
-					</td>
-				@endif
+				<div class="table-col {{
+					$colidx === 0 && in_array(@$data->header, ['col', 'row+col']) ||
+					$rowidx === 0 && in_array(@$data->header, ['row', 'row+col']) ? 'th' : 'td'
+				}}">
+					@markdown((string) $col)
+				</div>
 			@endforeach
-		</tr>
+		</div>
 	@endforeach
-	@if(@$data->title)
-		<caption>{{ $data->title }}</caption>
-	@endif
-</table>
+</div>

@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import gql from 'graphql-tag'
   import { default as FileComp } from './File.vue'
@@ -28,14 +32,13 @@
             controls
           />
 
-          <v-menu v-if="file.id && !readonly" location="center">
+          <v-menu v-if="file.id && !readonly" location="start">
             <template v-slot:activator="{ props }">
               <v-btn v-bind="props"
                 :title="$gettext('Open menu')"
                 icon="mdi-dots-vertical"
                 class="btn-overlay"
                 variant="text"
-                elevation="0"
               />
             </template>
             <v-list>
@@ -43,8 +46,7 @@
                 <v-btn
                   @click="open(file)"
                   prepend-icon="mdi-pencil"
-                  variant="text"
-                  elevation="0">
+                  variant="text">
                   {{ $gettext('Edit') }}
                 </v-btn>
               </v-list-item>
@@ -52,8 +54,7 @@
                 <v-btn
                   @click="remove()"
                   prepend-icon="mdi-trash-can"
-                  variant="text"
-                  elevation="0">
+                  variant="text">
                   {{ $gettext('Remove') }}
                 </v-btn>
               </v-list-item>
@@ -67,20 +68,17 @@
             :title="$gettext('Add file')"
             icon="mdi-button-cursor"
             variant="text"
-            elevation="0"
           />
           <v-btn
             @click="vurls = true"
             :title="$gettext('Add file from URL')"
             icon="mdi-link-variant-plus"
             variant="text"
-            elevation="0"
           />
           <v-btn
             :title="$gettext('Upload file')"
             icon="mdi-upload"
-            variant="text"
-            elevation="0">
+            variant="text">
             <v-file-input
               v-model="selected"
               @update:modelValue="add($event)"

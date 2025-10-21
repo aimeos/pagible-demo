@@ -1,11 +1,17 @@
 <?php
 
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
 namespace Database\Seeders;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Seeder;
 use Aimeos\Cms\Models\Version;
 use Aimeos\Cms\Models\Element;
+use Aimeos\Cms\Models\Content;
 use Aimeos\Cms\Models\File;
 use Aimeos\Cms\Models\Page;
 
@@ -76,6 +82,32 @@ class CmsSeeder extends Seeder
             ]);
 
             $this->file = $file->id;
+
+            $file2 = File::forceCreate( [
+                'mime' => 'image/tiff',
+                'lang' => 'en',
+                'name' => 'Test file',
+                'path' => 'https://picsum.photos/id/0/1500/1000',
+                'description' => [
+                    'en' => 'Test TIFF file description',
+                ],
+                'editor' => 'seeder',
+            ] );
+
+            $version = $file2->versions()->forceCreate([
+                'lang' => 'en',
+                'data' => [
+                    'mime' => 'image/tiff',
+                    'lang' => 'en',
+                    'name' => 'Test file',
+                    'path' => 'https://picsum.photos/id/0/200/200',
+                    'description' => [
+                        'en' => 'Test TIFF file description',
+                    ],
+                ],
+                'published' => true,
+                'editor' => 'seeder',
+            ]);
         }
 
         return $this->file;
@@ -126,7 +158,7 @@ class CmsSeeder extends Seeder
             'meta' => ['meta' => ['type' => 'meta', 'data' => ['text' => 'Laravel CMS is outstanding']]],
             'config' => ['test' => ['type' => 'test', 'data' => ['key' => 'value']]],
             'content' => [
-                ['type' => 'heading', 'text' => 'Welcome to Laravel CMS'],
+                ['type' => 'heading', 'data' => ['title' => 'Welcome to Laravel CMS']],
                 ['type' => 'ref', 'id' => $elementId]
             ],
         ]);
@@ -149,7 +181,7 @@ class CmsSeeder extends Seeder
                 'meta' => ['type' => 'meta', 'data' => ['text' => 'Laravel CMS is outstanding']],
                 'config' => ['test' => ['type' => 'test', 'data' => ['key' => 'value']]],
                 'content' => [
-                    ['type' => 'heading', 'text' => 'Welcome to Laravel CMS'],
+                    ['type' => 'heading', 'data' => ['title' => 'Welcome to Laravel CMS']],
                     ['type' => 'ref', 'id' => $elementId]
                 ],
             ],
@@ -157,6 +189,15 @@ class CmsSeeder extends Seeder
             'editor' => 'seeder',
         ]);
         $page->elements()->attach( $elementId );
+
+        Content::forceCreate([
+            'page_id' => $page->id,
+            'domain' => 'mydomain.tld',
+            'path' => '',
+            'lang' => 'en',
+            'title' => 'Home | Laravel CMS',
+            'content' => 'Welcome to Laravel CMS',
+        ]);
 
         return $page;
     }
@@ -201,6 +242,15 @@ class CmsSeeder extends Seeder
             'editor' => 'seeder',
         ]);
 
+        Content::forceCreate([
+            'page_id' => $page->id,
+            'domain' => 'mydomain.tld',
+            'path' => 'blog',
+            'lang' => 'en',
+            'title' => 'Blog | Laravel CMS',
+            'content' => 'Blog example',
+        ]);
+
         return $this->addBlogArticle( $page );
     }
 
@@ -220,9 +270,9 @@ class CmsSeeder extends Seeder
                     'text' => 'Laravel CMS is lightweight, lighting fast, easy to use, fully customizable and scalable from one-pagers to millions of pages',
                 ]
             ],
-            ['type' => 'heading', 'data' => ['level' => 2, 'text' => 'Rethink content management!']],
+            ['type' => 'heading', 'data' => ['level' => 2, 'title' => 'Rethink content management!']],
             ['type' => 'paragraph', 'data' => ['text' => 'Laravel CMS is exceptional in every way. Headless and API-first!']],
-            ['type' => 'heading', 'data' => ['level' => 2, 'text' => 'API first!']],
+            ['type' => 'heading', 'data' => ['level' => 2, 'title' => 'API first!']],
             ['type' => 'paragraph', 'data' => [
                 'text' => 'Use GraphQL for editing everything after login:
 
@@ -243,6 +293,7 @@ mutation {
             'title' => 'Welcome to Laravel CMS | Laravel CMS',
             'path' => 'welcome-to-laravelcms',
             'tag' => 'article',
+            'lang' => 'en',
             'status' => 1,
             'editor' => 'seeder'
         ];
@@ -261,6 +312,15 @@ mutation {
             'editor' => 'seeder',
         ]);
         $version->files()->attach( $fileId );
+
+        Content::forceCreate([
+            'page_id' => $page->id,
+            'domain' => 'mydomain.tld',
+            'path' => 'welcome-to-laravelcms',
+            'lang' => 'en',
+            'title' => 'Welcome to Laravel CMS | Laravel CMS',
+            'content' => 'Welcome to Laravel CMS A new light-weight Laravel CMS is here!',
+        ]);
 
         return $this;
     }

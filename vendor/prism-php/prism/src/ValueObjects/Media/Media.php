@@ -20,20 +20,18 @@ class Media
 
     protected ?string $storagePath = null;
 
-    protected ?string $url = null;
-
     protected ?string $rawContent = null;
-
-    protected ?string $base64 = null;
-
-    protected ?string $mimeType = null;
 
     protected ?string $filename = null;
 
-    final public function __construct() {}
+    public function __construct(
+        public ?string $url = null,
+        public ?string $base64 = null,
+        public ?string $mimeType = null) {}
 
     public static function fromFileId(string $fileId): static
     {
+        /** @phpstan-ignore-next-line */
         $instance = new static;
         $instance->fileId = $fileId;
 
@@ -48,7 +46,7 @@ class Media
         return self::fromLocalPath($path);
     }
 
-    public static function fromLocalPath(string $path): static
+    public static function fromLocalPath(string $path, ?string $mimeType = null): static
     {
         if (! is_file($path)) {
             throw new InvalidArgumentException("$path is not a file");
@@ -56,16 +54,15 @@ class Media
 
         $content = file_get_contents($path) ?: '';
 
-        if (in_array(trim($content), ['', '0'], true)) {
+        if ($content === '' || $content === '0') {
             throw new InvalidArgumentException("$path is empty");
         }
 
-        $mimeType = File::mimeType($path);
-
-        if ($mimeType === false) {
+        if (! $mimeType && ! ($mimeType = File::mimeType($path))) {
             throw new InvalidArgumentException("Could not determine mime type for {$path}");
         }
 
+        /** @phpstan-ignore-next-line */
         $instance = new static;
 
         $instance->localPath = $path;
@@ -82,22 +79,23 @@ class Media
 
         $diskName ??= 'default';
 
-        if ($disk->exists($path) === false) {
+        if (! $disk->exists($path)) {
             throw new InvalidArgumentException("$path does not exist on the '$diskName' disk");
         }
 
         $content = $disk->get($path);
 
-        if (in_array(trim($content ?? ''), ['', '0'], true)) {
+        if (! $content) {
             throw new InvalidArgumentException("$path on the '$diskName' disk is empty.");
         }
 
         $mimeType = $disk->mimeType($path);
 
-        if ($mimeType === false) {
+        if (! $mimeType) {
             throw new InvalidArgumentException("Could not determine mime type for {$path} on the '$diskName' disk");
         }
 
+        /** @phpstan-ignore-next-line */
         $instance = new static;
 
         $instance->storagePath = $path;
@@ -107,16 +105,20 @@ class Media
         return $instance;
     }
 
-    public static function fromUrl(string $url): static
+    public static function fromUrl(string $url, ?string $mimeType = null): static
     {
+        /** @phpstan-ignore-next-line */
         $instance = new static;
+
         $instance->url = $url;
+        $instance->mimeType = $mimeType;
 
         return $instance;
     }
 
     public static function fromRawContent(string $rawContent, ?string $mimeType = null): static
     {
+        /** @phpstan-ignore-next-line */
         $instance = new static;
 
         $instance->rawContent = $rawContent;
@@ -127,6 +129,7 @@ class Media
 
     public static function fromBase64(string $base64, ?string $mimeType = null): static
     {
+        /** @phpstan-ignore-next-line */
         $instance = new static;
 
         $instance->base64 = $base64;
@@ -167,6 +170,11 @@ class Media
         return $this->hasRawContent();
     }
 
+    public function hasMimeType(): bool
+    {
+        return $this->mimeType !== null;
+    }
+
     public function hasRawContent(): bool
     {
         if ($this->base64 !== null) {
@@ -180,6 +188,11 @@ class Media
         }
 
         return $this->isUrl();
+    }
+
+    public function hasUrl(): bool
+    {
+        return $this->url !== null;
     }
 
     public function fileId(): ?string
@@ -279,13 +292,13 @@ class Media
 
         $content = Http::get($this->url)->body();
 
-        if (in_array(trim($content), ['', '0'], true)) {
+        if (! $content) {
             throw new InvalidArgumentException("{$this->url} returns no content.");
         }
 
         $mimeType = (new finfo(FILEINFO_MIME_TYPE))->buffer($content);
 
-        if ($mimeType === false) {
+        if (! $mimeType) {
             throw new InvalidArgumentException("Could not determine mime type for {$this->url}.");
         }
 

@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import { VColorInput } from 'vuetify/labs/VColorInput'
 
@@ -7,7 +11,7 @@
     },
 
     props: {
-      'modelValue': {type: String, default: ''},
+      'modelValue': {type: String},
       'config': {type: Object, default: () => {}},
       'assets': {type: Object, default: () => {}},
       'readonly': {type: Boolean, default: false},
@@ -30,7 +34,7 @@
         immediate: true,
         handler(val) {
           this.$emit('error', !this.rules.every(rule => {
-            return rule(this.modelValue) === true
+            return rule(val ?? this.config.default ?? '') === true
           }))
         }
       }
@@ -43,7 +47,7 @@
     :rules="rules"
     :clearable="!readonly"
     :disabled="readonly"
-    :modelValue="modelValue"
+    :modelValue="modelValue ?? config.default ?? ''"
     @update:modelValue="$emit('update:modelValue', $event)"
   ></v-color-input>
 </template>

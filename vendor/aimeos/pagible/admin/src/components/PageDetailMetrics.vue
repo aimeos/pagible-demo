@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import gql from "graphql-tag";
   import { Line } from 'vue-chartjs'
@@ -734,6 +738,10 @@
 </template>
 
 <style scoped>
+  .v-sheet.scroll {
+    max-height: calc(100vh - 96px);
+  }
+
   .loading-overlay {
     inset: 0;
     position: absolute;

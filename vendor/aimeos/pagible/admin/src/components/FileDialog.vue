@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import FileListItems from './FileListItems.vue'
 
@@ -25,7 +29,6 @@
           :title="$gettext('Close')"
           icon="mdi-close"
           variant="text"
-          elevation="0"
         />
       </template>
       <template v-slot:title>

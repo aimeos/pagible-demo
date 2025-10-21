@@ -1,5 +1,5 @@
-/*
- * Common styles
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
  */
 
 input:-webkit-autofill,
@@ -116,13 +116,10 @@ body {
 }
 
 .v-sheet.scroll {
+  --v-scrollbar-offset: 16px !important;
   max-height: calc(100vh - 48px);
+  overflow-y: auto !important;
   padding-bottom: 56px;
-  overflow-y: auto;
-}
-
-.v-label {
-  min-height: 48px;
 }
 
 .v-selection-control {
@@ -208,7 +205,18 @@ body {
   padding: 0 8px;
 }
 
-.v-menu .v-btn {
+.v-menu .v-card,
+.v-dialog.menu .v-card {
+  max-height: 90vh;
+}
+
+@media (min-height: 440px) {
+  .v-dialog.menu .v-card {
+    min-height: 400px;
+  }
+}
+
+.v-list .v-btn:not(.v-btn--icon) {
   justify-content: start;
   width: 100%;
 }
@@ -326,6 +334,16 @@ body {
   width: max-content;
   right: 0;
   top: 48px;
+}
+
+.label {
+  opacity: var(--v-medium-emphasis-opacity);
+  min-height: 48px;
+}
+
+.dictating {
+  background-color: rgb(var(--v-theme-primary)) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
 }
 
 .draft {

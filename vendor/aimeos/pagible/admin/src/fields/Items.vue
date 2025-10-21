@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   /**
    * Configuration:
@@ -6,7 +10,9 @@
    * - `required`: boolean, if true, the field is required
    */
   import gql from 'graphql-tag'
+  import { recording } from '../audio'
   import { VueDraggable } from 'vue-draggable-plus'
+  import { useClipboardStore } from '../stores'
 
   export default {
     components: {
@@ -14,7 +20,7 @@
     },
 
     props: {
-      'modelValue': {type: Array, default: () => []},
+      'modelValue': {type: Array},
       'config': {type: Object, default: () => {}},
       'assets': {type: Object, default: () => {}},
       'readonly': {type: Boolean, default: false},
@@ -23,16 +29,24 @@
 
     emits: ['update:modelValue', 'error', 'addFile', 'removeFile'],
 
-    inject: ['compose', 'translate', 'txlocales'],
+    inject: ['compose', 'translate', 'transcribe', 'txlocales'],
 
     data() {
       return {
         translating: {},
+        dictating: {},
         composing: {},
         errors: [],
         items: [],
+        menu: [],
         panel: [],
+        audio: {},
       }
+    },
+
+    setup() {
+      const clipboard = useClipboardStore()
+      return { clipboard}
     },
 
     computed: {
@@ -76,6 +90,59 @@
           this.update(idx, code, result)
         }).finally(() => {
           this.composing[idx+code] = false
+        })
+      },
+
+
+      copy(idx) {
+        this.clipboard.set('items-content', JSON.parse(JSON.stringify(this.items[idx])))
+      },
+
+
+      cut(idx) {
+        this.clipboard.set('items-content', JSON.parse(JSON.stringify(this.items[idx])))
+        this.items.splice(idx, 1)
+        this.$emit('update:modelValue', this.items)
+      },
+
+
+      insert(idx) {
+        this.items.splice(idx, 0, {})
+        this.panel.push(idx)
+        this.$emit('update:modelValue', this.items)
+      },
+
+
+      paste(idx = null) {
+        if(idx === null) {
+          idx = this.items.length
+        }
+
+        this.items.splice(idx, 0, this.clipboard.get('items-content'))
+        this.$emit('update:modelValue', this.items)
+      },
+
+
+      record(idx, code) {
+        if(this.readonly) {
+          return this.messages.add(this.$gettext('Permission denied'), 'error')
+        }
+
+        if(!this.audio[idx+code]) {
+          return this.audio[idx+code] = recording().start()
+        }
+
+        this.audio[idx+code].then(rec => {
+          this.dictating[idx+code] = true
+          this.audio[idx+code] = null
+
+          rec.stop().then(buffer => {
+            this.transcribe(buffer).then(transcription => {
+              this.update(idx, code, transcription.asText())
+            }).finally(() => {
+              this.dictating[idx+code] = false
+            })
+          })
         })
       },
 
@@ -125,9 +192,10 @@
       modelValue: {
         immediate: true,
         handler(val) {
-          this.items = val
+          this.items = Array.isArray(val) ? val : this.config.default ?? []
+
           this.$emit('error', !this.rules.every(rule => {
-            return rule(this.modelValue) === true
+            return rule(this.items) === true
           }))
         }
       }
@@ -140,7 +208,7 @@
     <VueDraggable
       v-model="items"
       @update="change()"
-      :disabled="readonly || panel.length"
+      :disabled="readonly || $vuetify.display.smAndDown"
       :forceFallback="true"
       fallbackTolerance="10"
       draggable=".item"
@@ -149,50 +217,115 @@
 
       <v-expansion-panel v-for="(item, idx) in items" :key="idx" class="item">
         <v-expansion-panel-title>
-          <v-btn v-if="!readonly"
-            @click="remove(idx)"
-            :title="$gettext('Remove element')"
-            icon="mdi-trash-can"
-            variant="plain"
-          />
+          <component :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+            v-if="!readonly"
+            v-model="menu[idx]"
+            transition="scale-transition"
+            location="end center"
+            max-width="300">
+
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                :title="$gettext('Actions')"
+                icon="mdi-dots-vertical"
+                variant="text"
+              />
+            </template>
+
+            <v-card>
+              <v-toolbar density="compact">
+                <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
+                <v-btn icon="mdi-close" @click="menu[idx] = false" />
+              </v-toolbar>
+
+              <v-list @click="menu[idx] = false">
+                <v-list-item>
+                  <v-btn prepend-icon="mdi-content-copy" variant="text" @click="copy(idx)">{{ $gettext('Copy') }}</v-btn>
+                </v-list-item>
+                <v-list-item>
+                  <v-btn prepend-icon="mdi-content-cut" variant="text" @click="cut(idx)">{{ $gettext('Cut') }}</v-btn>
+                </v-list-item>
+                <v-list-item>
+                  <v-btn prepend-icon="mdi-delete" variant="text" @click="remove(idx)">{{ $gettext('Delete') }}</v-btn>
+                </v-list-item>
+
+                <v-divider></v-divider>
+
+                <v-list-item v-if="menu[idx] && clipboard.get('items-content')">
+                  <v-btn prepend-icon="mdi-arrow-up" variant="text" @click="paste(idx)">{{ $gettext('Paste before') }}</v-btn>
+                </v-list-item>
+                <v-list-item v-if="menu[idx] && clipboard.get('items-content')">
+                  <v-btn prepend-icon="mdi-arrow-down" variant="text" @click="paste(idx + 1)">{{ $gettext('Paste after') }}</v-btn>
+                </v-list-item>
+                <v-list-item>
+                  <v-btn prepend-icon="mdi-arrow-up" variant="text" @click="insert(idx)">{{ $gettext('Insert before') }}</v-btn>
+                </v-list-item>
+                <v-list-item>
+                  <v-btn prepend-icon="mdi-arrow-down" variant="text" @click="insert(idx + 1)">{{ $gettext('Insert after') }}</v-btn>
+                </v-list-item>
+              </v-list>
+            </v-card>
+          </component>
+
           <div class="element-title">{{ title(item) }}</div>
         </v-expansion-panel-title>
 
         <v-expansion-panel-text>
           <div v-for="(field, code) in (config.item || {})" :key="code" class="field">
-            <v-label>
+            <div class="label">
               {{ field.label || code }}
               <div v-if="!readonly && ['markdown', 'plaintext', 'string', 'text'].includes(field.type)" class="actions">
-                <v-menu>
+                <component :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+                  v-model="menu[idx+code]"
+                  transition="scale-transition"
+                  location="end center"
+                  max-width="300">
+
                   <template #activator="{ props }">
-                    <v-btn v-bind="props"
-                      :title="$gettext('Translate %{code} field', {code: code})"
+                    <v-btn
+                      v-bind="props"
+                      :title="$gettext('Translate')"
                       :loading="translating[idx+code]"
                       icon="mdi-translate"
                       variant="text"
-                      elevation="0"
                     />
                   </template>
-                  <v-list>
-                    <v-list-item v-for="lang in txlocales()" :key="lang.code">
-                      <v-btn
-                        @click="translateText(idx, code, lang.code)"
-                        prepend-icon="mdi-arrow-right-thin"
-                        variant="text"
-                      >{{ lang.name }}</v-btn>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
+
+                  <v-card>
+                    <v-toolbar density="compact">
+                      <v-toolbar-title>{{ $gettext('Translate') }}</v-toolbar-title>
+                      <v-btn icon="mdi-close" @click="menu[idx+code] = false" />
+                    </v-toolbar>
+
+                    <v-list @click="menu[idx+code] = false">
+                      <v-list-item v-for="lang in txlocales()" :key="lang.code">
+                        <v-btn
+                          @click="translateText(code, lang.code)"
+                          prepend-icon="mdi-arrow-right-thin"
+                          variant="text"
+                        >{{ lang.name }}</v-btn>
+                      </v-list-item>
+                    </v-list>
+                  </v-card>
+                </component>
                 <v-btn
-                  :title="$gettext('Generate text for %{code} field', {code: code})"
+                  :title="$gettext('Generate text')"
                   :loading="composing[idx+code]"
                   @click="composeText(idx, code)"
                   icon="mdi-creation"
                   variant="text"
-                  elevation="0"
+                />
+                <v-btn
+                  @click="record(idx, code)"
+                  :class="{dictating: audio[idx+code]}"
+                  :icon="audio[idx+code] ? 'mdi-microphone-outline' : 'mdi-microphone'"
+                  :title="$gettext('Dictate')"
+                  :loading="dictating[idx+code]"
+                  variant="text"
                 />
               </div>
-            </v-label>
+            </div>
             <component :is="toName(field.type)"
               :modelValue="items[idx]?.[code]"
               @update:modelValue="update(idx, code, $event)"
@@ -246,7 +379,7 @@
     margin-bottom: 12px;
   }
 
-  .v-label {
+  .label {
     display: flex;
     align-items: center;
     justify-content: space-between;

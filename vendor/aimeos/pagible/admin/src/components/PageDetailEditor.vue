@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import FieldsDialog from './FieldsDialog.vue'
   import SchemaDialog from './SchemaDialog.vue'
@@ -195,7 +199,6 @@
         :title="$gettext('Edit element')"
         icon="mdi-pencil"
         variant="text"
-        elevation="0"
       />
       <v-btn v-if="index !== -1"
         @click="vschemas = true; pos = 0"

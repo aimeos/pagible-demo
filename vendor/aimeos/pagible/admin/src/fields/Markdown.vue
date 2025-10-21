@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import { ClassicEditor, Markdown, Essentials, PasteFromOffice, Fullscreen, Clipboard, FindAndReplace, RemoveFormat, Heading, Paragraph, Bold, Italic, Strikethrough, BlockQuote, Code, CodeBlock, AutoLink, Link, List } from 'ckeditor5';
   import { Ckeditor } from '@ckeditor/ckeditor5-vue';
@@ -41,7 +45,7 @@
     },
 
     props: {
-      'modelValue': {type: String, default: ''},
+      'modelValue': {type: String},
       'config': {type: Object, default: () => {}},
       'assets': {type: Object, default: () => {}},
       'readonly': {type: Boolean, default: false},
@@ -53,7 +57,7 @@
     data() {
       return {
         editor: ClassicEditor,
-        visible: true,
+        visible: false,
       }
     },
 
@@ -84,6 +88,11 @@
     },
 
     methods: {
+      show(isVisible) {
+        this.visible = isVisible
+      },
+
+
       update(value) {
         if(this.modelValue != value) {
           this.$emit('update:modelValue', value);
@@ -96,7 +105,7 @@
         immediate: true,
         handler(val) {
           this.$emit('error', !this.rules.every(rule => {
-            return rule(this.modelValue) === true
+            return rule(val ?? this.config.default ?? '') === true
           }))
         }
       }
@@ -105,14 +114,16 @@
 </script>
 
 <template>
-  <div v-if="visible">
-    <ckeditor
-      :config="ckconfig"
-      :editor="editor"
-      :disabled="readonly"
-      :modelValue="modelValue"
-      @update:modelValue="update($event)"
-    ></ckeditor>
+  <div v-observe-visibility="show">
+    <div v-if="visible">
+      <ckeditor
+        :config="ckconfig"
+        :editor="editor"
+        :disabled="readonly"
+        :modelValue="modelValue ?? config.default ?? ''"
+        @update:modelValue="update($event)"
+      ></ckeditor>
+    </div>
   </div>
 </template>
 

@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
 namespace Tests;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,6 +41,21 @@ abstract class TestAbstract extends \Orchestra\Testbench\TestCase
         ]);
 
         $app['config']->set('cms.db', 'testing');
+        $app['config']->set('scout.driver', 'collection');
+
+        $app['config']->set('cms.schemas.content.heading', [
+            'group' => 'basic',
+            'fields' => [
+                'title' => [
+                    'type' => 'string',
+                    'min' => 1,
+                ],
+                'level' => [
+                    'type' => 'select',
+                    'required' => true,
+                ],
+            ],
+        ]);
 
         \Aimeos\Cms\Tenancy::$callback = function() {
             return 'test';
@@ -46,7 +66,7 @@ abstract class TestAbstract extends \Orchestra\Testbench\TestCase
 	protected function getPackageProviders( $app )
 	{
 		return [
-			'Aimeos\Cms\CmsServiceProvider',
+			'Aimeos\Cms\ServiceProvider',
 			'Kalnoy\Nestedset\NestedSetServiceProvider',
 		];
 	}

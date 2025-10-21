@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
 namespace Tests;
 
 use Illuminate\Http\UploadedFile;
@@ -55,12 +60,15 @@ class GraphqlFileTest extends TestAbstract
 
         // Prepare expected array
         $attr = collect($file->getAttributes())->except(['tenant_id'])->all();
-        $expected = ['id' => (string) $file->id] + $attr + [
+        $expected = [
+            'id' => (string) $file->id,
             'byelements' => $file->byelements->map( fn($item) => ['id' => $item->id] )->all(),
             'bypages' => $file->bypages->map( fn($item) => ['id' => $item->id] )->all(),
             'byversions' => [['published' => true]],
             'versions' => [['published' => false]],
-        ];
+            'created_at' => (string) $file->getAttribute( 'created_at' ),
+            'updated_at' => (string) $file->getAttribute( 'updated_at' ),
+        ] + $attr;
 
         // Decode JSON attributes for order-independent comparison
         $expected['previews'] = json_decode($expected['previews'], true);
@@ -122,11 +130,17 @@ class GraphqlFileTest extends TestAbstract
     {
         $this->seed(CmsSeeder::class);
 
-        $file = File::where('lang', 'en')->first();
+        $expected = [];
+        $files = File::orderBy( 'id' )->get();
+        $file = $files->first();
 
         // Prepare expected array
         $attr = collect($file->getAttributes())->except(['tenant_id'])->all();
-        $expected = [['id' => (string) $file->id] + $attr];
+        $expected[] = [
+            'id' => (string) $file->id,
+            'created_at' => (string) $file->getAttribute( 'created_at' ),
+            'updated_at' => (string) $file->getAttribute( 'updated_at' ),
+        ] + $attr;
 
         // Decode JSON attributes for order-independent comparison
         $expected[0]['previews'] = json_decode($expected[0]['previews'], true);
@@ -137,13 +151,7 @@ class GraphqlFileTest extends TestAbstract
 
         $response = $this->actingAs($this->user)->graphQL('{
             files(filter: {
-                id: ["' . $file->id . '"]
-                lang: "en"
-                mime: "image/"
-                name: "Test"
-                editor: "seeder"
-                any: "Test"
-            }, sort: [{column: MIME, order: ASC}], first: 10, trashed: WITH, publish: DRAFT) {
+            }, sort: [{column: MIME, order: ASC}], first: 10, trashed: WITH) {
                 data {
                     id
                     lang
@@ -157,6 +165,7 @@ class GraphqlFileTest extends TestAbstract
                     created_at
                     updated_at
                     deleted_at
+                    byversions_count
                 }
                 paginatorInfo {
                     currentPage
@@ -167,7 +176,7 @@ class GraphqlFileTest extends TestAbstract
 
         $filesData = $response->json('data.files.data');
 
-        $this->assertCount(1, $filesData);
+        $this->assertCount(2, $filesData);
         $actual = $filesData[0];
 
         // Assert scalar fields
@@ -191,7 +200,9 @@ class GraphqlFileTest extends TestAbstract
     {
         $this->seed( CmsSeeder::class );
 
-        $this->expectsDatabaseQueryCount( 1 );
+        $file = File::where( 'mime', 'image/tiff' )->first();
+
+        $this->expectsDatabaseQueryCount( 2 );
         $response = $this->actingAs( $this->user )->graphQL( '{
             files(publish: PUBLISHED) {
                 data {
@@ -205,7 +216,9 @@ class GraphqlFileTest extends TestAbstract
         }' )->assertJson( [
             'data' => [
                 'files' => [
-                    'data' => [],
+                    'data' => [[
+                        'id' => (string) $file->id
+                    ]],
                     'paginatorInfo' => [
                         'currentPage' => 1,
                         'lastPage' => 1,
@@ -296,7 +309,7 @@ class GraphqlFileTest extends TestAbstract
         $response->assertJson( [
             'data' => [
                 'addFile' => [
-                    'id' => $file->id,
+                    'id' => strtolower( $file->id ),
                     'mime' => 'application/x-empty',
                     'lang' => 'en-GB',
                     'name' => 'Test file name',
@@ -364,9 +377,9 @@ class GraphqlFileTest extends TestAbstract
             'lang' => 'en-GB',
             'name' => 'test file',
             'path' => $file->path,
-            'previews' => (array) $file->latest->data->previews,
-            'description' => (array) $file->latest->data->description,
-            'transcription' => (array) $file->latest->data->transcription,
+            'previews' => (array) $file->latest->data->previews ?? [],
+            'description' => (array) $file->latest->data->description ?? [],
+            'transcription' => (array) $file->latest->data->transcription ?? [],
         ];
 
         // Assert scalar fields

@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
 namespace Aimeos\Cms\Actions;
 
 use Aimeos\Cms\Utils;
@@ -27,7 +32,7 @@ class Blog
             $builder->where( 'status', 1 );
         }
 
-        $attr = ['id', 'lang', 'path', 'name', 'title', 'to', 'domain', 'content'];
+        $attr = ['id', 'lang', 'path', 'name', 'title', 'to', 'domain', 'content', 'created_at'];
 
         return $builder->paginate( @$item->data?->limit ?? 10, $attr, 'p' )
             ->through( function( $item ) {

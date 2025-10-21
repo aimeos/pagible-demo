@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import ElementListItems from './ElementListItems.vue'
   import SchemaItems from './SchemaItems.vue'
@@ -26,7 +30,6 @@
           @click="$emit('update:modelValue', false)"
           icon="mdi-close"
           variant="text"
-          elevation="0"
         />
       </template>
       <template v-slot:title>

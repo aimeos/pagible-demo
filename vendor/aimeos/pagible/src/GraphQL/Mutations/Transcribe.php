@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
 namespace Aimeos\Cms\GraphQL\Mutations;
 
 use Prism\Prism\Prism;
@@ -16,7 +21,7 @@ final class Transcribe
      * @param null $rootValue
      * @param array<string, mixed> $args
      */
-    public function __invoke( $rootValue, array $args ): string
+    public function __invoke( $rootValue, array $args ): array
     {
         if( !( ( $upload = $args['file'] ?? null ) && $upload instanceof UploadedFile && $upload->isValid() ) ) {
             throw new Error( 'No file uploaded' );
@@ -45,7 +50,11 @@ final class Transcribe
                 'response_format' => 'verbose_json',
             ] )->asText();
 
-            return $this->webvtt( $response->additionalContent['segments'] ?? [] );
+            return array_map( fn( $segment ) => [
+                'start' => $this->time( $segment['start'] ),
+                'end' => $this->time( $segment['end'] ),
+                'text' => $segment['text'],
+            ], $response->additionalContent['segments'] ?? [] );
         }
         catch( PrismException $e )
         {

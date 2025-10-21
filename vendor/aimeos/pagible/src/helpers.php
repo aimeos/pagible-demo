@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license MIT, http://opensource.org/licenses/MIT
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
  */
 
 
@@ -13,19 +13,30 @@ if( !function_exists( 'cms' ) )
             return $default;
         }
 
+        $parts = explode( '.', $prop );
+        $first = array_shift( $parts );
+
         if( $item instanceof \Illuminate\Support\Collection ) {
-            return $item->get( $prop );
+            $val = $item->get( $first );
+        }
+        else if( \Aimeos\Cms\Permission::can( 'page:view', auth()->user() ) ) {
+            $val = @$item->latest?->data?->{$first}
+                ?? @$item->latest?->aux?->{$first}
+                ?? @$item->latest?->{$first}
+                ?? @$item->{$first};
+        }
+        else {
+            $val = @$item->{$first};
         }
 
-        if( \Aimeos\Cms\Permission::can( 'page:view', auth()->user() ) ) {
-            return @$item->latest?->data?->{$prop}
-                ?? @$item->latest?->aux?->{$prop}
-                ?? @$item->latest?->{$prop}
-                ?? @$item->{$prop}
-                ?? $default;
+        foreach( $parts as $part )
+        {
+            if( is_object( $val ) && ( $val = @$val->{$part} ) === null ) {
+                return $default;
+            }
         }
 
-        return @$item->{$prop} ?? $default;
+        return $val ?? $default;
     }
 }
 
@@ -73,6 +84,15 @@ if( !function_exists( 'cmsdata' ) )
         }
 
         return $data + (array) $item;
+    }
+}
+
+
+if( !function_exists( 'cmsfile' ) )
+{
+    function cmsfile( \Aimeos\Cms\Models\Page $page, string $fileId ): ?object
+    {
+        return cms( cms( $page, 'files' ), $fileId );
     }
 }
 

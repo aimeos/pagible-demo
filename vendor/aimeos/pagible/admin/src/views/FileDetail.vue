@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import gql from 'graphql-tag'
   import AsideMeta from '../components/AsideMeta.vue'
@@ -271,7 +275,6 @@
             :disabled="!publishAt || error"
             :color="publishAt ? 'primary' : ''"
             variant="text"
-            elevation="0"
           >{{ $gettext('Publish') }}</v-btn>
         </div>
       </v-menu>

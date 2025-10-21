@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import gql from 'graphql-tag'
   import isEqual from "fast-deep-equal"
@@ -8,6 +12,7 @@
   import { toMarkdown } from 'mdast-util-to-markdown'
   import { fromMarkdown } from 'mdast-util-from-markdown'
   import { useAuthStore, useClipboardStore, useMessageStore, useSchemaStore, useSideStore } from '../stores'
+  import { recording } from '../audio'
   import { uid } from '../utils'
 
   export default {
@@ -27,13 +32,17 @@
 
     emits: ['error', 'update:content'],
 
+    inject: ['transcribe'],
+
     data: () => ({
       chat: '',
       response: '',
+      audio: null,
+      dictating: false,
       help: false,
       refining: false,
       panel: [],
-      menu: {},
+      menu: [],
       index: null,
       checked: false,
       vchange: false,
@@ -230,6 +239,7 @@
 
         const entries = (this.clipboard.get('page-content') || []).map(el => {
           el.group = this.section
+          el.id = uid()
           return el
         })
 
@@ -247,6 +257,26 @@
 
         this.$emit('error', this.content.some(el => el._error))
         this.$emit('update:content', this.content)
+      },
+
+
+      record() {
+        if(!this.audio) {
+          return this.audio = recording().start()
+        }
+
+        this.audio.then(rec => {
+          this.dictating = true
+          this.audio = null
+
+          rec.stop().then(buffer => {
+            this.transcribe(buffer).then(transcription => {
+              this.chat = transcription.asText()
+            }).finally(() => {
+              this.dictating = false
+            })
+          })
+        })
       },
 
 
@@ -538,6 +568,10 @@
         el._changed = true
         el.group = this.section
 
+        if(!el.id) {
+          el.id = uid()
+        }
+
         this.$emit('update:content', this.content)
       }
     },
@@ -572,28 +606,45 @@
       rows="1"
     >
       <template #prepend>
-        <v-icon @click="help = !help">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M15.07,11.25L14.17,12.17C13.45,12.89 13,13.5 13,15H11V14.5C11,13.39 11.45,12.39 12.17,11.67L13.41,10.41C13.78,10.05 14,9.55 14,9C14,7.89 13.1,7 12,7A2,2 0 0,0 10,9H8A4,4 0 0,1 12,5A4,4 0 0,1 16,9C16,9.88 15.64,10.67 15.07,11.25M13,19H11V17H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
+        <v-btn @click="help = !help"
+          :title="help ? $gettext('Hide help') : $gettext('Show help')"
+          variant="text"
+          icon>
+          <svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z" />
           </svg>
-        </v-icon>
+        </v-btn>
       </template>
       <template #append>
-        <v-icon @click="refining || refine()"
+        <v-btn v-if="chat"
+          @click="refining || refine()"
           @keydown.enter="refining || refine()"
-          :title="refining ? $gettext('Refining ...') : $gettext('Refine content based on prompt')">
-          <svg v-if="refining === false" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          :title="refining ? $gettext('Refining ...') : $gettext('Refine content based on prompt')"
+          :loading="refining"
+          variant="text"
+          icon>
+          <svg v-if="refining === false" fill="currentColor" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2A10,10 0 0,1 22,12M6,13H14L10.5,16.5L11.92,17.92L17.84,12L11.92,6.08L10.5,7.5L14,11H6V13Z" />
           </svg>
-          <svg v-if="refining === true" class="spinner" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <circle class="spin1" cx="4" cy="12" r="3"/>
-            <circle class="spin1 spin2" cx="12" cy="12" r="3"/>
-            <circle class="spin1 spin3" cx="20" cy="12" r="3"/>
-          </svg>
-          <svg v-if="refining === null" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <svg v-if="refining === null" fill="currentColor" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
           </svg>
-        </v-icon>
+        </v-btn>
+
+        <v-btn v-else
+          @click="record()"
+          :title="$gettext('Dictate')"
+          :class="{dictating: audio}"
+          :loading="dictating"
+          variant="text"
+          icon>
+          <svg v-if="audio" fill="currentColor" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17.3,11C17.3,14 14.76,16.1 12,16.1C9.24,16.1 6.7,14 6.7,11H5C5,14.41 7.72,17.23 11,17.72V21H13V17.72C16.28,17.23 19,14.41 19,11M10.8,4.9C10.8,4.24 11.34,3.7 12,3.7C12.66,3.7 13.2,4.24 13.2,4.9L13.19,11.1C13.19,11.76 12.66,12.3 12,12.3C11.34,12.3 10.8,11.76 10.8,11.1M12,14A3,3 0 0,0 15,11V5A3,3 0 0,0 12,2A3,3 0 0,0 9,5V11A3,3 0 0,0 12,14Z" />
+          </svg>
+          <svg v-else fill="currentColor" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z" />
+          </svg>
+        </v-btn>
       </template>
     </v-textarea>
     <div v-if="help" class="help">
@@ -649,7 +700,7 @@
     <v-expansion-panels class="list" v-model="panel" elevation="0" multiple>
       <VueDraggable
         @update:modelValue="$emit('update:content', $event)"
-        :disabled="panel.length || !auth.can('page:save')"
+        :disabled="$vuetify.display.smAndDown || !auth.can('page:save')"
         :modelValue="content"
         :forceFallback="true"
         fallbackTolerance="10"
@@ -657,78 +708,76 @@
         group="content">
 
         <v-expansion-panel v-for="(el, idx) in content" :key="idx" v-show="shown(el)" class="content" :class="{changed: el._changed, error: el._error}">
-          <v-expansion-panel-title expand-icon="mdi-pencil">
+          <v-expansion-panel-title>
             <v-checkbox-btn v-if="auth.can('page:save')" :model-value="el._checked" @click.stop="el._checked = !el._checked" />
 
-            <v-menu v-if="auth.can('page:save')" location="center">
-              <template v-slot:activator="{ props }">
-                <v-btn v-bind="props"
+            <component :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+              v-model="menu[idx]"
+              transition="scale-transition"
+              location="end center"
+              max-width="300">
+
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
                   :title="$gettext('Actions')"
                   icon="mdi-dots-vertical"
                   variant="text"
                 />
               </template>
-              <v-list>
-                <v-list-item v-if="!el._error">
-                  <v-btn prepend-icon="mdi-content-copy" variant="text" @click="copy(idx)">{{ $gettext('Copy') }}</v-btn>
-                </v-list-item>
-                <v-list-item v-if="!el._error">
-                  <v-btn prepend-icon="mdi-content-cut" variant="text" @click="cut(idx)">{{ $gettext('Cut') }}</v-btn>
-                </v-list-item>
-                <v-list-item>
-                  <v-btn prepend-icon="mdi-delete" variant="text" @click="remove(idx)">{{ $gettext('Delete') }}</v-btn>
-                </v-list-item>
 
-                <v-list-item>
-                  <v-btn prepend-icon="mdi-arrow-right" variant="text">{{ $gettext('Insert') }}</v-btn>
-                  <template v-slot:append>
-                    <v-icon icon="mdi-menu-right"></v-icon>
-                  </template>
-                  <v-menu activator="parent" open-on-hover submenu>
-                    <v-list>
-                      <v-list-item v-if="clipboard.get('page-content')">
-                        <v-btn prepend-icon="mdi-arrow-up" variant="text" @click="paste(idx)">{{ $gettext('Paste before') }}</v-btn>
-                      </v-list-item>
-                      <v-list-item v-if="clipboard.get('page-content')">
-                        <v-btn prepend-icon="mdi-arrow-down" variant="text" @click="paste(idx + 1)">{{ $gettext('Paste after') }}</v-btn>
-                      </v-list-item>
-                      <v-list-item>
-                        <v-btn prepend-icon="mdi-arrow-up" variant="text" @click="insert(idx)">{{ $gettext('Insert before') }}</v-btn>
-                      </v-list-item>
-                      <v-list-item>
-                        <v-btn prepend-icon="mdi-arrow-down" variant="text" @click="insert(idx + 1)">{{ $gettext('Insert after') }}</v-btn>
-                      </v-list-item>
-                    </v-list>
-                  </v-menu>
-                </v-list-item>
+              <v-card>
+                <v-toolbar density="compact">
+                  <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
+                  <v-btn icon="mdi-close" @click="menu[idx] = false" />
+                </v-toolbar>
 
-                <v-list-item>
-                  <v-btn prepend-icon="mdi-lightning-bolt" variant="text">{{ $gettext('Advanced') }}</v-btn>
-                  <template v-slot:append>
-                    <v-icon icon="mdi-menu-right"></v-icon>
-                  </template>
-                  <v-menu activator="parent" open-on-hover submenu>
-                    <v-list>
-                      <v-list-item v-if="!el._error && el.type !== 'reference' && auth.can('element:add')">
-                        <v-btn prepend-icon="mdi-link" variant="text" @click="share(idx)">{{ $gettext('Make shared') }}</v-btn>
-                      </v-list-item>
-                      <v-list-item v-if="el.type === 'reference'">
-                        <v-btn prepend-icon="mdi-link-off" variant="text" @click="unshare(idx)">{{ $gettext('Merge copy') }}</v-btn>
-                      </v-list-item>
-                      <v-list-item v-if="el.type !== 'reference'">
-                        <v-btn prepend-icon="mdi-swap-horizontal" variant="text" @click="change(idx)">{{ $gettext('Change to') }}</v-btn>
-                      </v-list-item>
-                      <v-list-item v-if="el.type === 'text'">
-                        <v-btn prepend-icon="mdi-set-split" variant="text" @click="split(idx)">{{ $gettext('Split') }}</v-btn>
-                      </v-list-item>
-                      <v-list-item v-if="el._checked && isChecked > 1">
-                        <v-btn prepend-icon="mdi-set-merge" variant="text" @click="merge()">{{ $gettext('Merge') }}</v-btn>
-                      </v-list-item>
-                    </v-list>
-                  </v-menu>
-                </v-list-item>
-              </v-list>
-            </v-menu>
+                <v-list @click="menu[idx] = false">
+                  <v-list-item v-if="!el._error">
+                    <v-btn prepend-icon="mdi-content-copy" variant="text" @click="copy(idx)">{{ $gettext('Copy') }}</v-btn>
+                  </v-list-item>
+                  <v-list-item v-if="!el._error">
+                    <v-btn prepend-icon="mdi-content-cut" variant="text" @click="cut(idx)">{{ $gettext('Cut') }}</v-btn>
+                  </v-list-item>
+                  <v-list-item>
+                    <v-btn prepend-icon="mdi-delete" variant="text" @click="remove(idx)">{{ $gettext('Delete') }}</v-btn>
+                  </v-list-item>
+
+                  <v-divider></v-divider>
+
+                  <v-list-item v-if="menu[idx] && clipboard.get('page-content')">
+                    <v-btn prepend-icon="mdi-arrow-up" variant="text" @click="paste(idx)">{{ $gettext('Paste before') }}</v-btn>
+                  </v-list-item>
+                  <v-list-item v-if="menu[idx] && clipboard.get('page-content')">
+                    <v-btn prepend-icon="mdi-arrow-down" variant="text" @click="paste(idx + 1)">{{ $gettext('Paste after') }}</v-btn>
+                  </v-list-item>
+                  <v-list-item>
+                    <v-btn prepend-icon="mdi-arrow-up" variant="text" @click="insert(idx)">{{ $gettext('Insert before') }}</v-btn>
+                  </v-list-item>
+                  <v-list-item>
+                    <v-btn prepend-icon="mdi-arrow-down" variant="text" @click="insert(idx + 1)">{{ $gettext('Insert after') }}</v-btn>
+                  </v-list-item>
+
+                  <v-divider></v-divider>
+
+                  <v-list-item v-if="!el._error && el.type !== 'reference' && auth.can('element:add')">
+                    <v-btn prepend-icon="mdi-link" variant="text" @click="share(idx)">{{ $gettext('Make shared') }}</v-btn>
+                  </v-list-item>
+                  <v-list-item v-if="el.type === 'reference'">
+                    <v-btn prepend-icon="mdi-link-off" variant="text" @click="unshare(idx)">{{ $gettext('Merge copy') }}</v-btn>
+                  </v-list-item>
+                  <v-list-item v-if="el.type !== 'reference'">
+                    <v-btn prepend-icon="mdi-swap-horizontal" variant="text" @click="change(idx)">{{ $gettext('Change to') }}</v-btn>
+                  </v-list-item>
+                  <v-list-item v-if="el.type === 'text'">
+                    <v-btn prepend-icon="mdi-set-split" variant="text" @click="split(idx)">{{ $gettext('Split') }}</v-btn>
+                  </v-list-item>
+                  <v-list-item v-if="el._checked && isChecked > 1">
+                    <v-btn prepend-icon="mdi-set-merge" variant="text" @click="merge()">{{ $gettext('Merge') }}</v-btn>
+                  </v-list-item>
+                </v-list>
+                </v-card>
+            </component>
 
             <v-icon v-if="el.type === 'reference'"
               :title="$gettext('Shared element')"
@@ -787,58 +836,63 @@
 </template>
 
 <style scoped>
-.prompt {
-  margin-bottom: 16px;
-}
+  .prompt {
+    margin-bottom: 16px;
+  }
 
-.bulk {
-  display: flex;
-  align-items: center;
-}
+  .v-input--horizontal :deep(.v-input__prepend),
+  .v-input--horizontal :deep(.v-input__append) {
+    margin: 0;
+  }
 
-.v-input.search {
-  max-width: 30rem;
-  flex-grow: 1;
-  width: 100%;
-  margin: auto;
-}
+  .bulk {
+    display: flex;
+    align-items: center;
+  }
 
-.v-input.search > * {
-  width: 100%;
-}
+  .v-input.search {
+    max-width: 30rem;
+    flex-grow: 1;
+    width: 100%;
+    margin: auto;
+  }
 
-.v-expansion-panel {
-  border-inline-start: 3px solid transparent;
-}
+  .v-input.search > * {
+    width: 100%;
+  }
 
-.v-expansion-panel.changed {
-  border-inline-start: 3px solid rgb(var(--v-theme-warning));
-}
+  .v-expansion-panel {
+    border-inline-start: 3px solid transparent;
+  }
 
-.v-expansion-panel.error .v-expansion-panel-title {
-  color: rgb(var(--v-theme-error));
-}
+  .v-expansion-panel.changed {
+    border-inline-start: 3px solid rgb(var(--v-theme-warning));
+  }
 
-.v-expansion-panel-title .v-selection-control {
-  flex: none;
-}
+  .v-expansion-panel.error .v-expansion-panel-title {
+    color: rgb(var(--v-theme-error));
+  }
 
-.element-type {
-  max-height: 48px;
-  max-width: 5rem;
-  text-align: end;
-}
+  .v-expansion-panel-title .v-selection-control {
+    flex: none;
+  }
 
-.icon-shared {
-  color: rgb(var(--v-theme-warning));
-  margin-inline-end: 4px;
-}
+  .element-type {
+    max-height: 48px;
+    max-width: 5rem;
+    text-align: end;
+  }
 
-.help {
-  color: rgb(var(--v-theme-on-surface));
-  background-color: rgb(var(--v-theme-surface-light));
-  padding: 16px 24px 16px 32px ;
-  margin-bottom: 16px;
-  border-radius: 8px;
-}
+  .icon-shared {
+    color: rgb(var(--v-theme-warning));
+    margin-inline-end: 4px;
+  }
+
+  .help {
+    color: rgb(var(--v-theme-on-surface));
+    background-color: rgb(var(--v-theme-surface-light));
+    padding: 16px 24px 16px 32px ;
+    margin-bottom: 16px;
+    border-radius: 8px;
+  }
 </style>

@@ -24,11 +24,11 @@
                         <li>
                             @if($item->children->count() && $page->isSelfOrDescendantOf($item))
                                 <details class="is-menu" open>
-                                    <summary role>
+                                    <summary class="menu-item" role>
                                         <a href="{{ cmsroute($item) }}" class="{{ $page->isSelfOrDescendantOf($item) ? 'active' : '' }}">
                                             {{ cms($item, 'name') }}
                                         </a>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 16 16">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                             <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
                                         </svg>
                                     </summary>
@@ -47,9 +47,16 @@
                                     </ul>
                                 </details>
                             @else
-                                <a href="{{ cmsroute($item) }}" class="{{ $page->isSelfOrDescendantOf($item) ? 'active' : '' }}">
-                                    {{ cms($item, 'name') }}
-                                </a>
+                                <div class="menu-item">
+                                    <a href="{{ cmsroute($item) }}" class="{{ $page->isSelfOrDescendantOf($item) ? 'active' : '' }}">
+                                        {{ cms($item, 'name') }}
+                                    </a>
+                                    @if($item->has)
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                            <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
+                                        </svg>
+                                    @endif
+                                </div>
                             @endif
                         </li>
                     @endif
@@ -71,21 +78,21 @@
                     @endif
                 @endforeach
             </div>
+
+            <footer class="cms-content" data-section="footer">
+                @foreach($content['footer'] ?? [] as $item)
+                    @if($el = cmsref($page, $item))
+                        <div id="{{ cmsattr(@$item->id) }}" class="{{ cmsattr(@$el->type) }}">
+                            <div class="container">
+                                @includeFirst(cmsviews($page, $el), cmsdata($page, $el))
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
+            </footer>
+            <footer class="copyright">
+                &copy; {{ date('Y') }} {{ config('app.name') }}
+            </footer>
         </div>
     </main>
-@endsection
-
-
-@section('footer')
-    <footer class="cms-content" data-section="footer">
-        @foreach($content['footer'] ?? [] as $item)
-            @if($el = cmsref($page, $item))
-                <div id="{{ cmsattr(@$item->id) }}" class="{{ cmsattr(@$el->type) }}">
-                    <div class="container">
-                        @includeFirst(cmsviews($page, $el), cmsdata($page, $el))
-                    </div>
-                </div>
-            @endif
-        @endforeach
-    </footer>
 @endsection

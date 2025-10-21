@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license MIT, http://opensource.org/licenses/MIT
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
  */
 
 
@@ -45,10 +45,13 @@ Made with <fg=green>love</> by the Pagible CMS community. Be a part of it!
         $result = 0;
 
         $this->comment( '  Publishing CMS files ...' );
-        $result += $this->call( 'vendor:publish', ['--provider' => 'Aimeos\Cms\CmsServiceProvider'] );
+        $result += $this->call( 'vendor:publish', ['--provider' => 'Aimeos\Cms\ServiceProvider'] );
 
         $this->comment( '  Publishing Analytics Bridge files ...' );
         $result += $this->call( 'vendor:publish', ['--provider' => 'Aimeos\AnalyticsBridge\ServiceProvider'] );
+
+        $this->comment( '  Publishing Laravel Scout files ...' );
+        $result += $this->call( 'vendor:publish', ['--provider' => 'Laravel\Scout\ScoutServiceProvider'] );
 
         $this->comment( '  Publishing JSON:API configuration ...' );
         $result += $this->call( 'vendor:publish', ['--provider' => 'LaravelJsonApi\Laravel\ServiceProvider'] );

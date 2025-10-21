@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
 namespace Tests;
 
 use Nuwave\Lighthouse\Testing\MakesGraphQLRequests;
@@ -56,7 +61,12 @@ class GraphqlPageTest extends TestAbstract
 
         // Prepare expected attributes
         $attr = collect($page->getAttributes())->except(['tenant_id', '_lft', '_rgt'])->all();
-        $expected = ['id' => (string) $page->id] + $attr + ['has' => $page->has];
+        $expected = [
+            'id' => (string) $page->id,
+            'has' => $page->has,
+            'created_at' => (string) $page->getAttribute( 'created_at' ),
+            'updated_at' => (string) $page->getAttribute( 'updated_at' ),
+        ] + $attr;
 
         // Cast JSON fields to arrays for order-independent comparison
         $expected['meta'] = (array) $page->meta;
@@ -110,11 +120,16 @@ class GraphqlPageTest extends TestAbstract
     {
         $this->seed(CmsSeeder::class);
 
+        $expected = [];
         $page = Page::where('tag', 'root')->firstOrFail();
 
         // Prepare expected attributes
         $attr = collect($page->getAttributes())->except(['tenant_id', '_lft', '_rgt'])->all();
-        $expected = [['id' => (string) $page->id] + $attr];
+        $expected[] = [
+            'id' => (string) $page->id,
+            'created_at' => (string) $page->getAttribute( 'created_at' ),
+            'updated_at' => (string) $page->getAttribute( 'updated_at' ),
+        ] + $attr;
 
         // Cast JSON fields to arrays for order-independent comparison
         $expected[0]['meta'] = $page->meta;
@@ -270,7 +285,12 @@ class GraphqlPageTest extends TestAbstract
 
         foreach ($root->children as $page) {
             $attr = collect($page->getAttributes())->except(['tenant_id', '_lft', '_rgt'])->all();
-            $expected[] = ['id' => (string) $page->id, 'parent_id' => (string) $page->parent_id] + $attr;
+            $expected[] = [
+                'id' => (string) $page->id,
+                'parent_id' => (string) $page->parent_id,
+                'created_at' => (string) $page->getAttribute( 'created_at' ),
+                'updated_at' => (string) $page->getAttribute( 'updated_at' ),
+            ] + $attr;
         }
 
         $this->expectsDatabaseQueryCount(2);
@@ -472,8 +492,8 @@ class GraphqlPageTest extends TestAbstract
             'meta' => ['type' => 'meta', 'data' => ['text' => 'Laravel CMS is outstanding']],
             'config' => ['test' => ['type' => 'test', 'data' => ['key' => 'value']]],
             'content' => [
-                ['type' => 'heading', 'text' => 'Welcome to Laravel CMS'],
-                ['type' => 'ref', 'id' => $element->id],
+                ['type' => 'heading', 'data' => ['title' => 'Welcome to Laravel CMS']],
+                ['type' => 'ref', 'id' => strtolower( $element->id )],
             ],
         ];
         $this->assertEquals($expectedAux, json_decode($version['aux'], true));
@@ -616,7 +636,12 @@ class GraphqlPageTest extends TestAbstract
         $page = Page::where('tag', 'test')->where('lang', 'en')->firstOrFail();
 
         $attr = collect($page->getAttributes())->except(['tenant_id', '_lft', '_rgt'])->all();
-        $expected = ['id' => (string) $page->id, 'parent_id' => null] + $attr;
+        $expected = [
+            'id' => (string) $page->id,
+            'parent_id' => null,
+            'created_at' => (string) $page->getAttribute( 'created_at' ),
+            'updated_at' => (string) $page->getAttribute( 'updated_at' ),
+        ] + $attr;
 
         $response->assertJson( [
             'data' => [
@@ -823,7 +848,7 @@ class GraphqlPageTest extends TestAbstract
                     tag: "test"
                     meta: "{\"canonical\":\"to\/page\"}"
                     config: "{\"key\":\"test\"}"
-                    content: "[{\"type\":\"heading\",\"text\":\"Welcome to Laravel CMS\"}]"
+                    content: "[{\"type\":\"heading\",\"data\":{\"title\":\"Welcome to Laravel CMS\"}}]"
                     status: 0
                     cache: 5
                 }, elements: ["' . $element->id . '"], files: ["' . $file->id . '"]) {
@@ -900,7 +925,7 @@ class GraphqlPageTest extends TestAbstract
         $expectedLatestAux = [
             'meta' => ['canonical' => 'to/page'],
             'config' => ['key' => 'test'],
-            'content' => [['type' => 'heading', 'text' => 'Welcome to Laravel CMS']],
+            'content' => [['type' => 'heading', 'data' => ['title' => 'Welcome to Laravel CMS']]],
         ];
         $this->assertEquals($expectedLatestAux, json_decode($savePage['latest']['aux'], true));
 
@@ -923,8 +948,8 @@ class GraphqlPageTest extends TestAbstract
             'meta' => ['type' => 'meta', 'data' => ['text' => 'Laravel CMS is outstanding']],
             'config' => ['test' => ['type' => 'test', 'data' => ['key' => 'value']]],
             'content' => [
-                ['type' => 'heading', 'text' => 'Welcome to Laravel CMS'],
-                ['type' => 'ref', 'id' => $element->id],
+                ['type' => 'heading', 'data' => ['title' => 'Welcome to Laravel CMS']],
+                ['type' => 'ref', 'id' => strtolower( $element->id )],
             ],
         ];
         $this->assertEquals($expectedPublishedAux, json_decode($savePage['published']['aux'], true));
@@ -1008,7 +1033,7 @@ class GraphqlPageTest extends TestAbstract
 
         $page = Page::where('tag', 'root')->firstOrFail();
 
-        $this->expectsDatabaseQueryCount( 10 );
+        $this->expectsDatabaseQueryCount( 12 );
         $response = $this->actingAs( $this->user )->graphQL( '
             mutation {
                 pubPage(id: ["' . $page->id . '"]) {

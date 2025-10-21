@@ -1,6 +1,12 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import gql from 'graphql-tag'
   import { useAuthStore } from '../stores'
+  import PageDetail from '../views/PageDetail.vue'
+  import ElementDetail from '../views/ElementDetail.vue'
 
 
   export default {
@@ -9,6 +15,8 @@
     },
 
     emits: [],
+
+    inject: ['openView'],
 
     data: () => ({
       panel: [0, 1, 2],
@@ -19,6 +27,17 @@
     setup() {
       const auth = useAuthStore()
       return { auth }
+    },
+
+    methods: {
+      openElement(item) {
+        this.openView(ElementDetail, {item: {...item}})
+      },
+
+
+      openPage(item) {
+        this.openView(PageDetail, {item: {...item}})
+      }
     },
 
     watch: {
@@ -93,7 +112,7 @@
         <v-expansion-panel v-if="file.bypages?.length && auth.can('page:view')">
           <v-expansion-panel-title>{{ $gettext('Pages') }}</v-expansion-panel-title>
           <v-expansion-panel-text>
-            <v-table density="comfortable" hover>
+            <v-table class="pages" density="comfortable" hover>
               <thead>
                 <tr>
                   <th>{{ $gettext('ID') }}</th>
@@ -102,9 +121,9 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="v in file.bypages" :key="v.id">
+                <tr v-for="v in file.bypages" :key="v.id" @click="openPage(v)">
                   <td>{{ v.id }}</td>
-                  <td>{{ v.path }}</td>
+                  <td>{{ '/' + v.path }}</td>
                   <td>{{ v.name }}</td>
                 </tr>
               </tbody>
@@ -115,7 +134,7 @@
         <v-expansion-panel v-if="file.byelements?.length && auth.can('element:view')">
           <v-expansion-panel-title>{{ $gettext('Elements') }}</v-expansion-panel-title>
           <v-expansion-panel-text>
-            <v-table density="comfortable" hover>
+            <v-table class="elements" density="comfortable" hover>
               <thead>
                 <tr>
                   <th>{{ $gettext('ID') }}</th>
@@ -124,7 +143,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="v in file.byelements" :key="v.id">
+                <tr v-for="v in file.byelements" :key="v.id" @click="openElement(v)">
                   <td>{{ v.id }}</td>
                   <td>{{ v.type }}</td>
                   <td>{{ v.name }}</td>
@@ -169,6 +188,11 @@
   .v-expansion-panel-title {
     font-weight: bold;
     font-size: 110%;
+  }
+
+  .v-table.pages tbody tr,
+  .v-table.elements tbody tr {
+    cursor: pointer;
   }
 
   thead th {

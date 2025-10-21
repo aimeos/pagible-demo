@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
 namespace Aimeos\Cms\Tools;
 
 use Prism\Prism\Tool;
@@ -25,8 +30,8 @@ class Pages extends Tool
                 $builder->whereAny( ['content', 'meta', 'name', 'path', 'title'], 'like', '%' . $term . '%' )
                 ->where( 'lang', $lang );
             } )
-            ->orWhereHas('versions', function( $builder ) use ( $lang, $term  ) {
-                $builder->where( 'data', 'like', '%' . $term . '%' )
+            ->orWhereHas('latest', function( $builder ) use ( $lang, $term  ) {
+                $builder->whereAny( ['aux->content', 'aux->meta', 'data->name', 'data->path', 'data->title'], 'like', '%' . $term . '%' )
                     ->where( 'lang', $lang );
             } )
             ->take( 10 )

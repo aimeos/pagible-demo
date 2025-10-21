@@ -1,3 +1,7 @@
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
 <script>
   import { VDateInput } from 'vuetify/labs/VDateInput'
 
@@ -7,7 +11,7 @@
     },
 
     props: {
-      'modelValue': {type: [Array, Date, String, null], default: null},
+      'modelValue': {type: [Array, Date, String, null]},
       'config': {type: Object, default: () => {}},
       'assets': {type: Object, default: () => {}},
       'readonly': {type: Boolean, default: false},
@@ -29,7 +33,7 @@
         immediate: true,
         handler(val) {
           this.$emit('error', !this.rules.every(rule => {
-            return rule(this.modelValue) === true
+            return rule(val ?? this.config.default ?? null) === true
           }))
         }
       }
@@ -46,8 +50,8 @@
     :max="config.max"
     :min="config.min"
     :multiple="config.multiple"
-    :modelValue="modelValue"
     :placeholder="config.placeholder || null"
+    :modelValue="modelValue ?? config.default ?? null"
     @update:modelValue="$emit('update:modelValue', $event)"
     density="comfortable"
     hide-details="auto"
