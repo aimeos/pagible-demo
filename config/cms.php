@@ -335,7 +335,7 @@ return [
                             ['value' => 'row+col', 'label' => 'First row and column'],
                         ],
                     ],
-                    'text' => [
+                    'table' => [
                         'type' => 'table',
                         'label' => 'table',
                     ],
@@ -363,14 +363,14 @@ return [
                     ],
                     'main' => [
                         'type' => 'switch',
-                        'label' => 'main image',
+                        'label' => 'load immediately',
                         'default' => false,
                     ],
                 ],
             ],
             'slideshow' => [
                 'group' => 'media',
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><title>image-multiple-outline</title><path d="M21,17H7V3H21M21,1H7A2,2 0 0,0 5,3V17A2,2 0 0,0 7,19H21A2,2 0 0,0 23,17V3A2,2 0 0,0 21,1M3,5H1V21A2,2 0 0,0 3,23H19V21H3M15.96,10.29L13.21,13.83L11.25,11.47L8.5,15H19.5L15.96,10.29Z" /></svg>',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21,17H7V3H21M21,1H7A2,2 0 0,0 5,3V17A2,2 0 0,0 7,19H21A2,2 0 0,0 23,17V3A2,2 0 0,0 21,1M3,5H1V21A2,2 0 0,0 3,23H19V21H3M15.96,10.29L13.21,13.83L11.25,11.47L8.5,15H19.5L15.96,10.29Z" /></svg>',
                 'fields' => [
                     'title' => [
                         'type' => 'string',
@@ -380,11 +380,16 @@ return [
                         'label' => 'images',
                         'min' => 2,
                     ],
+                    'main' => [
+                        'type' => 'switch',
+                        'label' => 'load immediately',
+                        'default' => false,
+                    ],
                 ],
             ],
             'video' => [
                 'group' => 'media',
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><title>youtube</title><path d="M10,15L15.19,12L10,9V15M21.56,7.17C21.69,7.64 21.78,8.27 21.84,9.07C21.91,9.87 21.94,10.56 21.94,11.16L22,12C22,14.19 21.84,15.8 21.56,16.83C21.31,17.73 20.73,18.31 19.83,18.56C19.36,18.69 18.5,18.78 17.18,18.84C15.88,18.91 14.69,18.94 13.59,18.94L12,19C7.81,19 5.2,18.84 4.17,18.56C3.27,18.31 2.69,17.73 2.44,16.83C2.31,16.36 2.22,15.73 2.16,14.93C2.09,14.13 2.06,13.44 2.06,12.84L2,12C2,9.81 2.16,8.2 2.44,7.17C2.69,6.27 3.27,5.69 4.17,5.44C4.64,5.31 5.5,5.22 6.82,5.16C8.12,5.09 9.31,5.06 10.41,5.06L12,5C16.19,5 18.8,5.16 19.83,5.44C20.73,5.69 21.31,6.27 21.56,7.17Z" /></svg>',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10,15L15.19,12L10,9V15M21.56,7.17C21.69,7.64 21.78,8.27 21.84,9.07C21.91,9.87 21.94,10.56 21.94,11.16L22,12C22,14.19 21.84,15.8 21.56,16.83C21.31,17.73 20.73,18.31 19.83,18.56C19.36,18.69 18.5,18.78 17.18,18.84C15.88,18.91 14.69,18.94 13.59,18.94L12,19C7.81,19 5.2,18.84 4.17,18.56C3.27,18.31 2.69,17.73 2.44,16.83C2.31,16.36 2.22,15.73 2.16,14.93C2.09,14.13 2.06,13.44 2.06,12.84L2,12C2,9.81 2.16,8.2 2.44,7.17C2.69,6.27 3.27,5.69 4.17,5.44C4.64,5.31 5.5,5.22 6.82,5.16C8.12,5.09 9.31,5.06 10.41,5.06L12,5C16.19,5 18.8,5.16 19.83,5.44C20.73,5.69 21.31,6.27 21.56,7.17Z" /></svg>',
                 'fields' => [
                     'file' => [
                         'type' => 'video',
@@ -394,7 +399,7 @@ return [
             ],
             'audio' => [
                 'group' => 'media',
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><title>music</title><path d="M21,3V15.5A3.5,3.5 0 0,1 17.5,19A3.5,3.5 0 0,1 14,15.5A3.5,3.5 0 0,1 17.5,12C18.04,12 18.55,12.12 19,12.34V6.47L9,8.6V17.5A3.5,3.5 0 0,1 5.5,21A3.5,3.5 0 0,1 2,17.5A3.5,3.5 0 0,1 5.5,14C6.04,14 6.55,14.12 7,14.34V6L21,3Z" /></svg>',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21,3V15.5A3.5,3.5 0 0,1 17.5,19A3.5,3.5 0 0,1 14,15.5A3.5,3.5 0 0,1 17.5,12C18.04,12 18.55,12.12 19,12.34V6.47L9,8.6V17.5A3.5,3.5 0 0,1 5.5,21A3.5,3.5 0 0,1 2,17.5A3.5,3.5 0 0,1 5.5,14C6.04,14 6.55,14.12 7,14.34V6L21,3Z" /></svg>',
                 'fields' => [
                     'file' => [
                         'type' => 'audio',
@@ -404,7 +409,7 @@ return [
             ],
             'file' => [
                 'group' => 'media',
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><title>file-download-outline</title><path d="M14,2L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2H14M18,20V9H13V4H6V20H18M12,19L8,15H10.5V12H13.5V15H16L12,19Z" /></svg>',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2H14M18,20V9H13V4H6V20H18M12,19L8,15H10.5V12H13.5V15H16L12,19Z" /></svg>',
                 'fields' => [
                     'file' => [
                         'type' => 'file',
@@ -413,54 +418,25 @@ return [
                 ],
             ],
 
-            'hero' => [
+            'article' => [
                 'group' => 'content',
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><title>page-layout-header</title><path d="M6,2H18A2,2 0 0,1 20,4V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M6,4V8H18V4H6Z" /></svg>',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5V19H5V5H19M21 3H3V21H21V3M17 17H7V16H17V17M17 15H7V14H17V15M17 12H7V7H17V12Z" /></svg>',
                 'fields' => [
-                    'title' => [
-                        'type' => 'string',
-                        'min' => 1,
-                    ],
                     'text' => [
-                        'type' => 'markdown',
+                        'type' => 'text',
+                        'label' => 'introduction',
+                        'min' => 1,
+                        'max' => 1000,
                     ],
-                    'url' => [
-                        'type' => 'url',
-                    ],
-                    'button' => [
-                        'type' => 'string',
-                        'max' => 255,
-                    ],
-                ],
-            ],
-            'cards' => [
-                'group' => 'content',
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><title>card-multiple-outline</title><path d="M21 16V6H7V16H21M21 4C21.53 4 22.04 4.21 22.41 4.59C22.79 4.96 23 5.47 23 6V16C23 16.53 22.79 17.04 22.41 17.41C22.04 17.79 21.53 18 21 18H7C5.89 18 5 17.1 5 16V6C5 4.89 5.89 4 7 4H21M3 20H18V22H3C2.47 22 1.96 21.79 1.59 21.41C1.21 21.04 1 20.53 1 20V9H3V20Z" /></svg>',
-                'fields' => [
-                    'title' => [
-                        'type' => 'string',
-                    ],
-                    'cards' => [
-                        'type' => 'items',
-                        'item' => [
-                            'title' => [
-                                'type' => 'string',
-                                'min' => 1,
-                            ],
-                            'file' => [
-                                'type' => 'image',
-                                'label' => 'image',
-                            ],
-                            'text' => [
-                                'type' => 'text',
-                            ],
-                        ],
+                    'file' => [
+                        'type' => 'image',
+                        'label' => 'image',
                     ],
                 ],
             ],
             'blog' => [
                 'group' => 'content',
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><title>format-list-text</title><path d="M2 14H8V20H2M16 8H10V10H16M2 10H8V4H2M10 4V6H22V4M10 20H16V18H10M10 16H22V14H10" /></svg>',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M2 14H8V20H2M16 8H10V10H16M2 10H8V4H2M10 4V6H22V4M10 20H16V18H10M10 16H22V14H10" /></svg>',
                 'fields' => [
                     'title' => [
                         'type' => 'string',
@@ -495,15 +471,25 @@ return [
                     ],
                 ],
             ],
-            'article' => [
+            'hero' => [
                 'group' => 'content',
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><title>post-outline</title><path d="M19 5V19H5V5H19M21 3H3V21H21V3M17 17H7V16H17V17M17 15H7V14H17V15M17 12H7V7H17V12Z" /></svg>',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6,2H18A2,2 0 0,1 20,4V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M6,4V8H18V4H6Z" /></svg>',
                 'fields' => [
-                    'text' => [
-                        'type' => 'text',
-                        'label' => 'introduction',
+                    'title' => [
+                        'type' => 'string',
                         'min' => 1,
-                        'max' => 1000,
+                    ],
+                    'subtitle' => [
+                        'type' => 'string',
+                    ],
+                    'text' => [
+                        'type' => 'markdown',
+                    ],
+                    'url' => [
+                        'type' => 'url',
+                    ],
+                    'button' => [
+                        'type' => 'string',
                     ],
                     'file' => [
                         'type' => 'image',
@@ -511,9 +497,56 @@ return [
                     ],
                 ],
             ],
+            'cards' => [
+                'group' => 'content',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16V6H7V16H21M21 4C21.53 4 22.04 4.21 22.41 4.59C22.79 4.96 23 5.47 23 6V16C23 16.53 22.79 17.04 22.41 17.41C22.04 17.79 21.53 18 21 18H7C5.89 18 5 17.1 5 16V6C5 4.89 5.89 4 7 4H21M3 20H18V22H3C2.47 22 1.96 21.79 1.59 21.41C1.21 21.04 1 20.53 1 20V9H3V20Z" /></svg>',
+                'fields' => [
+                    'title' => [
+                        'type' => 'string',
+                    ],
+                    'cards' => [
+                        'type' => 'items',
+                        'item' => [
+                            'title' => [
+                                'type' => 'string',
+                                'min' => 1,
+                            ],
+                            'file' => [
+                                'type' => 'image',
+                                'label' => 'image',
+                            ],
+                            'text' => [
+                                'type' => 'text',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'questions' => [
+                'group' => 'content',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18,15H6L2,19V3A1,1 0 0,1 3,2H18A1,1 0 0,1 19,3V14A1,1 0 0,1 18,15M23,9V23L19,19H8A1,1 0 0,1 7,18V17H21V8H22A1,1 0 0,1 23,9M8.19,4C7.32,4 6.62,4.2 6.08,4.59C5.56,5 5.3,5.57 5.31,6.36L5.32,6.39H7.25C7.26,6.09 7.35,5.86 7.53,5.7C7.71,5.55 7.93,5.47 8.19,5.47C8.5,5.47 8.76,5.57 8.94,5.75C9.12,5.94 9.2,6.2 9.2,6.5C9.2,6.82 9.13,7.09 8.97,7.32C8.83,7.55 8.62,7.75 8.36,7.91C7.85,8.25 7.5,8.55 7.31,8.82C7.11,9.08 7,9.5 7,10H9C9,9.69 9.04,9.44 9.13,9.26C9.22,9.08 9.39,8.9 9.64,8.74C10.09,8.5 10.46,8.21 10.75,7.81C11.04,7.41 11.19,7 11.19,6.5C11.19,5.74 10.92,5.13 10.38,4.68C9.85,4.23 9.12,4 8.19,4M7,11V13H9V11H7M13,13H15V11H13V13M13,4V10H15V4H13Z" /></svg>',
+                'fields' => [
+                    'title' => [
+                        'type' => 'string',
+                    ],
+                    'items' => [
+                        'type' => 'items',
+                        'item' => [
+                            'title' => [
+                                'type' => 'string',
+                                'min' => 1,
+                            ],
+                            'text' => [
+                                'type' => 'markdown',
+                                'min' => 1,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
             'contact' => [
                 'group' => 'forms',
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><title>email-arrow-right-outline</title><path d="M13 19C13 18.66 13.04 18.33 13.09 18H4V8L12 13L20 8V13.09C20.72 13.21 21.39 13.46 22 13.81V6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H13.09C13.04 19.67 13 19.34 13 19M20 6L12 11L4 6H20M20 22V20H16V18H20V16L23 19L20 22Z" /></svg>',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M13 19C13 18.66 13.04 18.33 13.09 18H4V8L12 13L20 8V13.09C20.72 13.21 21.39 13.46 22 13.81V6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H13.09C13.04 19.67 13 19.34 13 19M20 6L12 11L4 6H20M20 22V20H16V18H20V16L23 19L20 22Z" /></svg>',
                 'fields' => [
                     'title' => [
                         'type' => 'string',
@@ -570,22 +603,67 @@ return [
         ],
 
         'config' => [
+            'logo' => [
+                'group' => 'basic',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z" /></svg>',
+                'fields' => [
+                    'file' => [
+                        'type' => 'image',
+                        'required' => true,
+                    ],
+                ]
+            ],
+            'icon' => [
+                'group' => 'basic',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14,6L10.25,11L13.1,14.8L11.5,16C9.81,13.75 7,10 7,10L1,18H23L14,6Z" /></svg>',
+                'fields' => [
+                    'file' => [
+                        'type' => 'image',
+                        'required' => true,
+                    ],
+                ]
+            ],
             'theme' => [
                 'group' => 'basic',
-                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5,6.41L6.41,5L17,15.59V9H19V19H9V17H15.59L5,6.41Z" /></svg>',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19,19L12,11V19H5L12,11V5H19M19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3Z" /></svg>',
                 'fields' => [
-                    '--color-primary' => ['type' => 'color', 'default' => '#0080f0'],
-                    '--color-secondary' => ['type' => 'color', 'default' => '#00c0f0'],
-                    '--color-accent' => ['type' => 'color', 'default' => '#0060d0'],
-                    '--color-background' => ['type' => 'color', 'default' => '#e8f4fc'],
-                    '--color-light' => ['type' => 'color', 'default' => '#ffffff'],
-                    '--color-dark' => ['type' => 'color', 'default' => '#2b2b2b'],
-                    '--color-text' => ['type' => 'color', 'default' => '#333333'],
-                    '--color-muted' => ['type' => 'color', 'default' => '#d8ecff'],
-                    '--color-border' => ['type' => 'color', 'default' => '#88bcf0'],
+                    '--pico-font-family-sans-serif' => ['type' => 'string', 'default' => '"Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, Arial, sans-serif'],
+                    '--pico-color' => ['type' => 'color', 'default' => '#FFFFFFD0'],
+                    '--pico-background-color' => ['type' => 'color', 'default' => '#080040'],
+                    '--pico-text-selection-color' => ['type' => 'color', 'default' => '#0098e840'],
+                    '--pico-contrast' => ['type' => 'color', 'default' => '#FFFFFFE0'],
+                    '--pico-contrast-hover' => ['type' => 'color', 'default' => '#FFFFFF'],
+                    '--pico-contrast-inverse' => ['type' => 'color', 'default' => '#000000'],
+                    '--pico-primary' => ['type' => 'color', 'default' => '#0868D0'],
+                    '--pico-primary-background' => ['type' => 'color', 'default' => '#0868D080'],
+                    '--pico-primary-hover' => ['type' => 'color', 'default' => '#1080FF'],
+                    '--pico-primary-hover-background' => ['type' => 'color', 'default' => '#1080FF80'],
+                    '--pico-secondary' => ['type' => 'color', 'default' => '#B008C8'],
+                    '--pico-secondary-background' => ['type' => 'color', 'default' => '#B008C880'],
+                    '--pico-secondary-hover' => ['type' => 'color', 'default' => '#E010FF'],
+                    '--pico-secondary-hover-background' => ['type' => 'color', 'default' => '#E010FF80'],
+                    '--pico-border-radius' => ['type' => 'string', 'default' => '0'],
                     '--pico-nav-breadcrumb-divider' => ['type' => 'string', 'default' => '>'],
                 ],
-            ]
+            ],
+            'styles' => [
+                'group' => 'basic',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5,3L4.35,6.34H17.94L17.5,8.5H3.92L3.26,11.83H16.85L16.09,15.64L10.61,17.45L5.86,15.64L6.19,14H2.85L2.06,18L9.91,21L18.96,18L20.16,11.97L20.4,10.76L21.94,3H5Z" /></svg>',
+                'fields' => [
+                    'text' => [
+                        'type' => 'plaintext',
+                    ],
+                ],
+            ],
+            'javascript' => [
+                'group' => 'basic',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3,3H21V21H3V3M7.73,18.04C8.13,18.89 8.92,19.59 10.27,19.59C11.77,19.59 12.8,18.79 12.8,17.04V11.26H11.1V17C11.1,17.86 10.75,18.08 10.2,18.08C9.62,18.08 9.38,17.68 9.11,17.21L7.73,18.04M13.71,17.86C14.21,18.84 15.22,19.59 16.8,19.59C18.4,19.59 19.6,18.76 19.6,17.23C19.6,15.82 18.79,15.19 17.35,14.57L16.93,14.39C16.2,14.08 15.89,13.87 15.89,13.37C15.89,12.96 16.2,12.64 16.7,12.64C17.18,12.64 17.5,12.85 17.79,13.37L19.1,12.5C18.55,11.54 17.77,11.17 16.7,11.17C15.19,11.17 14.22,12.13 14.22,13.4C14.22,14.78 15.03,15.43 16.25,15.95L16.67,16.13C17.45,16.47 17.91,16.68 17.91,17.26C17.91,17.74 17.46,18.09 16.76,18.09C15.93,18.09 15.45,17.66 15.09,17.06L13.71,17.86Z" /></svg>',
+                'fields' => [
+                    'text' => [
+                        'type' => 'plaintext',
+                    ],
+                ],
+            ],
         ]
     ],
 ];
