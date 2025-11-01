@@ -206,7 +206,10 @@ class Stream
                         completionTokens: data_get($data, 'response.usage.output_tokens'),
                         cacheReadInputTokens: data_get($data, 'response.usage.input_tokens_details.cached_tokens'),
                         thoughtTokens: data_get($data, 'response.usage.output_tokens_details.reasoning_tokens')
-                    )
+                    ),
+                    additionalContent: Arr::whereNotNull([
+                        'response_id' => data_get($data, 'response.id'),
+                    ])
                 );
             }
         }
@@ -481,6 +484,7 @@ class Stream
                     'tool_choice' => ToolChoiceMap::map($request->toolChoice()),
                     'parallel_tool_calls' => $request->providerOptions('parallel_tool_calls'),
                     'previous_response_id' => $request->providerOptions('previous_response_id'),
+                    'service_tier' => $request->providerOptions('service_tier'),
                     'truncation' => $request->providerOptions('truncation'),
                     'reasoning' => $request->providerOptions('reasoning'),
                 ]))
