@@ -9,6 +9,8 @@ use Illuminate\Contracts\Cache\Store;
 use Illuminate\Contracts\Events\Dispatcher as DispatcherContract;
 use Illuminate\Support\Arr;
 use InvalidArgumentException;
+use Mockery;
+use Mockery\LegacyMockInterface;
 
 /**
  * @mixin \Illuminate\Cache\Repository
@@ -55,7 +57,7 @@ class CacheManager implements FactoryContract
      */
     public function store($name = null)
     {
-        $name = $name ?: $this->getDefaultDriver();
+        $name = $name ?? $this->getDefaultDriver();
 
         return $this->stores[$name] ??= $this->resolve($name);
     }
@@ -79,11 +81,19 @@ class CacheManager implements FactoryContract
      */
     public function memo($driver = null)
     {
-        $driver = $driver ?: $this->getDefaultDriver();
+        $driver = $driver ?? $this->getDefaultDriver();
 
-        $this->app->scopedIf($bindingKey = "cache.__memoized:{$driver}", fn () => $this->repository(
-            new MemoizedStore($driver, $this->store($driver)), ['events' => false]
-        ));
+        $bindingKey = "cache.__memoized:{$driver}";
+
+        $isSpy = isset($this->app['cache']) && $this->app['cache'] instanceof LegacyMockInterface;
+
+        $this->app->scopedIf($bindingKey, function () use ($driver, $isSpy) {
+            $repository = $this->repository(
+                new MemoizedStore($driver, $this->store($driver)), ['events' => false]
+            );
+
+            return $isSpy ? Mockery::spy($repository) : $repository;
+        });
 
         return $this->app->make($bindingKey);
     }
@@ -114,6 +124,8 @@ class CacheManager implements FactoryContract
      *
      * @param  array  $config
      * @return \Illuminate\Cache\Repository
+     *
+     * @throws \InvalidArgumentException
      */
     public function build(array $config)
     {
@@ -164,7 +176,10 @@ class CacheManager implements FactoryContract
      */
     protected function createArrayDriver(array $config)
     {
-        return $this->repository(new ArrayStore($config['serialize'] ?? false), $config);
+        return $this->repository(new ArrayStore(
+            $config['serialize'] ?? false,
+            $this->getSerializableClasses($config),
+        ), $config);
     }
 
     /**
@@ -184,6 +199,7 @@ class CacheManager implements FactoryContract
             $config['lock_table'] ?? 'cache_locks',
             $config['lock_lottery'] ?? [2, 100],
             $config['lock_timeout'] ?? 86400,
+            $this->getSerializableClasses($config),
         );
 
         return $this->repository(
@@ -211,7 +227,8 @@ class CacheManager implements FactoryContract
                 $config['attributes']['key'] ?? 'key',
                 $config['attributes']['value'] ?? 'value',
                 $config['attributes']['expiration'] ?? 'expires_at',
-                $this->getPrefix($config)
+                $this->getPrefix($config),
+                $this->getSerializableClasses($config),
             ),
             $config
         );
@@ -267,7 +284,12 @@ class CacheManager implements FactoryContract
     protected function createFileDriver(array $config)
     {
         return $this->repository(
-            (new FileStore($this->app['files'], $config['path'], $config['permission'] ?? null))
+            (new FileStore(
+                $this->app['files'],
+                $config['path'],
+                $config['permission'] ?? null,
+                $this->getSerializableClasses($config),
+            ))
                 ->setLockDirectory($config['lock_path'] ?? null),
             $config
         );
@@ -315,7 +337,12 @@ class CacheManager implements FactoryContract
 
         $connection = $config['connection'] ?? 'default';
 
-        $store = new RedisStore($redis, $this->getPrefix($config), $connection);
+        $store = new RedisStore(
+            $redis,
+            $this->getPrefix($config),
+            $connection,
+            $this->getSerializableClasses($config),
+        );
 
         return $this->repository(
             $store->setLockConnection($config['lock_connection'] ?? $connection),
@@ -413,6 +440,17 @@ class CacheManager implements FactoryContract
     }
 
     /**
+     * Get the classes that should be allowed during unserialization.
+     *
+     * @param  array  $config
+     * @return array|bool|null
+     */
+    protected function getSerializableClasses(array $config)
+    {
+        return $this->app['config']['cache.serializable_classes'] ?? null;
+    }
+
+    /**
      * Get the cache connection configuration.
      *
      * @param  string  $name
@@ -420,11 +458,9 @@ class CacheManager implements FactoryContract
      */
     protected function getConfig($name)
     {
-        if (! is_null($name) && $name !== 'null') {
-            return $this->app['config']["cache.stores.{$name}"];
-        }
-
-        return ['driver' => 'null'];
+        return $name !== 'null'
+            ? $this->app['config']["cache.stores.{$name}"]
+            : ['driver' => 'null'];
     }
 
     /**
@@ -434,7 +470,7 @@ class CacheManager implements FactoryContract
      */
     public function getDefaultDriver()
     {
-        return $this->app['config']['cache.default'];
+        return $this->app['config']['cache.default'] ?? 'null';
     }
 
     /**
