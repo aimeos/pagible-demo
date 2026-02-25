@@ -26,6 +26,7 @@
         page: 1,
         last: 1,
         limit: 100,
+        actions: false,
         checked: false,
         loading: true,
         vgrid: false,
@@ -445,32 +446,60 @@
   <div class="header">
     <div class="bulk">
       <v-checkbox-btn v-model="checked" @click.stop="toggle()" />
-      <v-menu>
-        <template #activator="{ props }">
+
+      <component :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+        v-model="actions"
+        transition="scale-transition"
+        location="end center"
+        max-width="300">
+
+        <template v-slot:activator="{ props }">
           <v-btn v-bind="props"
-            :disabled="!isChecked && (embed || !auth.can('file:add'))"
-            append-icon="mdi-menu-down"
+            :disabled="!isChecked || embed || !auth.can('file:add')"
+            :title="$gettext('Actions')"
+            icon="mdi-dots-vertical"
             variant="text"
-          >{{ $gettext('Actions') }}</v-btn>
+          />
         </template>
-        <v-list>
-          <v-list-item v-if="!embed && auth.can('file:add')">
-            <v-btn prepend-icon="mdi-folder-plus" variant="text" @click="$refs.upload.click()">{{ $gettext('Add files') }}</v-btn>
-          </v-list-item>
-          <v-list-item v-if="isChecked && auth.can('file:publish')">
-            <v-btn prepend-icon="mdi-publish" variant="text" @click="publish()">{{ $gettext('Publish') }}</v-btn>
-          </v-list-item>
-          <v-list-item v-if="canTrash && auth.can('file:drop')">
-            <v-btn prepend-icon="mdi-delete" variant="text" @click="drop()">{{ $gettext('Delete') }}</v-btn>
-          </v-list-item>
-          <v-list-item v-if="isTrashed && auth.can('file:keep')">
-            <v-btn prepend-icon="mdi-delete-restore" variant="text" @click="keep()">{{ $gettext('Restore') }}</v-btn>
-          </v-list-item>
-          <v-list-item v-if="isChecked && auth.can('file:purge')">
-            <v-btn prepend-icon="mdi-delete-forever" variant="text" @click="purge()">{{ $gettext('Purge') }}</v-btn>
-          </v-list-item>
-        </v-list>
-      </v-menu>
+        <v-card>
+          <v-toolbar density="compact">
+            <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
+            <v-btn icon="mdi-close" @click="actions = false" />
+          </v-toolbar>
+
+          <v-list @click="actions = false">
+            <v-list-item v-if="isChecked && auth.can('file:publish')">
+              <v-btn prepend-icon="mdi-publish" variant="text" @click="publish()">{{ $gettext('Publish') }}</v-btn>
+            </v-list-item>
+            <v-list-item v-if="canTrash && auth.can('file:drop')">
+              <v-btn prepend-icon="mdi-delete" variant="text" @click="drop()">{{ $gettext('Delete') }}</v-btn>
+            </v-list-item>
+            <v-list-item v-if="isTrashed && auth.can('file:keep')">
+              <v-btn prepend-icon="mdi-delete-restore" variant="text" @click="keep()">{{ $gettext('Restore') }}</v-btn>
+            </v-list-item>
+            <v-list-item v-if="isChecked && auth.can('file:purge')">
+              <v-btn prepend-icon="mdi-delete-forever" variant="text" @click="purge()">{{ $gettext('Purge') }}</v-btn>
+            </v-list-item>
+          </v-list>
+        </v-card>
+      </component>
+
+      <div v-if="!this.embed && auth.can('file:add')">
+        <input @change="add($event)"
+          ref="upload"
+          type="file"
+          multiple
+          hidden
+        />
+        <v-btn
+          @click="$refs.upload.click()"
+          :title="$gettext('Add files')"
+          :disabled="loading"
+          icon="mdi-plus"
+          color="primary"
+          variant="tonal"
+        />
+      </div>
     </div>
 
     <div class="search">
@@ -576,7 +605,7 @@
       </component>
 
       <div class="item-usage" :class="{notused: !item.usage}" @click="$emit('select', item)" :title="title(item)">
-        {{ item.usage }}
+        {{ item.usage || 0 }}
       </div>
 
       <div class="item-preview" @click="$emit('select', item)" :title="title(item)">
@@ -606,7 +635,7 @@
         </svg>
       </div>
 
-      <div class="item-content" @click="$emit('select', item)" :class="{trashed: item.deleted_at}" :title="title(item)">
+      <a href="#" class="item-content" @click="$emit('select', item)" :class="{trashed: item.deleted_at}" :title="title(item)">
         <div class="item-text">
           <div class="item-head">
             <span class="item-lang" v-if="item.lang">{{ item.lang }}</span>
@@ -620,7 +649,7 @@
           <div class="item-editor">{{ item.editor }}</div>
           <div class="item-modified item-subtitle">{{ (new Date(item.updated_at)).toLocaleString() }}</div>
         </div>
-      </div>
+      </a>
     </v-list-item>
   </v-list>
 
@@ -652,9 +681,10 @@
     <v-btn
       @click="$refs.upload.click()"
       :title="$gettext('Add files')"
-      icon="mdi-folder-plus"
+      :disabled="loading"
+      icon="mdi-plus"
       color="primary"
-      variant="flat"
+      variant="tonal"
     />
   </div>
 </template>
@@ -662,6 +692,10 @@
 <style scoped>
   .layout .v-list-item {
     text-transform: uppercase;
+  }
+
+  .items {
+    margin: 0;
   }
 
   .items .item-usage {
@@ -739,10 +773,6 @@
 
   .items.grid .v-list-item .item-check,
   .items.grid .v-list-item .item-menu {
-    background: rgb(var(--v-theme-surface-variant));
-    color: rgb(var(--v-theme-surface));
-    opacity: 0.66;
-    border-radius: 50%;
     position: absolute;
     display: block;
     z-index: 2;
@@ -754,6 +784,10 @@
   }
 
   .items.grid .v-list-item .item-menu {
+    background: rgb(var(--v-theme-surface-variant));
+    color: rgb(var(--v-theme-surface));
+    border-radius: 50%;
+    opacity: 0.6;
     right: 0;
   }
 
@@ -773,6 +807,7 @@
 
   .items.grid .item-content {
     flex-direction: column;
+    margin-top: 16px;
   }
 
   .items.grid .item-aux {

@@ -6,7 +6,7 @@
   import gql from 'graphql-tag'
   import { toMp3, transcription } from './audio'
   import { computed, markRaw, provide } from 'vue'
-  import { useAppStore, useLanguageStore, useMessageStore } from './stores'
+  import { useAppStore, useAuthStore, useLanguageStore, useMessageStore } from './stores'
 
   export default {
     data() {
@@ -17,10 +17,11 @@
 
     provide() {
       return {
+        base64ToBlob: this.base64ToBlob,
         debounce: this.debounce,
         openView: this.open,
         closeView: this.close,
-        compose: this.compose,
+        write: this.write,
         transcribe: this.transcribe,
         translate: this.translate,
         txlocales: this.txlocales,
@@ -34,12 +35,29 @@
     setup() {
       const languages = useLanguageStore()
       const messages = useMessageStore()
+      const auth = useAuthStore()
       const app = useAppStore()
 
-      return { app, languages, messages }
+      return { app, auth, languages, messages }
     },
 
     methods: {
+      base64ToBlob(base64, mimeType = 'image/png') {
+        if(!base64) {
+          return null
+        }
+
+        const binary = atob(base64);
+        const byteArray = new Uint8Array(binary.length);
+
+        for(let i = 0; i < binary.length; i++) {
+          byteArray[i] = binary.charCodeAt(i);
+        }
+
+        return new Blob([byteArray], { type: mimeType });
+      },
+
+
       debounce(func, delay) {
         let timer
 
@@ -78,7 +96,11 @@
       },
 
 
-      compose(prompt, context = [], files = []) {
+      write(prompt, context = [], files = []) {
+        if(!this.auth.can('text:write')) {
+          return this.messages.add(this.$gettext('Permission denied'), 'error')
+        }
+
         prompt = String(prompt).trim()
 
         if(!prompt) {
@@ -94,7 +116,7 @@
 
         return this.$apollo.mutate({
           mutation: gql`mutation($prompt: String!, $context: String, $files: [String!]) {
-            compose(prompt: $prompt, context: $context, files: $files)
+            write(prompt: $prompt, context: $context, files: $files)
           }`,
           variables: {
             prompt: prompt,
@@ -106,10 +128,10 @@
             throw result
           }
 
-          return result.data?.compose?.replace(/^"(.*)"$/, '$1') || ''
+          return result.data?.write?.replace(/^"(.*)"$/, '$1') || ''
         }).catch(error => {
           this.messages.add(this.$gettext('Error generating text') + ":\n" + error, 'error')
-          this.$log(`App::compose(): Error generating text`, error)
+          this.$log(`App::write(): Error generating text`, error)
         })
       },
 
@@ -149,6 +171,11 @@
 
 
       transcribe(input) {
+        if(!this.auth.can('audio:transcribe')) {
+          this.messages.add(this.$gettext('Permission denied'), 'error')
+          return
+        }
+
         return toMp3(this.url(input, true)).then(blob => {
           return this.$apollo.mutate({
             mutation: gql`mutation($file: Upload!) {
@@ -175,6 +202,11 @@
 
 
       translate(texts, to, from = null, context = null) {
+        if(!this.auth.can('text:translate')) {
+          this.messages.add(this.$gettext('Permission denied'), 'error')
+          return
+        }
+
         if(!Array.isArray(texts)) {
           texts = [texts].filter(v => !!v)
         }

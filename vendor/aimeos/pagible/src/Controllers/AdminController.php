@@ -7,19 +7,23 @@
 
 namespace Aimeos\Cms\Controllers;
 
+use Illuminate\Http\Client\Response as ClientResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Client\Response;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 
 class AdminController extends Controller
 {
-    public function index()
+    public function index(): Response
     {
+        $media = config( 'cms.csp.media-src' );
         $nonce = base64_encode(random_bytes(16));
+
         return response()
             ->view('cms::layouts.admin', compact('nonce'))
             ->header('Content-Security-Policy',
@@ -27,8 +31,9 @@ class AdminController extends Controller
                 "default-src 'self' data: blob:;" .
                 "style-src 'self' 'unsafe-inline';" .
                 "script-src 'self' 'nonce-{$nonce}' blob:;" .
-                "img-src 'self' data: blob: http: https:;" .
-                "media-src 'self' data: blob: http: https:;" .
+                "media-src 'self' data: blob: http: https: " . $media . ";" .
+                "img-src 'self' data: blob: http: https: " . $media . ";" .
+                "connect-src 'self' http: https: " . $media . ";" .
                 "frame-src 'self' http: https:;" .
                 "worker-src 'self' blob:;"
             );
@@ -39,11 +44,11 @@ class AdminController extends Controller
      * Proxy requests to external URLs with support for range requests.
      *
      * @param Request $request
-     * @return Response
+     * @return SymfonyResponse
      */
-    public function proxy(Request $request)
+    public function proxy(Request $request): SymfonyResponse
     {
-        $url = $request->query('url');
+        $url = (string) $request->query('url');
 
         if (!$this->isValidUrl($url)) {
             abort(400, 'Invalid or missing URL');
@@ -59,7 +64,7 @@ class AdminController extends Controller
             abort(405, "Unsupported HTTP method: $method");
         }
 
-        $range = $request->header('Range');
+        $range = $request->header('Range') ?: null;
         $response = $this->fetch($url, $method, $range);
         $headers = $this->buildHeaders($response, $range);
 
@@ -75,14 +80,14 @@ class AdminController extends Controller
     /**
      * Build headers for the response, including content length and range.
      *
-     * @param Response $response
+     * @param ClientResponse $response
      * @param string|null $range
-     * @return array
+     * @return array<string, mixed>
      */
-    protected function buildHeaders(Response $response, ?string $range): array
+    protected function buildHeaders(ClientResponse $response, ?string $range): array
     {
         $maxBytes = config('cms.proxy.max-length', 10) * 1024 * 1024;
-        $rawLength = (int) $response->header('Content-Length', 0);
+        $rawLength = (int) ($response->header('Content-Length') ?: 0);
         $contentLength = min($rawLength, $maxBytes);
         $contentRange = null;
 
@@ -102,7 +107,7 @@ class AdminController extends Controller
             'Access-Control-Allow-Headers' => 'Content-Type, Content-Length, Content-Range, Accept-Encoding, Range',
             'Accept-Ranges' => 'bytes',
             'Content-Length' => $contentLength,
-            'Content-Type' => $response->header('Content-Type', 'application/octet-stream'),
+            'Content-Type' => $response->header('Content-Type') ?: 'application/octet-stream',
         ];
 
         if ($contentRange) {
@@ -119,9 +124,9 @@ class AdminController extends Controller
      * @param string $url
      * @param string $method
      * @param string|null $range
-     * @return Response
+     * @return ClientResponse
      */
-    protected function fetch(string $url, string $method, ?string $range): Response
+    protected function fetch(string $url, string $method, ?string $range): ClientResponse
     {
         $host = parse_url($url, PHP_URL_HOST);
 
@@ -160,7 +165,7 @@ class AdminController extends Controller
     protected function ip(string $host): ?string
     {
         return Cache::remember("cmsproxy:$host", 60, function () use ($host) {
-            return collect(dns_get_record($host, DNS_A + DNS_AAAA))
+            return collect(dns_get_record($host, DNS_A + DNS_AAAA) ?: [])
                 ->map(fn($r) => $r['ip'] ?? $r['ipv6'] ?? null)
                 ->filter(fn($ip) =>
                     $ip && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)

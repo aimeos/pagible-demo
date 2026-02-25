@@ -66,6 +66,7 @@ class Text
      */
     protected function sendRequest(Request $request): array
     {
+        /** @var \Illuminate\Http\Client\Response $response */
         $response = $this
             ->client
             ->post('api/chat', [
@@ -78,6 +79,7 @@ class Text
                 'stream' => false,
                 ...Arr::whereNotNull([
                     'think' => $request->providerOptions('thinking'),
+                    'keep_alive' => $request->providerOptions('keep_alive'),
                 ]),
                 'options' => Arr::whereNotNull(array_merge([
                     'temperature' => $request->temperature(),
@@ -100,6 +102,7 @@ class Text
         );
 
         $request->addMessage(new ToolResultMessage($toolResults));
+        $request->resetToolChoice();
 
         $this->addStep($data, $request, $toolResults);
 
@@ -136,6 +139,7 @@ class Text
             finishReason: $this->mapFinishReason($data),
             toolCalls: $this->mapToolCalls(data_get($data, 'message.tool_calls', []) ?? []),
             toolResults: $toolResults,
+            providerToolCalls: [],
             usage: new Usage(
                 data_get($data, 'prompt_eval_count', 0),
                 data_get($data, 'eval_count', 0),
@@ -147,6 +151,7 @@ class Text
             messages: $request->messages(),
             systemPrompts: $request->systemPrompts(),
             additionalContent: [],
+            raw: $data,
         ));
     }
 

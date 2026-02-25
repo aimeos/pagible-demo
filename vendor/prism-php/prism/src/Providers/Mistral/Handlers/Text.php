@@ -78,6 +78,7 @@ class Text
         );
 
         $request->addMessage(new ToolResultMessage($toolResults));
+        $request->resetToolChoice();
 
         $this->addStep($data, $request, $clientResponse, $toolResults);
 
@@ -118,6 +119,7 @@ class Text
             finishReason: $this->mapFinishReason($data),
             toolCalls: $this->mapToolCalls(data_get($data, 'choices.0.message.tool_calls', [])),
             toolResults: $toolResults,
+            providerToolCalls: [],
             usage: new Usage(
                 data_get($data, 'usage.prompt_tokens'),
                 data_get($data, 'usage.completion_tokens'),
@@ -130,12 +132,14 @@ class Text
             messages: $request->messages(),
             systemPrompts: $request->systemPrompts(),
             additionalContent: $this->extractThinking(data_get($data, 'choices.0.message', [])),
+            raw: $data,
         ));
     }
 
     protected function sendRequest(Request $request): ClientResponse
     {
-        return $this->client->post(
+        /** @var ClientResponse $response */
+        $response = $this->client->post(
             'chat/completions',
             array_merge([
                 'model' => $request->model(),
@@ -148,6 +152,8 @@ class Text
                 'tool_choice' => ToolChoiceMap::map($request->toolChoice()),
             ]))
         );
+
+        return $response;
     }
 
     /**

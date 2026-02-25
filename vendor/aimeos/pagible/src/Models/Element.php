@@ -8,6 +8,7 @@
 namespace Aimeos\Cms\Models;
 
 use Aimeos\Cms\Concerns\Tenancy;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,12 +19,24 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Collection;
 
 
 /**
  * Element model
+ *
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $type
+ * @property string|null $lang
+ * @property string $name
+ * @property \stdClass $data
+ * @property string $editor
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static> withoutTenancy()
  */
 class Element extends Model
 {
@@ -36,7 +49,7 @@ class Element extends Model
     /**
      * The model's default values for attributes.
      *
-     * @var array
+     * @var array<string, mixed>
      */
     protected $attributes = [
         'tenant_id' => '',
@@ -50,7 +63,7 @@ class Element extends Model
     /**
      * The automatic casts for the attributes.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'data' => 'object',
@@ -63,7 +76,7 @@ class Element extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array
+     * @var list<string>
      */
     protected $fillable = [
         'data',
@@ -83,7 +96,7 @@ class Element extends Model
     /**
      * Get the pages the element is referenced by.
      *
-     * @return BelongsToMany Eloquent relationship to the pages
+     * @return BelongsToMany<Page, $this> Eloquent relationship to the pages
      */
     public function bypages() : BelongsToMany
     {
@@ -95,7 +108,7 @@ class Element extends Model
     /**
      * Get the versions the element is referenced by.
      *
-     * @return BelongsToMany Eloquent relationship to the versions referencing the element
+     * @return BelongsToMany<Version, $this> Eloquent relationship to the versions referencing the element
      */
     public function byversions() : BelongsToMany
     {
@@ -107,11 +120,22 @@ class Element extends Model
     /**
      * Get the files referencedd by the element.
      *
-     * @return BelongsToMany Eloquent relationship to the files
+     * @return BelongsToMany<File, $this> Eloquent relationship to the files
      */
     public function files() : BelongsToMany
     {
         return $this->belongsToMany( File::class, 'cms_element_file' );
+    }
+
+
+    /**
+     * Get the current timestamp in seconds precision.
+     *
+     * @return \Illuminate\Support\Carbon Current timestamp
+     */
+    public function freshTimestamp()
+    {
+        return Date::now()->startOfSecond(); // SQL Server workaround
     }
 
 
@@ -142,11 +166,14 @@ class Element extends Model
     /**
      * Maps the files by ID automatically.
      *
-     * @return Collection List files with ID as keys and file models as values
+     * @return Collection<string, File> List files with ID as keys and file models as values
      */
     public function getFilesAttribute() : Collection
     {
-        $files = $this->relationLoaded( 'files' ) ? $this->getRelation( 'files' ) : $this->load( 'files' )->getRelation( 'files' );
+        $files = $this->relationLoaded( 'files' )
+            ? $this->getRelation( 'files' )
+            : $this->load( 'files' )->getRelation( 'files' );
+
         return $files->pluck( null, 'id' );
     }
 
@@ -154,11 +181,11 @@ class Element extends Model
     /**
      * Get the page's latest head/meta data.
      *
-     * @return MorphOne Eloquent relationship to the latest version of the element
+     * @return MorphOne<Version, $this> Eloquent relationship to the latest version of the element
      */
     public function latest() : MorphOne
     {
-        return $this->morphOne( Version::class, 'versionable' )->latestOfMany();
+        return $this->morphOne( Version::class, 'versionable' )->ofMany( ['created_at' => 'max', 'id' => 'max'] );
     }
 
 
@@ -170,19 +197,15 @@ class Element extends Model
      */
     public function publish( Version $version ) : self
     {
-        DB::connection( $this->getConnectionName() )->transaction( function() use ( $version ) {
+        $this->files()->sync( $version->files ?? [] );
 
-            $this->files()->sync( $version->files ?? [] );
+        $this->fill( (array) $version->data );
+        $this->editor = $version->editor;
+        $this->lang = $version->lang;
+        $this->save();
 
-            $this->fill( (array) $version->data );
-            $this->editor = $version->editor;
-            $this->lang = $version->lang;
-            $this->save();
-
-            $version->published = true;
-            $version->save();
-
-        }, 3 );
+        $version->published = true;
+        $version->save();
 
         return $this;
     }
@@ -191,22 +214,21 @@ class Element extends Model
     /**
      * Get the element's published version.
      *
-     * @return HasOne Eloquent relationship to the last published version of the element
+     * @return MorphOne<Version, $this> Eloquent relationship to the last published version of the element
      */
-    public function published() : HasOne
+    public function published() : MorphOne
     {
-        return $this->hasOne( Version::class, 'versionable_id' )
-            ->where( 'versionable_type', Element::class )
-            ->where( 'published', true )
-            ->orderBy( 'id', 'desc' )
-            ->take( 1 );
+        return $this->morphOne( Version::class, 'versionable' )
+            ->ofMany( ['created_at' => 'max', 'id' => 'max'], function( $query ) {
+                $query->where( (new Version)->qualifyColumn( 'published' ), true );
+            } );
     }
 
 
     /**
      * Get the prunable model query.
      *
-     * @return Builder Eloquent query builder instance for pruning
+     * @return Builder<static> Eloquent query builder instance for pruning
      */
     public function prunable() : Builder
     {
@@ -226,9 +248,9 @@ class Element extends Model
         // MySQL doesn't support offsets for DELETE
         $ids = Version::where( 'versionable_id', $this->id )
             ->where( 'versionable_type', Element::class )
-            ->orderBy( 'id', 'desc' )
-            ->skip( $num )
-            ->take( 10 )
+            ->orderByDesc( 'created_at' )
+            ->offset( $num )
+            ->limit( 10 )
             ->pluck( 'id' );
 
         if( !$ids->isEmpty() ) {
@@ -242,18 +264,18 @@ class Element extends Model
     /**
      * Get all of the element's versions.
      *
-     * @return MorphMany Eloquent relationship to the versions of the element
+     * @return MorphMany<Version, $this> Eloquent relationship to the versions of the element
      */
     public function versions() : MorphMany
     {
-        return $this->morphMany( Version::class, 'versionable' );
+        return $this->morphMany( Version::class, 'versionable' )->orderByDesc( 'created_at' )->orderByDesc( 'id' );
     }
 
 
     /**
      * Interact with the "data" property.
      *
-     * @return Attribute Eloquent attribute for the "data" property
+     * @return Attribute<mixed, mixed> Eloquent attribute for the "data" property
      */
     protected function data(): Attribute
     {

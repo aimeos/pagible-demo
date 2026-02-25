@@ -7,13 +7,12 @@
 
 namespace Aimeos\Cms\GraphQL\Mutations;
 
-use Prism\Prism\Facades\Prism;
-use Prism\Prism\ValueObjects\Media\Audio;
-use Prism\Prism\ValueObjects\Media\Image;
-use Prism\Prism\ValueObjects\Media\Video;
-use Prism\Prism\ValueObjects\Media\Document;
-use Prism\Prism\Exceptions\PrismException;
 use Aimeos\Cms\Models\File;
+use Aimeos\Cms\Permission;
+use Aimeos\Prisma\Prisma;
+use Aimeos\Prisma\Files\Image;
+use Aimeos\Prisma\Exceptions\PrismaException;
+use Illuminate\Support\Facades\Auth;
 use GraphQL\Error\Error;
 
 
@@ -23,87 +22,61 @@ final class Imagine
      * @param  null  $rootValue
      * @param  array<string, mixed>  $args
      */
-    public function __invoke( $rootValue, array $args ): array
+    public function __invoke( $rootValue, array $args ) : string
     {
+        if( !Permission::can( 'image:imagine', Auth::user() ) ) {
+            throw new Error( 'Insufficient permissions' );
+        }
+
         if( empty( $args['prompt'] ) ) {
             throw new Error( 'Prompt must not be empty' );
         }
 
-        $files = collect();
-        $input = $args['prompt'];
-        $prompt = join( "\n\n", array_filter( [
-            view( 'cms::prompts.imagine' )->render(),
-            $args['context'] ?? '',
-            $input
-        ] ) );
-
-        $provider = config( 'cms.ai.image' ) ?: 'openai';
-        $model = config( 'cms.ai.image-model' ) ?: 'dall-e-3';
+        $provider = config( 'cms.ai.imagine.provider' );
+        $config = config( 'cms.ai.imagine', [] );
+        $model = config( 'cms.ai.imagine.model' );
+        $options = ['size' => ['1536x1024', '1792x1024', '1024x1024']];
 
         try
         {
-            $prism = Prism::image()->using( $provider, $model )
-                ->withMaxTokens( config( 'cms.ai.maxtoken', 32768 ) )
-                ->withClientOptions( [
-                    'timeout' => 60,
-                    'connect_timeout' => 10,
-                ] );
+            return Prisma::image()
+                ->using( $provider, $config )
+                ->model( $model )
+                ->ensure( 'imagine' )
+                ->imagine( $args['prompt'], $this->files( $args['files'] ?? [] ), $options ) // @phpstan-ignore-line method.notFound
+                ->base64();
+        }
+        catch( PrismaException $e )
+        {
+            throw new Error( $e->getMessage(), null, null, null, null, $e );
+        }
+    }
 
-            if( !empty( $ids = $args['files'] ?? null ) )
-            {
-                $files = File::where( 'id', $ids )->get()->map( function( $file ) {
 
-                    if( str_starts_with( $file->path, 'http' ) )
-                    {
-                        return match( explode( '/', $file->mime )[0] ) {
-                            'image' => Image::fromUrl( $file->path, $file->mime ),
-                            'audio' => Audio::fromUrl( $file->path, $file->mime ),
-                            'video' => Video::fromUrl( $file->path, $file->mime ),
-                            default => Document::fromUrl( $file->path, $file->mime ),
-                        };
-                    }
+    /**
+     * @param array<mixed> $ids
+     * @return array<mixed>
+     */
+    protected function files( array $ids ) : array
+    {
+        if( empty( $ids ) ) {
+            return [];
+        }
 
-                    $disk = config( 'cms.disk', 'public' );
+        $disk = config( 'cms.disk', 'public' );
 
-                    return match( explode( '/', $file->mime )[0] ) {
-                        'image' => Image::fromStoragePath( $file->path, $disk ),
-                        'audio' => Audio::fromStoragePath( $file->path, $disk ),
-                        'video' => Video::fromStoragePath( $file->path, $disk ),
-                        default => Document::fromStoragePath( $file->path, $disk ),
-                    };
-                } )->values();
+        return File::where( 'id', $ids )->get()->map( function( $file ) use ( $disk ) {
+
+            if( !str_starts_with( $file->mime, 'image/' ) ) {
+                return null;
             }
 
-            $prism->whenProvider( 'openai', fn( $request ) => $request->withProviderOptions( [
-                'image' => $files->first()?->resource(),
-                'size' => match( $model ) {
-                    'gpt-image-1' => '1536x1024',
-                    'dall-e-3' => '1792x1024',
-                    'dall-e-2' => '1024x1024',
-                    default => 'auto',
-                }
-            ] ) )->whenProvider( 'gemini', fn( $request ) => $request->withProviderOptions( [
-                'image' => $files->first()?->resource(),
-                'image_mime_type' => $files->first()?->mimeType(),
-            ] ) );
+            if( str_starts_with( (string) $file->path, 'http' ) ) {
+                return Image::fromUrl( (string) $file->path, $file->mime );
+            }
 
-            $response = $prism->withPrompt( $prompt, $files->toArray() )->generate();
+            return Image::fromStoragePath( (string) $file->path, $disk );
 
-            $prompt = collect( $response->images )
-                ->map( fn( $image ) => $image->hasRevisedPrompt() ? $image->revisedPrompt : null )
-                ->filter()
-                ->first() ?? $input;
-
-            $images = collect( $response->images )
-                ->map( fn( $image ) => $image->base64 ?? Image::fromUrl( $image->url )->base64() )
-                ->filter()
-                ->toArray();
-
-            return array_merge( [$prompt], $images );
-        }
-        catch( PrismException $e )
-        {
-            throw new Error( $e->getMessage() );
-        }
+        } )->filter()->values()->toArray();
     }
 }

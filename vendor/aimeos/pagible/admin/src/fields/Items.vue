@@ -12,7 +12,7 @@
   import gql from 'graphql-tag'
   import { recording } from '../audio'
   import { VueDraggable } from 'vue-draggable-plus'
-  import { useClipboardStore } from '../stores'
+  import { useAuthStore, useClipboardStore, useMessageStore } from '../stores'
 
   export default {
     components: {
@@ -29,7 +29,7 @@
 
     emits: ['update:modelValue', 'error', 'addFile', 'removeFile'],
 
-    inject: ['compose', 'translate', 'transcribe', 'txlocales'],
+    inject: ['write', 'translate', 'transcribe', 'txlocales'],
 
     data() {
       return {
@@ -46,7 +46,10 @@
 
     setup() {
       const clipboard = useClipboardStore()
-      return { clipboard}
+      const messages = useMessageStore()
+      const auth = useAuthStore()
+
+      return { auth, clipboard, messages }
     },
 
     computed: {
@@ -71,7 +74,7 @@
       },
 
 
-      composeText(idx, code) {
+      writeText(idx, code) {
         const context = [
           'generate for field "' + (this.config.item?.[code]?.label || code) + '"',
           'required output format is "' + this.config.item?.[code]?.type + '"',
@@ -86,7 +89,7 @@
 
         this.composing[idx+code] = true
 
-        this.compose(prompt, context).then(result => {
+        this.write(prompt, context).then(result => {
           this.update(idx, code, result)
         }).finally(() => {
           this.composing[idx+code] = false
@@ -136,7 +139,7 @@
           this.dictating[idx+code] = true
           this.audio[idx+code] = null
 
-          rec.stop().then(buffer => {
+          rec.stop()?.then(buffer => {
             this.transcribe(buffer).then(transcription => {
               this.update(idx, code, transcription.asText())
             }).finally(() => {
@@ -276,7 +279,8 @@
             <div class="label">
               {{ field.label || code }}
               <div v-if="!readonly && ['markdown', 'plaintext', 'string', 'text'].includes(field.type)" class="actions">
-                <component :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+                <component v-if="auth.can('text:translate')"
+                  :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
                   v-model="menu[idx+code]"
                   transition="scale-transition"
                   location="end center"
@@ -301,7 +305,7 @@
                     <v-list @click="menu[idx+code] = false">
                       <v-list-item v-for="lang in txlocales()" :key="lang.code">
                         <v-btn
-                          @click="translateText(code, lang.code)"
+                          @click="translateText(idx, code, lang.code)"
                           prepend-icon="mdi-arrow-right-thin"
                           variant="text"
                         >{{ lang.name }}</v-btn>
@@ -309,14 +313,14 @@
                     </v-list>
                   </v-card>
                 </component>
-                <v-btn
+                <v-btn v-if="auth.can('text:write')"
                   :title="$gettext('Generate text')"
                   :loading="composing[idx+code]"
-                  @click="composeText(idx, code)"
+                  @click="writeText(idx, code)"
                   icon="mdi-creation"
                   variant="text"
                 />
-                <v-btn
+                <v-btn v-if="auth.can('audio:transcribe')"
                   @click="record(idx, code)"
                   :class="{dictating: audio[idx+code]}"
                   :icon="audio[idx+code] ? 'mdi-microphone-outline' : 'mdi-microphone'"

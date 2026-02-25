@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Prism\Prism\Providers\OpenRouter\Handlers;
 
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Prism\Prism\Exceptions\PrismException;
+use Prism\Prism\Exceptions\PrismStructuredDecodingException;
 use Prism\Prism\Providers\OpenRouter\Concerns\BuildsRequestOptions;
 use Prism\Prism\Providers\OpenRouter\Concerns\MapsFinishReason;
 use Prism\Prism\Providers\OpenRouter\Concerns\ValidatesResponses;
@@ -48,6 +50,7 @@ class Structured
      */
     protected function sendRequest(Request $request): array
     {
+        /** @var Response $response */
         $response = $this->client->post(
             'chat/completions',
             array_merge([
@@ -94,20 +97,32 @@ class Structured
             text: $text,
             finishReason: FinishReasonMap::map(data_get($data, 'choices.0.finish_reason', '')),
             usage: new Usage(
-                data_get($data, 'usage.prompt_tokens'),
-                data_get($data, 'usage.completion_tokens'),
+                (int) data_get($data, 'usage.prompt_tokens', 0),
+                (int) data_get($data, 'usage.completion_tokens', 0),
             ),
             meta: new Meta(
-                id: data_get($data, 'id'),
-                model: data_get($data, 'model'),
+                id: data_get($data, 'id', ''),
+                model: data_get($data, 'model', $request->model()),
             ),
             messages: $request->messages(),
             systemPrompts: $request->systemPrompts(),
             additionalContent: [],
+            raw: $data
         );
 
         $this->responseBuilder->addStep($step);
 
-        return $this->responseBuilder->toResponse();
+        try {
+            return $this->responseBuilder->toResponse();
+        } catch (PrismStructuredDecodingException $e) {
+            $context = sprintf(
+                "\nModel: %s\nFinish reason: %s\nRaw choices: %s",
+                data_get($data, 'model', 'unknown'),
+                data_get($data, 'choices.0.finish_reason', 'unknown'),
+                json_encode(data_get($data, 'choices'), JSON_PRETTY_PRINT)
+            );
+
+            throw new PrismStructuredDecodingException($e->getMessage().$context);
+        }
     }
 }

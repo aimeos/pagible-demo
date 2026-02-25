@@ -8,36 +8,48 @@
 namespace Aimeos\Cms\GraphQL\Mutations;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Aimeos\Cms\Models\Element;
+use Aimeos\Cms\Permission;
+use GraphQL\Error\Error;
 
 
 final class PubElement
 {
     /**
      * @param  null  $rootValue
-     * @param  array  $args
+     * @param  array<string, mixed>  $args
+     * @return array<int, mixed>
      */
     public function __invoke( $rootValue, array $args ) : array
     {
-        $items = Element::withTrashed()->whereIn( 'id', $args['id'] )->get();
-        $editor = Auth::user()?->name ?? request()->ip();
-
-        foreach( $items as $item )
-        {
-            if( $latest = $item->latest )
-            {
-                if( $args['at'] ?? null )
-                {
-                    $latest->publish_at = $args['at'];
-                    $latest->editor = $editor;
-                    $latest->save();
-                    continue;
-                }
-
-                $item->publish( $latest );
-            }
+        if( !Permission::can( 'element:publish', Auth::user() ) ) {
+            throw new Error( 'Insufficient permissions' );
         }
 
-        return $items->all();
+        return DB::connection( config( 'cms.db', 'sqlite' ) )->transaction( function() use ( $args ) {
+
+            $items = Element::withTrashed()->whereIn( 'id', $args['id'] )->get();
+            $editor = Auth::user()->name ?? request()->ip();
+
+            foreach( $items as $item )
+            {
+                /** @var Element $item */
+                if( $latest = $item->latest )
+                {
+                    if( $args['at'] ?? null )
+                    {
+                        $latest->publish_at = $args['at'];
+                        $latest->editor = $editor;
+                        $latest->save();
+                        continue;
+                    }
+
+                    $item->publish( $latest );
+                }
+            }
+
+            return $items->all();
+        }, 3 );
     }
 }

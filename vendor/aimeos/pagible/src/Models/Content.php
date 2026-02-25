@@ -9,15 +9,27 @@ namespace Aimeos\Cms\Models;
 
 use Aimeos\Cms\Concerns\Tenancy;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Laravel\Scout\Attributes\SearchUsingFullText;
 use Laravel\Scout\Searchable;
 
 
 /**
  * Content search model
+ *
+ * @property string $id
+ * @property string $tenant_id
+ * @property string|null $page_id
+ * @property string $domain
+ * @property string $path
+ * @property string $lang
+ * @property string $title
+ * @property string $content
+ * @method static \Illuminate\Database\Eloquent\Builder<static> withoutTenancy()
  */
 class Content extends Model
 {
+    use HasUuids;
     use Searchable;
     use Tenancy;
 
@@ -25,7 +37,7 @@ class Content extends Model
     /**
      * The model's default values for attributes.
      *
-     * @var array
+     * @var array<string, mixed>
      */
     protected $attributes = [
         'tenant_id' => '',
@@ -40,7 +52,7 @@ class Content extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array
+     * @var list<string>
      */
     protected $fillable = [
         'page_id',

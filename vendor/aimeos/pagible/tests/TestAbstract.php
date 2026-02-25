@@ -41,6 +41,18 @@ abstract class TestAbstract extends \Orchestra\Testbench\TestCase
         ]);
 
         $app['config']->set('cms.db', 'testing');
+        $app['config']->set('cms.ai.write', ['provider' => 'gemini', 'model' => 'test', 'api_key' => 'test']);
+        $app['config']->set('cms.ai.refine', ['provider' => 'gemini', 'model' => 'test', 'api_key' => 'test']);
+        $app['config']->set('cms.ai.describe', ['provider' => 'gemini', 'api_key' => 'test']);
+        $app['config']->set('cms.ai.erase', ['provider' => 'clipdrop', 'api_key' => 'test']);
+        $app['config']->set('cms.ai.imagine', ['provider' => 'clipdrop', 'api_key' => 'test']);
+        $app['config']->set('cms.ai.inpaint', ['provider' => 'stabilityai', 'api_key' => 'test']);
+        $app['config']->set('cms.ai.isolate', ['provider' => 'clipdrop', 'api_key' => 'test']);
+        $app['config']->set('cms.ai.uncrop', ['provider' => 'clipdrop', 'api_key' => 'test']);
+        $app['config']->set('cms.ai.upscale', ['provider' => 'clipdrop', 'api_key' => 'test']);
+        $app['config']->set('cms.ai.transcribe', ['provider' => 'openai', 'api_key' => 'test']);
+        $app['config']->set('cms.ai.translate', ['provider' => 'deepl', 'api_key' => 'test']);
+        $app['config']->set('cms.config.locales', ['en', 'de'] );
         $app['config']->set('scout.driver', 'collection');
 
         $app['config']->set('cms.schemas.content.heading', [
@@ -67,7 +79,7 @@ abstract class TestAbstract extends \Orchestra\Testbench\TestCase
 	{
 		return [
 			'Aimeos\Cms\ServiceProvider',
-			'Kalnoy\Nestedset\NestedSetServiceProvider',
+			'Aimeos\Nestedset\NestedSetServiceProvider',
 		];
 	}
 }

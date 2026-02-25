@@ -7,13 +7,16 @@
 
 namespace Aimeos\Cms\GraphQL\Mutations;
 
+use Aimeos\Cms\Utils;
+use Aimeos\Cms\Permission;
+use Aimeos\Cms\Models\File;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Schema\EnumSchema;
 use Prism\Prism\Schema\ArraySchema;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
 use Prism\Prism\Exceptions\PrismException;
-use Aimeos\Cms\Models\File;
+use Illuminate\Support\Facades\Auth;
 use GraphQL\Error\Error;
 
 
@@ -22,16 +25,22 @@ final class Refine
     /**
      * @param  null  $rootValue
      * @param  array<string, mixed>  $args
+     * @return array<int, mixed>
      */
     public function __invoke( $rootValue, array $args ): array
     {
+        if( !Permission::can( 'page:refine', Auth::user() ) ) {
+            throw new Error( 'Insufficient permissions' );
+        }
+
         if( empty( $args['prompt'] ) ) {
             throw new Error( 'Prompt must not be empty' );
         }
 
-        $provider = config( 'cms.ai.struct' ) ?: 'gemini';
-        $model = config( 'cms.ai.struct-model' ) ?: 'gemini-2.5-flash';
+        $provider = config( 'cms.ai.refine.provider' );
+        $model = config( 'cms.ai.refine.model' );
 
+        /** @phpstan-ignore-next-line argument.type */
         $system = view( 'cms::prompts.refine' )->render();
         $type = $args['type'] ?? 'content';
         $content = $args['content'] ?: [];
@@ -66,9 +75,9 @@ final class Refine
     /**
      * Merges the existing content with the response from the AI
      *
-     * @param array $content Existing content elements
-     * @param array $response AI response with updated text content
-     * @return array Updated content elements
+     * @param array<mixed> $content Existing content elements
+     * @param array<mixed> $response AI response with updated text content
+     * @return array<mixed> Updated content elements
      */
     protected function merge( array $content, array $response ) : array
     {
@@ -81,6 +90,10 @@ final class Refine
             $entry['data'] = (array) ( $entry['data'] ?? [] );
             $entry['type'] = $item['type'] ?? ( $entry['type'] ?? 'text' );
 
+            if( !isset( $entry['id'] ) ) {
+                $entry['id'] = Utils::uid();
+            }
+
             foreach( $item['data'] ?? [] as $data )
             {
                 if( empty( $data['name'] ) ) {
@@ -89,14 +102,14 @@ final class Refine
 
                 $m = [];
 
-                if( $entry['type'] === 'heading' && preg_match( '/^(#+)(.*)$/', (string) $data['value'] ?? '', $m ) )
+                if( $entry['type'] === 'heading' && preg_match( '/^(#+)(.*)$/', (string) @$data['value'], $m ) )
                 {
                     $entry['data'][$data['name']] = trim( $m[2] );
                     $entry['data']['level'] = (string) strlen( $m[1] );
                 }
                 else
                 {
-                    $entry['data'][$data['name']] = (string) ( $data['value'] ?? '' );
+                    $entry['data'][$data['name']] = (string) @$data['value'];
                 }
             }
 
@@ -115,7 +128,7 @@ final class Refine
      */
     protected function schema( string $type ) : ObjectSchema
     {
-        $types = collect( config( "cms.schemas.$type", [] ) )->keys()->all();
+        $types = collect( (array) config( "cms.schemas.$type", [] ) )->keys()->all();
 
         return new ObjectSchema(
             name: 'response',

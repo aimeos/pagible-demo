@@ -19,7 +19,7 @@ return new class extends Migration
     public function up()
     {
         Schema::connection(config('cms.db', 'sqlite'))->create('cms_pages', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('tenant_id', 250);
             $table->string('name');
             $table->string('path');
@@ -32,14 +32,14 @@ return new class extends Migration
             $table->string('theme', 30);
             $table->smallInteger('cache');
             $table->smallInteger('status');
-            $table->integer('related_id')->nullable();
+            $table->uuid('related_id')->nullable();
             $table->json('meta');
             $table->json('config');
             $table->json('content');
             $table->string('editor');
             $table->softDeletes();
             $table->timestamps();
-            $table->nestedSet();
+            $table->nestedSet('id', 'uuid');
 
             $table->unique(['path', 'domain', 'tenant_id']);
             $table->index(['_lft', '_rgt', 'tenant_id', 'status']);

@@ -41,6 +41,7 @@ class Embeddings
                 id: '',
                 model: '',
             ),
+            raw: $data,
         );
     }
 
@@ -48,7 +49,8 @@ class Embeddings
     {
         $providerOptions = $request->providerOptions();
 
-        return $this->client->post(
+        /** @var Response $response */
+        $response = $this->client->post(
             "{$request->model()}:embedContent",
             Arr::whereNotNull([
                 'model' => $request->model(),
@@ -62,5 +64,7 @@ class Embeddings
                 'outputDimensionality' => $providerOptions['outputDimensionality'] ?? null,
             ])
         );
+
+        return $response;
     }
 }

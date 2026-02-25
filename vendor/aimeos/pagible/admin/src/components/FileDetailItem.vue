@@ -6,36 +6,45 @@
   import gql from 'graphql-tag'
   import Cropper from 'cropperjs'
   import 'cropperjs/dist/cropper.css'
-  import { recording } from '../audio'
+  import FileAiDialog from './FileAiDialog.vue'
   import { useAppStore, useAuthStore, useLanguageStore, useMessageStore, useSideStore } from '../stores'
+  import { recording } from '../audio'
 
 
   export default {
+    components: {
+      FileAiDialog
+    },
+
     props: {
       'item': {type: Object, required: true},
-      'save': {type: Object, required: true},
     },
 
     emits: ['update:item', 'update:file', 'error'],
 
-    inject: ['compose', 'locales', 'transcribe', 'translate', 'txlocales', 'url'],
+    inject: ['base64ToBlob', 'locales', 'transcribe', 'translate', 'txlocales', 'url'],
 
     data() {
       return {
-        transcribing: false,
-        translating: false,
-        dictating: false,
-        composing: false,
-        cropping: false,
-        covering: false,
+        vedit: false,
+        selected: false,
+        loading: {},
         tabtrans: null,
         tabdesc: null,
+        edittext: null,
         cropLabel: null,
         cropper: null,
         audio: null,
-        scaleX: 1,
-        scaleY: 1,
+        images: [],
         menu: {},
+        width: 0,
+        height: 0,
+        extend: {
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0
+        },
       }
     },
 
@@ -50,13 +59,17 @@
     },
 
     mounted() {
-      this.init()
+      this.cropper = this.init()
     },
 
     beforeUnmount() {
       if(this.cropper) {
         this.cropper.destroy()
       }
+
+      this.images.forEach(img => {
+        URL.revokeObjectURL(img.url)
+      })
     },
 
     computed: {
@@ -106,7 +119,7 @@
         canvas.toBlob(function(blob) {
           const file = new File([blob], filename, {type: 'image/png'})
 
-          self.covering = true
+          self.loading.cover = true
 
           self.$apollo.mutate({
             mutation: gql`mutation($id: ID!, $preview: Upload) {
@@ -137,10 +150,10 @@
               self.item.updated_at = latest.created_at
             }
           }).catch(error => {
-            self.messages.add(this.$gettext('Error saving video cover') + ":\n" + error, 'error')
-            this.$log(`FileDetailItem::addCover(): Error saving video cover`, error)
+            self.messages.add(self.$gettext('Error saving video cover') + ":\n" + error, 'error')
+            self.$log(`FileDetailItem::addCover(): Error saving video cover`, error)
           }).finally(() => {
-            self.covering = false
+            self.loading.cover = false
           })
         }, 'image/png', 1)
       },
@@ -149,12 +162,11 @@
       aspect(ratio) {
         this.cropper.setAspectRatio(ratio)
         this.cropper.setDragMode('crop')
-        this.cropping = true
 
         this.$nextTick(() => {
           const cropBox = this.cropper.cropper.querySelector(".cropper-crop-box");
 
-          if (cropBox && !this.cropLabel) {
+          if(cropBox && !this.cropLabel) {
             const label = document.createElement("div");
             label.className = "crop-label";
             cropBox.appendChild(label);
@@ -164,25 +176,47 @@
       },
 
 
-      composeText() {
-        const lang = this.desclangs.shift() || this.item.lang || 'en'
-        const prompt = `Summarize the content of the file in a few words in plain text format for a title tag in the language with the ISO code "${lang}":`
-
-        this.composing = true
-
-        this.compose(prompt, null, [this.item.id]).then(result => {
-          this.update('description', Object.assign(this.item.description || {}, {[lang]: result}))
-        }).finally(() => {
-          this.composing = false
-        })
+      clear() {
+        this.cropper.setDragMode('none')
+        this.cropper.clear()
+        this.selected = false
+        this.cropLabel = null
       },
 
 
       crop() {
-        this.cropping = false
-        this.cropper.setDragMode('none')
-        this.cropper.getCroppedCanvas().toBlob(blob => {
-          this.$emit('update:file', blob)
+        this.updateFile()
+        this.clear()
+      },
+
+
+      describe() {
+        const lang = this.desclangs[0] || this.item.lang || 'en'
+
+        this.loading.describe = true
+
+        this.$apollo.mutate({
+          mutation: gql`mutation($file: String!, $lang: String!) {
+            describe(file: $file, lang: $lang)
+          }`,
+          variables: {
+            file: this.item.id,
+            lang: lang
+          },
+          context: {
+            hasUpload: true
+          }
+        }).then(response => {
+          if(response.errors) {
+            throw response.errors
+          }
+
+          this.update('description', Object.assign(this.item.description || {}, {[lang]: response.data?.describe}))
+        }).catch(error => {
+          this.messages.add(this.$gettext('Error describing file') + ":\n" + error, 'error')
+          this.$log('FileDetailItem::describe(): Error describing file', error)
+        }).finally(() => {
+          this.loading.describe = false
         })
       },
 
@@ -201,50 +235,211 @@
       },
 
 
+      erase() {
+        if(this.readonly || !this.auth.can('image:erase')) {
+          return this.messages.add(this.$gettext('Permission denied'), 'error')
+        }
+
+        const self = this
+
+        this.image().then(blob => {
+          self.mask().toBlob(function(mask) {
+            self.loading.erase = true
+
+            self.$apollo.mutate({
+              mutation: gql`mutation($file: Upload!, $mask: Upload!) {
+                erase(file: $file, mask: $mask)
+              }`,
+              variables: {
+                file: new File([blob], 'image', {type: self.item.mime}),
+                mask: new File([mask], 'mask', {type: 'image/png'}),
+              },
+              context: {
+                hasUpload: true
+              }
+            }).then(response => {
+              if(response.errors) {
+                throw response.errors
+              }
+
+              self.replace(self.base64ToBlob(response.data?.erase))
+            }).catch(error => {
+              self.messages.add(self.$gettext('Error erasing image part') + ":\n" + error, 'error')
+              self.$log('FileDetailItem::erase(): Error erasing image part', error)
+            }).finally(() => {
+              self.loading.erase = false
+              self.clear()
+            })
+          })
+        })
+      },
+
+
       flipX() {
-        this.scaleX = -this.scaleX
-        this.cropper.scaleX(this.scaleX)
+        this.cropper.scaleX(-1)
         this.updateFile()
       },
 
 
       flipY() {
-        this.scaleY = -this.scaleY
-        this.cropper.scaleY(this.scaleY)
+        this.cropper.scaleY(-1)
         this.updateFile()
       },
 
 
-      init() {
-        if(!this.readonly && this.item.mime?.startsWith('image/')) {
-          if(this.cropper) {
-            this.cropper.destroy()
-            this.cropper = null
-          }
-
-          const self = this
-
-          this.cropper = new Cropper(this.$refs.image, {
-            aspectRatio: NaN,
-            background: true,
-            responsive: true,
-            dragMode: 'none',
-            movable: false,
-            autoCrop: false,
-            zoomable: false,
-            zoomOnWheel: false,
-            zoomOnTouch: false,
-            touchDragZoom: false,
-            checkCrossOrigin: false,
-            checkOrientation: false,
-            viewMode: 1,
-            crop(event) {
-              if (!self.cropLabel) return;
-              const { width, height } = event.detail;
-              self.cropLabel.textContent = `${Math.round(width)} × ${Math.round(height)}`;
-            },
-          })
+      image() {
+        if(this.images[0]?.blob) {
+          return Promise.resolve(this.images[0]?.blob)
         }
+
+        return fetch(this.url(this.item.path, true)).then(response => {
+          if(!response.ok) {
+            throw new Error('Network error: ' + response.statusText)
+          }
+          return response.blob()
+        })
+      },
+
+
+      init() {
+        if(this.readonly || !this.item.mime?.startsWith('image/')) {
+          return null
+        }
+
+        if(this.cropper) {
+          this.cropper.destroy()
+        }
+
+        const self = this
+
+        return new Cropper(this.$refs.image, {
+          aspectRatio: NaN,
+          background: true,
+          dragMode: 'none',
+          movable: false,
+          autoCrop: false,
+          zoomable: false,
+          responsive: false,
+          zoomOnWheel: false,
+          zoomOnTouch: false,
+          touchDragZoom: false,
+          checkCrossOrigin: false,
+          checkOrientation: false,
+          viewMode: 1,
+          crop(event) {
+            if (!self.cropLabel) return
+
+            const { width, height } = event.detail
+            self.cropLabel.textContent = `${Math.round(width)} × ${Math.round(height)}`
+            self.selected = true
+          },
+          ready() {
+            const imageData = this.cropper.getImageData()
+            self.height = imageData.naturalHeight
+            self.width = imageData.naturalWidth
+          }
+        })
+      },
+
+
+      inpaint() {
+        if(this.readonly || !this.auth.can('image:inpaint')) {
+          return this.messages.add(this.$gettext('Permission denied'), 'error')
+        }
+
+        if(!this.edittext?.trim()) {
+          return
+        }
+
+        const self = this
+
+        this.image().then(blob => {
+          self.mask().toBlob(function(mask) {
+            self.loading.paint = true
+
+            self.$apollo.mutate({
+              mutation: gql`mutation($file: Upload!, $mask: Upload!, $prompt: String!) {
+                inpaint(file: $file, mask: $mask, prompt: $prompt)
+              }`,
+              variables: {
+                file: new File([blob], 'image', {type: self.item.mime}),
+                mask: new File([mask], 'mask', {type: 'image/png'}),
+                prompt: self.edittext
+              },
+              context: {
+                hasUpload: true
+              }
+            }).then(response => {
+              if(response.errors) {
+                throw response.errors
+              }
+
+              self.replace(self.base64ToBlob(response.data?.inpaint))
+            }).catch(error => {
+              self.messages.add(self.$gettext('Error editing image part') + ":\n" + error, 'error')
+              self.$log('FileDetailItem::inpaint(): Error editing image part', error)
+            }).finally(() => {
+              self.loading.paint = false
+              self.clear()
+            })
+          })
+        })
+      },
+
+
+      isolate() {
+        if(this.readonly || !this.auth.can('image:isolate')) {
+          return this.messages.add(this.$gettext('Permission denied'), 'error')
+        }
+
+        const self = this
+
+        this.cropper.getCroppedCanvas().toBlob(function(blob) {
+          self.loading.isolate = true
+
+          self.$apollo.mutate({
+            mutation: gql`mutation($file: Upload!) {
+              isolate(file: $file)
+            }`,
+            variables: {
+              file: new File([blob], 'image.png', {type: 'image/png'}),
+            },
+            context: {
+              hasUpload: true
+            }
+          }).then(response => {
+            if(response.errors) {
+              throw response.errors
+            }
+
+            self.replace(self.base64ToBlob(response.data?.isolate))
+          }).catch(error => {
+            self.messages.add(self.$gettext('Error removing background') + ":\n" + error, 'error')
+            self.$log('FileDetailItem::isolate(): Error removing background', error)
+          }).finally(() => {
+            self.loading.isolate = false
+          })
+        })
+      },
+
+
+      mask() {
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d')
+
+        const data = this.cropper.getImageData()
+        const crop = this.cropper.getData()
+
+        canvas.width = data.naturalWidth
+        canvas.height = data.naturalHeight
+
+        context.fillStyle = 'black';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        context.fillStyle = 'white';
+        context.fillRect(crop.x, crop.y, crop.width, crop.height);
+
+        return canvas
       },
 
 
@@ -258,15 +453,15 @@
         }
 
         this.audio.then(rec => {
-          this.dictating = true
+          this.loading.dictate = true
           this.audio = null
 
-          rec.stop().then(buffer => {
+          rec.stop()?.then(buffer => {
             this.transcribe(buffer).then(transcription => {
               const lang = this.desclangs[0] || this.item.lang || 'en'
               this.update('description', Object.assign(this.item.description || {}, {[lang]: transcription.asText()}))
             }).finally(() => {
-              this.dictating = false
+              this.loading.dictate = false
             })
           })
         })
@@ -278,7 +473,7 @@
           return this.messages.add(this.$gettext('Permission denied'), 'error')
         }
 
-        this.covering = true
+        this.loading.cover = true
         this.item.previews = {}
 
         this.$apollo.mutate({
@@ -310,18 +505,83 @@
           this.messages.add(this.$gettext('Error removing video cover') + ":\n" + error, 'error')
           this.$log(`FileDetailItem::removeCover(): Error removing video cover`, error)
         }).finally(() => {
-          this.covering = false
+          this.loading.cover = false
         })
       },
 
 
+      repaint() {
+        if(this.readonly || !this.auth.can('image:repaint')) {
+          return this.messages.add(this.$gettext('Permission denied'), 'error')
+        }
+
+        if(!this.edittext?.trim()) {
+          return
+        }
+
+        const self = this
+
+        this.image().then(blob => {
+          self.loading.paint = true
+
+          self.$apollo.mutate({
+            mutation: gql`mutation($file: Upload!, $prompt: String!) {
+              repaint(file: $file, prompt: $prompt)
+            }`,
+            variables: {
+              file: new File([blob], 'image', {type: self.item.mime}),
+              prompt: self.edittext
+            },
+            context: {
+              hasUpload: true
+            }
+          }).then(response => {
+            if(response.errors) {
+              throw response.errors
+            }
+
+            self.replace(self.base64ToBlob(response.data?.repaint))
+          }).catch(error => {
+            self.messages.add(self.$gettext('Error editing image') + ":\n" + error, 'error')
+            self.$log('FileDetailItem::repaint(): Error editing image', error)
+          }).finally(() => {
+            self.loading.paint = false
+            self.clear()
+          })
+        })
+      },
+
+
+      replace(blob, idx = null) {
+        let file = null
+
+        if(blob) {
+          const image = URL.createObjectURL(blob)
+
+          this.cropper.replace(image)
+
+          if(idx !== null) {
+            this.images.unshift(...this.images.splice(idx, 1))
+          } else {
+            this.images.unshift({blob: blob, url: image})
+          }
+
+          this.images.splice(10).forEach(img => {
+            URL.revokeObjectURL(img.url)
+          })
+
+          file = new File([blob], this.item.path.split('/').pop(), {type: 'image/png'})
+        }
+
+        this.$emit('update:file', file)
+        this.reset()
+      },
+
+
       reset() {
-        this.cropping = false
-        this.$emit('update:file', null)
+        this.selected = false
         this.cropper.reset()
         this.cropper.clear()
-        this.scaleX = 1
-        this.scaleY = 1
       },
 
 
@@ -356,18 +616,23 @@
           return this.messages.add(this.$gettext('Transcription is only available for audio and video files'), 'error')
         }
 
-        this.transcribing = true
+        this.loading.transcribe = true
 
         this.transcribe(this.item.path).then(transcription => {
           const lang = this.desclangs[0] || this.item.lang || 'en'
           this.update('transcription', Object.assign(this.item.transcription || {}, {[lang]: transcription.asText()}))
         }).finally(() => {
-          this.transcribing = false
+          this.loading.transcribe = false
         })
       },
 
 
       translateText(map) {
+        if(!this.auth.can('text:translate')) {
+          this.messages.add(this.$gettext('Permission denied'), 'error')
+          return
+        }
+
         if(this.readonly) {
           return this.messages.add(this.$gettext('Permission denied'), 'error')
         }
@@ -382,7 +647,7 @@
           return text ? true : false
         })
 
-        this.translating = true
+        this.loading.translate = true
 
         this.txlocales(lang).map(lang => lang.code).forEach(lang => {
           promises.push(this.translate(text, lang).then(result => {
@@ -396,14 +661,14 @@
 
         return Promise.all(promises).then(() => {
           this.$emit('update:item', this.item)
-          this.translating = false
+          this.loading.translate = false
           return map
         })
       },
 
 
       translateVTT(map) {
-        if(this.readonly) {
+        if(this.readonly || !this.auth.can('text:translate')) {
           return this.messages.add(this.$gettext('Permission denied'), 'error')
         }
 
@@ -438,6 +703,50 @@
       },
 
 
+      uncrop() {
+        if(this.readonly || !this.auth.can('image:uncrop')) {
+          return this.messages.add(this.$gettext('Permission denied'), 'error')
+        }
+
+        if(!this.extend.top && !this.extend.right && !this.extend.bottom && !this.extend.left) {
+          return
+        }
+
+        const self = this
+
+        this.cropper.getCroppedCanvas().toBlob(function(blob) {
+          self.loading.uncrop = true
+
+          self.$apollo.mutate({
+            mutation: gql`mutation($file: Upload!, $top: Int!, $right: Int!, $bottom: Int, $left: Int) {
+              uncrop(file: $file, top: $top, right: $right, bottom: $bottom, left: $left)
+            }`,
+            variables: {
+              file: new File([blob], 'image.png', {type: 'image/png'}),
+              top: self.extend.top ?? 0,
+              right: self.extend.right ?? 0,
+              bottom: self.extend.bottom ?? 0,
+              left: self.extend.left ?? 0
+            },
+            context: {
+              hasUpload: true
+            }
+          }).then(response => {
+            if(response.errors) {
+              throw response.errors
+            }
+
+            self.replace(self.base64ToBlob(response.data?.uncrop))
+          }).catch(error => {
+            self.messages.add(self.$gettext('Error uncropping image') + ":\n" + error, 'error')
+            self.$log('FileDetailItem::uncrop(): Error uncropping image', error)
+          }).finally(() => {
+            self.loading.uncrop = false
+          })
+        })
+      },
+
+
       update(what, value) {
         this.item[what] = value
         this.$emit('update:item', this.item)
@@ -445,13 +754,19 @@
 
 
       updateFile() {
-        if(this.readonly) {
-          return this.messages.add(this.$gettext('Permission denied'), 'error')
-        }
+        if(!this.readonly) {
+          this.cropper.getCroppedCanvas().toBlob(blob => {
+            const url = URL.createObjectURL(blob)
 
-        this.cropper.getCroppedCanvas().toBlob(blob => {
-          this.$emit('update:file', blob)
-        })
+            this.images.unshift({blob: blob, url: url})
+            this.images.splice(10).forEach(img => {
+              URL.revokeObjectURL(img.url)
+            })
+
+            this.cropper.replace(url)
+            this.$emit('update:file', new File([blob], this.item.path.split('/').pop(), {type: 'image/png'}))
+          })
+        }
       },
 
 
@@ -466,7 +781,7 @@
           return this.messages.add(this.$gettext('No file selected'), 'error')
         }
 
-        this.covering = true
+        this.loading.cover = true
 
         this.$apollo.mutate({
           mutation: gql`mutation($id: ID!, $preview: Upload) {
@@ -500,14 +815,66 @@
           this.messages.add(this.$gettext('Error uploading video cover') + ":\n" + error, 'error')
           this.$log(`FileDetailItem::uploadCover(): Error uploading video cover`, error)
         }).finally(() => {
-          this.covering = false
+          this.loading.cover = false
         })
+      },
+
+
+      upscale(factor) {
+        if(this.readonly || !this.auth.can('image:upscale')) {
+          return this.messages.add(this.$gettext('Permission denied'), 'error')
+        }
+
+        const self = this
+
+        this.cropper.getCroppedCanvas().toBlob(function(blob) {
+          self.loading.upscale = true
+
+          self.$apollo.mutate({
+            mutation: gql`mutation($file: Upload!, $factor: Int!) {
+              upscale(file: $file, factor: $factor)
+            }`,
+            variables: {
+              file: new File([blob], 'image.png', {type: 'image/png'}),
+              factor: factor
+            },
+            context: {
+              hasUpload: true
+            }
+          }).then(response => {
+            if(response.errors) {
+              throw response.errors
+            }
+
+            self.replace(self.base64ToBlob(response.data?.upscale))
+          }).catch(error => {
+            self.messages.add(self.$gettext('Error upscaling image') + ":\n" + error, 'error')
+            self.$log('FileDetailItem::upscale(): Error upscaling image', error)
+          }).finally(() => {
+            self.loading.upscale = false
+          })
+        })
+      },
+
+
+      use(items) {
+        if(!items?.length) {
+          return
+        }
+
+        this.vedit = false
+        this.item.path = items[0].path
+        this.item.mime = items[0].mime
+
+        this.cropper.replace(this.url(this.item.path, true))
+        this.$emit('update:file', null)
+        this.reset()
       },
     },
 
     watch: {
-      'save.count': function() {
-        if(this.save.count > 0) {
+      item: function(item, old) {
+        if(item.path !== old.path) {
           this.$nextTick(() => {
             this.init()
           })
@@ -549,72 +916,294 @@
             <img ref="image" :src="url(item.path, true)" class="element" crossorigin="anonymous" />
 
             <div v-if="!readonly" class="toolbar">
-              <div class="toolbar-group">
-                <v-btn v-if="cropping"
-                  @click="crop()"
-                  :title="$gettext('Use cropped image')"
-                  icon="mdi-image-check"
-                  class="no-rtl"
-                />
-                <component v-else :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
-                  v-model="menu['crop']"
-                  transition="scale-transition"
-                  location="end center"
-                  max-width="300">
+              <v-btn v-if="selected"
+                @click="clear()"
+                :title="$gettext('Cancel')"
+                icon="mdi-close"
+                class="no-rtl"
+              />
+              <component v-else :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+                v-model="menu['select']"
+                transition="scale-transition"
+                location="end center"
+                max-width="300">
 
-                  <template #activator="{ props }">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    :title="$gettext('Select area')"
+                    icon="mdi-crop-free"
+                    class="no-rtl"
+                  />
+                </template>
+
+                <v-card>
+                  <v-toolbar density="compact">
+                    <v-toolbar-title>{{ $gettext('Select area') }}</v-toolbar-title>
+                    <v-btn icon="mdi-close" @click="menu['select'] = false" />
+                  </v-toolbar>
+
+                  <v-list @click="menu['select'] = false">
+                    <v-list-item>
+                      <v-btn prepend-icon="mdi-crop-free" class="no-rtl" variant="text" @click="aspect(ratio)">{{ $gettext('Original ratio') }}</v-btn>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-btn prepend-icon="mdi-crop-free" class="no-rtl" variant="text" @click="aspect(NaN)">{{ $gettext('No ratio') }}</v-btn>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-btn prepend-icon="mdi-crop-free" class="no-rtl" variant="text" @click="aspect(1)">{{ $gettext('Square') }}</v-btn>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-btn prepend-icon="mdi-crop-free" class="no-rtl" variant="text" @click="aspect(3/2)">3:2</v-btn>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-btn prepend-icon="mdi-crop-free" class="no-rtl" variant="text" @click="aspect(4/3)">4:3</v-btn>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-btn prepend-icon="mdi-crop-free" class="no-rtl" variant="text" @click="aspect(5/3)">5:3</v-btn>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-btn prepend-icon="mdi-crop-free" class="no-rtl" variant="text" @click="aspect(16/9)">16:9</v-btn>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </component>
+
+              <v-btn
+                @click="crop()"
+                :disabled="!selected"
+                :title="$gettext('Crop selected area')"
+                icon="mdi-crop"
+                class="no-rtl"
+              />
+
+              <v-btn v-if="auth.can('image:erase')"
+                @click="erase()"
+                :disabled="!selected"
+                :loading="loading.erase"
+                :title="$gettext('Erase selected area')"
+                icon="mdi-eraser"
+                class="no-rtl"
+              />
+
+              <v-dialog v-if="selected && auth.can('image:inpaint') || !selected && auth.can('image:repaint')"
+                v-model="menu['paint']"
+                transition="scale-transition"
+                max-width="600">
+
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    :loading="loading.paint"
+                    :title="$gettext('Edit image')"
+                    icon="mdi-image-edit"
+                    class="no-rtl"
+                  />
+                </template>
+
+                <v-card>
+                  <v-toolbar density="compact">
+                    <v-toolbar-title>{{ $gettext('Edit image') }}</v-toolbar-title>
+                    <v-btn icon="mdi-close" @click="menu['paint'] = false" />
+                  </v-toolbar>
+
+                  <v-card-text>
+                    <v-textarea
+                      v-model="edittext"
+                      :label="$gettext('Describe the changes')"
+                      variant="underlined"
+                      autofocus
+                      clearable
+                      auto-grow
+                    ></v-textarea>
+                  </v-card-text>
+
+                  <v-card-actions>
                     <v-btn
-                      v-bind="props"
-                      :title="$gettext('Crop image')"
-                      icon="mdi-crop"
-                      class="no-rtl"
-                    />
-                  </template>
+                      variant="outlined"
+                      :disabled="!edittext"
+                      @click="selected ? inpaint() : repaint(); menu['paint'] = false"
+                    >{{ $gettext('Edit image') }}</v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-dialog>
 
-                  <v-card>
-                    <v-toolbar density="compact">
-                      <v-toolbar-title>{{ $gettext('Crop image') }}</v-toolbar-title>
-                      <v-btn icon="mdi-close" @click="menu['crop'] = false" />
-                    </v-toolbar>
+              <v-btn v-if="auth.can('image:isolate')"
+                @click="isolate()"
+                :title="$gettext('Remove background')"
+                :loading="loading.isolate"
+                icon="mdi-image-filter-black-white"
+                class="no-rtl"
+              />
 
-                    <v-list @click="menu['crop'] = false">
-                      <v-list-item>
-                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(ratio)">{{ $gettext('Original ratio') }}</v-btn>
-                      </v-list-item>
-                      <v-list-item>
-                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(NaN)">{{ $gettext('No ratio') }}</v-btn>
-                      </v-list-item>
-                      <v-list-item>
-                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(1)">{{ $gettext('Square') }}</v-btn>
-                      </v-list-item>
-                      <v-list-item>
-                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(3/2)">3:2</v-btn>
-                      </v-list-item>
-                      <v-list-item>
-                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(4/3)">4:3</v-btn>
-                      </v-list-item>
-                      <v-list-item>
-                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(5/3)">5:3</v-btn>
-                      </v-list-item>
-                      <v-list-item>
-                        <v-btn prepend-icon="mdi-crop" class="no-rtl" variant="text" @click="aspect(16/9)">16:9</v-btn>
-                      </v-list-item>
-                    </v-list>
-                  </v-card>
-                </component>
-              </div>
-              <div class="toolbar-group">
-                <v-btn icon="mdi-rotate-left" class="no-rtl" @click="rotate(-90)" :title="$gettext('Rotate counter-clockwise')" />
-                <v-btn icon="mdi-rotate-right" class="no-rtl" @click="rotate(90)" :title="$gettext('Rotate clockwise')" />
-              </div>
-              <div class="toolbar-group">
-                <v-btn icon="mdi-flip-horizontal" class="no-rtl" @click="flipX" :title="$gettext('Flip horizontally')" />
-                <v-btn icon="mdi-flip-vertical" class="no-rtl" @click="flipY" :title="$gettext('Flip vertically')" />
-              </div>
-              <div class="toolbar-group">
-                <v-btn icon="mdi-download" class="no-rtl" @click="download()" :title="$gettext('Download')" />
-                <v-btn icon="mdi-history" class="no-rtl" @click="reset()" :title="$gettext('Reset')" />
-              </div>
+              <v-dialog v-if="auth.can('image:uncrop')"
+                v-model="menu['uncrop']"
+                transition="scale-transition"
+                max-width="300">
+
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    :loading="loading.uncrop"
+                    :title="$gettext('Expand image')"
+                    icon="mdi-arrow-expand-all"
+                    class="no-rtl"
+                  />
+                </template>
+
+                <v-card class="uncrop">
+                  <v-toolbar density="compact">
+                    <v-toolbar-title>{{ $gettext('Expand image') }}</v-toolbar-title>
+                    <v-btn icon="mdi-close" @click="menu['uncrop'] = false" />
+                  </v-toolbar>
+
+                  <v-card-text>
+                    <v-row class="single">
+                      <v-col cols="6">
+                        <v-number-input
+                          v-model="extend.top"
+                          variant="outlined"
+                          controlVariant="hidden"
+                          :label="$gettext('Top')"
+                          :max="2000"
+                          :min="0"
+                        />
+                      </v-col>
+                    </v-row>
+                    <v-row>
+                      <v-col cols="6">
+                        <v-number-input
+                          v-model="extend.left"
+                          variant="outlined"
+                          controlVariant="hidden"
+                          :label="$gettext('Left')"
+                          :max="2000"
+                          :min="0"
+                        />
+                      </v-col>
+                      <v-col cols="6">
+                        <v-number-input
+                          v-model="extend.right"
+                          variant="outlined"
+                          controlVariant="hidden"
+                          :label="$gettext('Right')"
+                          :max="2000"
+                          :min="0"
+                        />
+                      </v-col>
+                    </v-row>
+                    <v-row class="single">
+                      <v-col cols="6">
+                        <v-number-input
+                          v-model="extend.bottom"
+                          variant="outlined"
+                          controlVariant="hidden"
+                          :label="$gettext('Bottom')"
+                          :max="2000"
+                          :min="0"
+                        />
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+
+                  <v-card-actions>
+                    <v-btn
+                      variant="outlined"
+                      @click="uncrop(extend.top, extend.right, extend.bottom, extend.left); menu['uncrop'] = false"
+                    >{{ $gettext('Expand image') }}</v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-dialog>
+
+              <component v-if="auth.can('image:upscale')"
+                :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+                v-model="menu['upscale']"
+                transition="scale-transition"
+                location="end center"
+                max-width="300">
+
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    :loading="loading.upscale"
+                    :disabled="width >= 4096 && height >= 4096"
+                    :title="$gettext('Upscale image')"
+                    icon="mdi-magnify-expand"
+                    class="no-rtl"
+                  />
+                </template>
+
+                <v-card>
+                  <v-toolbar density="compact">
+                    <v-toolbar-title>{{ $gettext('Upscale image') }}</v-toolbar-title>
+                    <v-btn icon="mdi-close" @click="menu['upscale'] = false" />
+                  </v-toolbar>
+
+                  <v-list @click="menu['upscale'] = false">
+                    <v-list-item v-if="width * 16 <= 4096 && height * 16 <= 4096">
+                      <v-btn prepend-icon="mdi-magnify-expand" class="no-rtl" variant="text" @click="upscale(16)">
+                        {{ $gettext('Scale %{factor}', { factor: '16x' }) }}
+                      </v-btn>
+                    </v-list-item>
+                    <v-list-item v-if="width * 8 <= 4096 && height * 8 <= 4096">
+                      <v-btn prepend-icon="mdi-magnify-expand" class="no-rtl" variant="text" @click="upscale(8)">
+                        {{ $gettext('Scale %{factor}', { factor: '8x' }) }}
+                      </v-btn>
+                    </v-list-item>
+                    <v-list-item v-if="width * 4 <= 4096 && height * 4 <= 4096">
+                      <v-btn prepend-icon="mdi-magnify-expand" class="no-rtl" variant="text" @click="upscale(4)">
+                        {{ $gettext('Scale %{factor}', { factor: '4x' }) }}
+                      </v-btn>
+                    </v-list-item>
+                    <v-list-item v-if="width * 2 <= 4096 && height * 2 <= 4096">
+                      <v-btn prepend-icon="mdi-magnify-expand" class="no-rtl" variant="text" @click="upscale(2)">
+                        {{ $gettext('Scale %{factor}', { factor: '2x' }) }}
+                      </v-btn>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </component>
+
+              <v-btn icon="mdi-rotate-left" class="no-rtl" @click="rotate(-90)" :title="$gettext('Rotate counter-clockwise')" />
+              <v-btn icon="mdi-rotate-right" class="no-rtl" @click="rotate(90)" :title="$gettext('Rotate clockwise')" />
+
+              <v-btn icon="mdi-flip-horizontal" class="no-rtl" @click="flipX" :title="$gettext('Flip horizontally')" />
+              <v-btn icon="mdi-flip-vertical" class="no-rtl" @click="flipY" :title="$gettext('Flip vertically')" />
+
+              <v-btn icon="mdi-download" class="no-rtl" @click="download()" :title="$gettext('Download')" />
+
+              <component :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+                v-model="menu['undo']"
+                transition="scale-transition"
+                location="end center"
+                max-width="300">
+
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    :disabled="!images.length"
+                    :title="$gettext('Undo')"
+                    icon="mdi-history"
+                    class="no-rtl"
+                  />
+                </template>
+
+                <v-card>
+                  <v-toolbar density="compact">
+                    <v-toolbar-title>{{ $gettext('Undo') }}</v-toolbar-title>
+                    <v-btn icon="mdi-close" @click="menu['undo'] = false" />
+                  </v-toolbar>
+
+                  <v-list @click="menu['undo'] = false">
+                    <v-list-item v-for="(img, idx) in images.slice(1)" :key="idx">
+                      <v-img :src="img.url" @click="replace(img.blob, idx+1)" />
+                    </v-list-item>
+                    <v-list-item>
+                      <v-img :src="url(item.path)" @click="use([item])" />
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </component>
             </div>
           </div>
           <div v-else-if="item.mime?.startsWith('video/')" class="editor-container">
@@ -626,18 +1215,24 @@
             ></video>
 
             <div v-if="!readonly" class="toolbar">
-              <div class="toolbar-group">
-                <img v-if="Object.values(item.previews).length" class="video-preview"
-                  :src="url(Object.values(item.previews).shift())"
-                  @click="removeCover()"
+              <img v-if="Object.values(item.previews).length" class="video-preview"
+                :src="url(Object.values(item.previews).shift())"
+                @click="removeCover()"
+              />
+              <div v-else>
+                <v-btn
+                  icon="mdi-tooltip-image"
+                  :loading="loading.cover"
+                  :title="$gettext('Use as cover image')"
+                  @click="addCover()"
                 />
-                <div v-else class="toolbar-group">
-                  <v-btn icon="mdi-tooltip-image" :loading="covering" :title="$gettext('Use as cover image')" @click="addCover()" />
-                  <v-btn icon :loading="covering" :title="$gettext('Upload cover image')" @click="$refs.coverInput.click()">
-                    <v-icon>mdi-image-plus</v-icon>
-                    <input ref="coverInput" type="file" class="cover-input" @change="uploadCover($event)" />
-                  </v-btn>
-                </div>
+                <v-btn icon
+                  :loading="loading.cover"
+                  :title="$gettext('Upload cover image')"
+                  @click="$refs.coverInput.click()">
+                  <v-icon>mdi-image-plus</v-icon>
+                  <input ref="coverInput" type="file" class="cover-input" @change="uploadCover($event)" />
+                </v-btn>
               </div>
             </div>
           </div>
@@ -658,26 +1253,26 @@
           <div class="label">
             {{ $gettext('Descriptions') }}
             <div v-if="!readonly" class="actions">
-              <v-btn v-if="Object.values(item.description || {}).find(v => !!v)"
+              <v-btn v-if="auth.can('text:translate') && Object.values(item.description || {}).find(v => !!v)"
                 @click="translateText(item.description)"
                 :title="$gettext('Translate text')"
-                :loading="translating"
+                :loading="loading.translate"
                 icon="mdi-translate"
                 variant="text"
               />
-              <v-btn
-                @click="composeText()"
+              <v-btn v-if="auth.can('file:describe')"
+                @click="describe()"
                 :title="$gettext('Generate description')"
-                :loading="composing"
+                :loading="loading.describe"
                 icon="mdi-creation"
                 variant="text"
               />
-              <v-btn
+              <v-btn v-if="auth.can('audio:transcribe')"
                 @click="record()"
                 :class="{dictating: audio}"
                 :icon="audio ? 'mdi-microphone-outline' : 'mdi-microphone'"
                 :title="$gettext('Dictate')"
-                :loading="dictating"
+                :loading="loading.dictate"
                 variant="text"
               />
             </div>
@@ -708,17 +1303,17 @@
           <div class="label">
             {{ $gettext('Transcriptions') }}
             <div v-if="!readonly" class="actions">
-              <v-btn v-if="Object.values(item.transcription || {}).find(v => !!v)"
+              <v-btn v-if="auth.can('text:translate') && Object.values(item.transcription || {}).find(v => !!v)"
                 @click="translateVTT(item.transcription)"
                 :title="$gettext('Translate text')"
-                :loading="translating"
+                :loading="loading.translate"
                 icon="mdi-translate"
                 variant="text"
               />
-              <v-btn
+              <v-btn v-if="auth.can('audio:transcribe')"
                 @click="transcribeFile()"
                 :title="$gettext('Transcribe file content')"
-                :loading="transcribing"
+                :loading="loading.transcribe"
                 icon="mdi-creation"
                 variant="text"
               />
@@ -746,11 +1341,22 @@
       </v-row>
     </v-sheet>
   </v-container>
+
+
+  <Teleport to="body">
+    <FileAiDialog v-model="vedit" :files="[item]" @add="use($event)" />
+  </Teleport>
+
 </template>
 
 <style scoped>
   .v-sheet.scroll {
     max-height: calc(100vh - 96px);
+  }
+
+  .v-dialog .v-btn {
+    display: block;
+    margin: auto;
   }
 
   :deep(.cropper-bg) {
@@ -795,14 +1401,15 @@
     width: 100%;
     display: flex;
     padding: 10px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     justify-content: center;
     background-color: rgb(var(--v-theme-background));
   }
 
-  .toolbar-group {
-    display: flex;
-    gap: 8px;
+  @media (max-width: 768px) {
+    .toolbar {
+      width: auto;
+    }
   }
 
   img.video-preview {
@@ -831,15 +1438,12 @@
     margin-top: 16px;
   }
 
-  @media (max-width: 480px) {
-    .toolbar {
-      width: auto;
-    }
+  .uncrop .single,
+  .v-card.uncrop .v-card-actions {
+    justify-content: center;
+  }
 
-    .toolbar-group {
-      flex-direction: column;
-      justify-content: center;
-      gap: 4px;
-    }
+  .uncrop .v-number-input :deep(.v-field__input) {
+    text-align: center;
   }
 </style>

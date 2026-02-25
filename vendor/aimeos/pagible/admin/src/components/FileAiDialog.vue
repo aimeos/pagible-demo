@@ -5,7 +5,7 @@
 <script>
   import gql from 'graphql-tag'
   import FileListItems from './FileListItems.vue'
-  import { useAppStore, useMessageStore } from '../stores'
+  import { useAppStore, useAuthStore, useMessageStore } from '../stores'
   import { recording } from '../audio'
 
   export default {
@@ -16,17 +16,19 @@
     props: {
       'modelValue': {type: Boolean, required: true},
       'context': {type: [Object, null], default: null},
+      'files': {type: Array, default: () => []},
     },
 
     emits: ['update:modelValue', 'add'],
 
-    inject: ['slugify', 'transcribe', 'url'],
+    inject: ['base64ToBlob', 'transcribe', 'url'],
 
     setup() {
       const messages = useMessageStore()
+      const auth = useAuthStore()
       const app = useAppStore()
 
-      return { app, messages }
+      return { app, auth, messages }
     },
 
     data() {
@@ -35,7 +37,7 @@
         chat: '',
         items: [],
         errors: [],
-        similar: [],
+        used: [],
         loading: false,
         dictating: false,
       }
@@ -43,6 +45,7 @@
 
     beforeUpdate() {
       this.chat = [this.context?.title, this.context?.text, this.context?.description].filter(Boolean).join("\n")
+      this.used = this.files || []
     },
 
     unmounted() {
@@ -52,7 +55,7 @@
         }
       })
 
-      this.similar = []
+      this.used = []
       this.items = []
     },
 
@@ -66,11 +69,10 @@
 
         this.loading = true
 
-        fetch(item.path).then(response => {
+        fetch(this.url(item.path, true)).then(response => {
           return response.blob()
         }).then(blob => {
-          const name = item.name.slice(0, item.name.length > 50 ? item.name.lastIndexOf(' ', 50) : 50) || 'ai-image'
-          const filename = this.slugify(name) + '_' + (new Date()).toISOString().replace(/[^0-9]/g, '') + '.png'
+          const filename = 'ai-image_' + (new Date()).toISOString().replace(/[^0-9]/g, '') + '.png'
 
           return this.$apollo.mutate({
             mutation: gql`mutation($input: FileInput, $file: Upload) {
@@ -100,7 +102,7 @@
           }
 
           Object.assign(item, response.data.addFile, {previews: JSON.parse(response.data.addFile.previews || '{}')})
-          // this.$refs.filelist.invalidate()
+          this.$refs.filelist.invalidate()
           this.$emit('add', [item])
         }).catch(error => {
           this.messages.add(this.$gettext(`Error adding file %{path}`, {path: item?.path}) + ":\n" + error, 'error')
@@ -111,24 +113,13 @@
       },
 
 
-      base64ToBlob(base64, mimeType = 'image/png') {
-        if(!base64) {
-          return null
-        }
-
-        const binary = atob(base64);
-        const byteArray = new Uint8Array(binary.length);
-
-        for(let i = 0; i < binary.length; i++) {
-          byteArray[i] = binary.charCodeAt(i);
-        }
-
-        return new Blob([byteArray], { type: mimeType });
-      },
-
-
       create() {
-        if(!this.chat || this.loading) {
+        if(!this.auth.can('image:imagine')) {
+          this.messages.add(this.$gettext('Permission denied'), 'error')
+          return
+        }
+
+        if(!this.chat?.trim() || this.loading) {
           return
         }
 
@@ -140,26 +131,22 @@
             imagine(prompt: $prompt, context: $context, files: $files)
           }`,
           variables: {
-            prompt: this.chat || 'Create a suitable image based on the context',
+            prompt: this.chat,
             context: this.context ? "Context in JSON format:\n" + JSON.stringify(this.context) : '',
-            files: this.similar.map(item => item.id),
+            files: this.used.map(item => item.id),
           }
         }).then(response => {
           if(response.errors) {
             throw response.errors
           }
 
-          const name = this.chat
-          const list = response.data.imagine
-          this.chat = list.shift() || this.chat
-
-          list.forEach(base64 => {
+          if(response.data.imagine) {
               this.items.unshift({
-                path: URL.createObjectURL(this.base64ToBlob(base64)),
-                name: name.slice(0, name.length > 100 ? name.lastIndexOf(' ', 100) : 100),
+                path: URL.createObjectURL(this.base64ToBlob(response.data.imagine)),
+                name: this.chat.slice(0, this.chat.length > 250 ? this.chat.lastIndexOf(' ', 250) : 250),
                 mime: 'image/png'
               })
-          })
+          }
         }).catch(error => {
           this.messages.add(this.$gettext('Error creating file') + ":\n" + error, 'error')
           this.$log(`FileAiDialog::create(): Error creating file`, error)
@@ -178,7 +165,7 @@
           this.dictating = true
           this.audio = null
 
-          rec.stop().then(buffer => {
+          rec.stop()?.then(buffer => {
             this.transcribe(buffer).then(transcription => {
               this.chat = transcription.asText()
             }).finally(() => {
@@ -194,14 +181,14 @@
       },
 
 
-      removeSimilar(idx) {
-        this.similar.splice(idx, 1)
+      removeUsed(idx) {
+        this.used.splice(idx, 1)
       },
 
 
       use(item) {
-        if(!this.similar.find(entry => entry.path === item.path)) {
-          this.similar.push(item)
+        if(!this.used.find(entry => entry.path === item.path)) {
+          this.used.push(item)
         }
       }
     }
@@ -212,7 +199,7 @@
   <v-dialog :modelValue="modelValue" @afterLeave="$emit('update:modelValue', false)" max-width="1200" scrollable>
     <v-card :loading="loading ? 'primary' : false">
       <template v-slot:append>
-        <v-btn
+        <v-btn v-if="auth.can('audio:transcribe')"
           @click="record()"
           :class="{dictating: audio}"
           :icon="audio ? 'mdi-microphone-outline' : 'mdi-microphone'"
@@ -234,24 +221,24 @@
       <v-card-text>
         <v-textarea
           v-model="chat"
-          :label="$gettext('Describe the image')"
+          :label="$gettext('Describe the image content')"
           variant="underlined"
           autofocus
           clearable
         ></v-textarea>
 
         <v-btn
-          :loading="loading ? 'primary' : false"
-          :disabled="!chat || loading"
+          :loading="loading"
+          :disabled="!chat"
           @click="create()"
           variant="outlined"
           class="create">
-          {{ $gettext('Create image') }}
+          {{ $gettext('New image') }}
         </v-btn>
 
         <div v-if="items.length">
           <v-tabs>
-            <v-tab>{{ $gettext('Generated images') }}</v-tab>
+            <v-tab>{{ $gettext('Current images') }}</v-tab>
           </v-tabs>
           <v-list class="items grid">
             <v-list-item v-for="(item, idx) in items" :key="idx">
@@ -269,14 +256,13 @@
           </v-list>
         </div>
 
-        <!-- At least one image is used by all providers -->
-        <div v-if="similar.length">
+        <div v-if="used.length">
           <v-tabs>
-            <v-tab>{{ $gettext('Use images of this style') }}</v-tab>
+            <v-tab>{{ $gettext('Images used') }}</v-tab>
           </v-tabs>
           <v-list class="items grid">
-            <v-list-item v-for="(item, idx) in similar" :key="idx">
-              <v-btn icon="mdi-delete" @click="removeSimilar(idx)" class="btn-overlay" :title="$gettext('Remove')"></v-btn>
+            <v-list-item v-for="(item, idx) in used" :key="idx">
+              <v-btn icon="mdi-delete" @click="removeUsed(idx)" class="btn-overlay" :title="$gettext('Remove')"></v-btn>
 
               <div class="item-preview">
                 <img :src="url(item.path)">
@@ -286,7 +272,7 @@
         </div>
 
         <v-tabs>
-          <v-tab>{{ $gettext('Select similar images') }}</v-tab>
+          <v-tab>{{ $gettext('Select images') }}</v-tab>
         </v-tabs>
         <FileListItems ref="filelist" :filter="{mime: 'image/'}" @select="use($event)" />
       </v-card-text>

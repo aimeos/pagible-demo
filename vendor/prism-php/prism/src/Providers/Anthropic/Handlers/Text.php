@@ -90,7 +90,7 @@ class Text
                         : config('prism.anthropic.default_thinking_budget', 1024),
                 ]
                 : null,
-            'max_tokens' => $request->maxTokens(),
+            'max_tokens' => $request->maxTokens() ?? 64000,
             'temperature' => $request->temperature(),
             'top_p' => $request->topP(),
             'tools' => static::buildTools($request) ?: null,
@@ -110,6 +110,7 @@ class Text
         }
 
         $this->request->addMessage($message);
+        $this->request->resetToolChoice();
 
         $this->addStep($toolResults);
 
@@ -132,16 +133,20 @@ class Text
      */
     protected function addStep(array $toolResults = []): void
     {
+        $data = $this->httpResponse->json();
+
         $this->responseBuilder->addStep(new Step(
             text: $this->tempResponse->text,
             finishReason: $this->tempResponse->finishReason,
             toolCalls: $this->tempResponse->toolCalls,
             toolResults: $toolResults,
+            providerToolCalls: [],
             usage: $this->tempResponse->usage,
             meta: $this->tempResponse->meta,
             messages: $this->request->messages(),
             systemPrompts: $this->request->systemPrompts(),
             additionalContent: $this->tempResponse->additionalContent,
+            raw: $data,
         ));
     }
 
@@ -189,6 +194,7 @@ class Text
             fn (ProviderTool $tool): array => [
                 'type' => $tool->type,
                 'name' => $tool->name,
+                ...$tool->options,
             ],
             $request->providerTools()
         );

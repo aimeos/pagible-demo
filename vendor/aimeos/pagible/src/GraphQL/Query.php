@@ -25,8 +25,8 @@ final class Query
      * Custom query builder for elements to search items by ID (optional).
      *
      * @param  null  $rootValue
-     * @param  array  $args
-     * @return \Kalnoy\Nestedset\QueryBuilder
+     * @param  array<string, mixed>  $args
+     * @return \Illuminate\Database\Eloquent\Builder<\Aimeos\Cms\Models\Element>
      */
     public function elements( $rootValue, array $args ) : Builder
     {
@@ -86,8 +86,8 @@ final class Query
      * Custom query builder for files to search for.
      *
      * @param  null  $rootValue
-     * @param  array  $args
-     * @return \Kalnoy\Nestedset\QueryBuilder
+     * @param  array<string, mixed>  $args
+     * @return \Illuminate\Database\Eloquent\Builder<\Aimeos\Cms\Models\File>
      */
     public function files( $rootValue, array $args ) : Builder
     {
@@ -104,7 +104,7 @@ final class Query
             case 'only': $builder->onlyTrashed(); break;
         }
 
-        $builder->whereHas('latest', function( $builder ) use ( $filter, $publish ) {
+        $builder->whereHas( 'latest', function( $builder ) use ( $filter, $publish ) {
 
             switch( $publish )
             {
@@ -147,10 +147,10 @@ final class Query
      * Custom query builder for pages to get pages by parent ID.
      *
      * @param  null  $rootValue
-     * @param  array  $args
-     * @return \Kalnoy\Nestedset\QueryBuilder
+     * @param  array<string, mixed>  $args
+     * @return \Aimeos\Nestedset\QueryBuilder<\Aimeos\Cms\Models\Page>
      */
-    public function pages( $rootValue, array $args ) : \Kalnoy\Nestedset\QueryBuilder
+    public function pages( $rootValue, array $args ) : \Aimeos\Nestedset\QueryBuilder
     {
         $filter = $args['filter'] ?? [];
         $publish = $args['publish'] ?? null;

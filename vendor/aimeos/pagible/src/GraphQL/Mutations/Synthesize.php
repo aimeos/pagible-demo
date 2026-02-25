@@ -7,6 +7,8 @@
 
 namespace Aimeos\Cms\GraphQL\Mutations;
 
+use Aimeos\Cms\Permission;
+use Aimeos\Cms\Models\File;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Enums\ToolChoice;
 use Prism\Prism\Exceptions\PrismException;
@@ -15,7 +17,7 @@ use Prism\Prism\ValueObjects\Media\Image;
 use Prism\Prism\ValueObjects\Media\Video;
 use Prism\Prism\ValueObjects\Media\Document;
 use Prism\Prism\ValueObjects\ProviderTool;
-use Aimeos\Cms\Models\File;
+use Illuminate\Support\Facades\Auth;
 use GraphQL\Error\Error;
 
 
@@ -27,16 +29,20 @@ final class Synthesize
      */
     public function __invoke( $rootValue, array $args ): string
     {
+        if( !Permission::can( 'page:synthesize', Auth::user() ) ) {
+            throw new Error( 'Insufficient permissions' );
+        }
+
         if( empty( $args['prompt'] ) ) {
             throw new Error( 'Prompt must not be empty' );
         }
 
-        $system = view( 'cms::prompts.synthesize' )->render() . "\n"
-            . view( 'cms::prompts.compose' )->render() . "\n";
+        /** @phpstan-ignore-next-line argument.type */
+        $system = view( 'cms::prompts.synthesize' )->render() . "\n" . view( 'cms::prompts.write' )->render() . "\n";
 
         $files = [];
-        $provider = config( 'cms.ai.text' ) ?: 'gemini';
-        $model = config( 'cms.ai.text-model' ) ?: 'gemini-2.5-flash';
+        $provider = config( 'cms.ai.write.provider' );
+        $model = config( 'cms.ai.write.model' );
 
         try
         {
@@ -49,25 +55,25 @@ final class Synthesize
 
             if( !empty( $ids = $args['files'] ?? null ) )
             {
-                $files = File::where( 'id', $ids )->get()->map( function( $file ) {
+                $files = File::whereIn( 'id', $ids )->get()->map( function( $file ) {
 
-                    if( str_starts_with( $file->path, 'http' ) )
+                    if( str_starts_with( (string) $file->path, 'http' ) )
                     {
                         return match( explode( '/', $file->mime )[0] ) {
-                            'image' => Image::fromUrl( $file->path ),
-                            'audio' => Audio::fromUrl( $file->path ),
-                            'video' => Video::fromUrl( $file->path ),
-                            default => Document::fromUrl( $file->path ),
+                            'image' => Image::fromUrl( (string) $file->path ),
+                            'audio' => Audio::fromUrl( (string) $file->path ),
+                            'video' => Video::fromUrl( (string) $file->path ),
+                            default => Document::fromUrl( (string) $file->path ),
                         };
                     }
 
                     $disk = config( 'cms.disk', 'public' );
 
                     return match( explode( '/', $file->mime )[0] ) {
-                        'image' => Image::fromStoragePath( $file->path, $disk ),
-                        'audio' => Audio::fromStoragePath( $file->path, $disk ),
-                        'video' => Video::fromStoragePath( $file->path, $disk ),
-                        default => Document::fromStoragePath( $file->path, $disk ),
+                        'image' => Image::fromStoragePath( (string) $file->path, $disk ),
+                        'audio' => Audio::fromStoragePath( (string) $file->path, $disk ),
+                        'video' => Video::fromStoragePath( (string) $file->path, $disk ),
+                        default => Document::fromStoragePath( (string) $file->path, $disk ),
                     };
                 } )->values()->toArray();
             }
@@ -81,19 +87,23 @@ final class Synthesize
         }
         catch( \Exception $e )
         {
-            switch( get_class( $ex = $e->getPrevious() ?? $e ) )
+            $msg = match( get_class( $ex = $e->getPrevious() ?? $e ) )
             {
-                case 'Illuminate\Database\UniqueConstraintViolationException':
-                    $msg = 'Already exists';
-                default:
-                    $msg = $ex->getMessage();
-            }
+                'Illuminate\Database\UniqueConstraintViolationException' => 'Already exists',
+                default => $ex->getMessage(),
+            };
         }
 
         return $msg . "\n";
     }
 
 
+    /**
+     * Returns a list of tool calls made during the execution of the Prism response for debugging purposes.
+     *
+     * @param \Prism\Prism\Text\Response $response
+     * @return list<string>
+     */
     protected function trace( \Prism\Prism\Text\Response $response ) : array
     {
         $msgs = [];

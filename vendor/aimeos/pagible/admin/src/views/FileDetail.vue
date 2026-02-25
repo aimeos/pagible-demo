@@ -30,10 +30,11 @@
       error: false,
       changed: false,
       publishAt: null,
+      publishing: false,
       pubmenu: false,
+      saving: false,
       vhistory: false,
       tab: 'file',
-      savecnt: 0,
     }),
 
     setup() {
@@ -50,6 +51,8 @@
           this.messages.add(this.$gettext('Permission denied'), 'error')
           return
         }
+
+        this.publishing = true
 
         this.save(true).then(valid => {
           if(!valid) {
@@ -83,6 +86,8 @@
           }).catch(error => {
             this.messages.add(this.$gettext('Error publishing file') + ":\n" + error, 'error')
             this.$log(`FileDetail::publish(): Error publishing file`, at, error)
+          }).finally(() => {
+            this.publishing = false
           })
         })
       },
@@ -108,6 +113,8 @@
         if(!this.changed) {
           return Promise.resolve(true)
         }
+
+        this.saving = true
 
         return this.$apollo.mutate({
           mutation: gql`mutation ($id: ID!, $input: FileInput!, $file: Upload) {
@@ -151,11 +158,12 @@
             this.messages.add(this.$gettext('File saved successfully'), 'success')
           }
 
-          this.savecnt++
           return true
         }).catch(error => {
           this.messages.add(this.$gettext('Error saving file') + ":\n" + error, 'error')
           this.$log(`FileDetail::save(): Error saving file`, error)
+        }).finally(() => {
+          this.saving = false
         })
       },
 
@@ -164,7 +172,6 @@
         Object.assign(this.item, version.data)
         this.vhistory = false
         this.changed = true
-        this.savecnt++
       },
 
 
@@ -206,7 +213,7 @@
             const item = {...v, data: JSON.parse(v.data || '{}')}
             keys.forEach(key => item[key] ??= {})
             return item
-          }).reverse() // latest versions first
+          })
         }).catch(error => {
           this.messages.add(this.$gettext('Error fetching file versions') + ":\n" + error, 'error')
           this.$log(`FileDetail::versions(): Error fetching file versions`, id, error)
@@ -243,6 +250,7 @@
 
       <v-btn
         @click="save()"
+        :loading="saving"
         :title="$gettext('Save')"
         :class="{error: error}" class="menu-save"
         :disabled="!changed || error || !auth.can('file:save')"
@@ -254,6 +262,7 @@
       <v-menu v-model="pubmenu" :close-on-content-click="false">
         <template #activator="{ props }">
           <v-btn v-bind="props" icon
+            :loading="publishing"
             :title="$gettext('Schedule publishing')"
             :class="{error: error}" class="menu-publish"
             :disabled="item.published && !changed || error || !auth.can('file:publish')"
@@ -281,6 +290,7 @@
 
       <v-btn icon
         @click="publish()"
+        :loading="publishing"
         :title="$gettext('Publish')"
         :class="{error: error}" class="menu-publish"
         :disabled="item.published && !changed || error || !auth.can('file:publish')"
@@ -313,10 +323,9 @@
 
         <v-window-item value="file">
           <FileDetailItem
-            @update:item="this.$emit('update:item', item); changed = true"
-            @update:file="this.file = $event; changed = true"
+            @update:item="$emit('update:item', item); changed = true"
+            @update:file="file = $event; changed = true"
             @error="error = $event"
-            :save="{count: savecnt}"
             :item="item"
           />
         </v-window-item>
@@ -336,6 +345,7 @@
   <Teleport to="body">
     <HistoryDialog
       v-model="vhistory"
+      :readonly="!auth.can('file:save')"
       :current="{
         data: {
           lang: item.lang,
@@ -348,8 +358,8 @@
         },
       }"
       :load="() => versions(item.id)"
-      @use="use($event)"
       @revert="use($event); reset()"
+      @use="use($event)"
     />
   </Teleport>
 </template>

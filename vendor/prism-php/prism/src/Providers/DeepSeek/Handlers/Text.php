@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Prism\Prism\Providers\DeepSeek\Handlers;
 
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
 use Prism\Prism\Concerns\CallsTools;
 use Prism\Prism\Enums\FinishReason;
@@ -70,6 +71,7 @@ class Text
         );
 
         $request = $request->addMessage(new ToolResultMessage($toolResults));
+        $request->resetToolChoice();
 
         $this->addStep($data, $request, $toolResults);
 
@@ -100,6 +102,7 @@ class Text
      */
     protected function sendRequest(Request $request): array
     {
+        /** @var Response $response */
         $response = $this->client->post(
             'chat/completions',
             array_merge([
@@ -128,6 +131,7 @@ class Text
             finishReason: $this->mapFinishReason($data),
             toolCalls: ToolCallMap::map(data_get($data, 'choices.0.message.tool_calls', [])),
             toolResults: $toolResults,
+            providerToolCalls: [],
             usage: new Usage(
                 data_get($data, 'usage.prompt_tokens'),
                 data_get($data, 'usage.completion_tokens'),
@@ -139,6 +143,7 @@ class Text
             messages: $request->messages(),
             systemPrompts: $request->systemPrompts(),
             additionalContent: [],
+            raw: $data,
         ));
     }
 }

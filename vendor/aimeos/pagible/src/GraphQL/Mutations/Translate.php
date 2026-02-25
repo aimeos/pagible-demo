@@ -7,6 +7,8 @@
 
 namespace Aimeos\Cms\GraphQL\Mutations;
 
+use Aimeos\Cms\Permission;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use GraphQL\Error\Error;
 
@@ -16,9 +18,14 @@ final class Translate
     /**
      * @param  null  $rootValue
      * @param  array<string, mixed>  $args
+     * @return array<int, mixed>
      */
     public function __invoke( $rootValue, array $args ): array
     {
+        if( !Permission::can( 'text:translate', Auth::user() ) ) {
+            throw new Error( 'Insufficient permissions' );
+        }
+
         if( empty( $args['texts'] ) ) {
             throw new Error( 'Input texts must not be empty' );
         }
@@ -27,11 +34,11 @@ final class Translate
             throw new Error( 'Target language must not be empty' );
         }
 
-        if( empty( $apiKey = config( 'services.deepl.key' ) ) ) {
+        if( empty( $apiKey = config( 'cms.ai.translate.api_key' ) ) ) {
             throw new Error( 'DeepL API key must be configured' );
         }
 
-        $url = rtrim( config( 'services.deepl.url', 'https://api-free.deepl.com/v2/translate' ), '/' );
+        $url = rtrim( config( 'cms.ai.translate.url', 'https://api-free.deepl.com/v2/translate' ), '/' );
         $payload = [
             'ignore_tags' => ['x'],
             'tag_handling' => 'xml',
@@ -48,6 +55,6 @@ final class Translate
             'Content-Type' => 'application/json'
         ])->post( $url, $payload )->throw();
 
-        return collect( $response->json( 'translations' ) )->pluck( 'text' )->toArray();
+        return collect( (array) $response->json( 'translations', [] ) )->pluck( 'text' )->toArray();
     }
 }

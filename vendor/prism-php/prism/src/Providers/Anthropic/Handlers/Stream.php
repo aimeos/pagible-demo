@@ -16,6 +16,9 @@ use Prism\Prism\Providers\Anthropic\ValueObjects\AnthropicStreamState;
 use Prism\Prism\Streaming\EventID;
 use Prism\Prism\Streaming\Events\CitationEvent;
 use Prism\Prism\Streaming\Events\ErrorEvent;
+use Prism\Prism\Streaming\Events\ProviderToolEvent;
+use Prism\Prism\Streaming\Events\StepFinishEvent;
+use Prism\Prism\Streaming\Events\StepStartEvent;
 use Prism\Prism\Streaming\Events\StreamEndEvent;
 use Prism\Prism\Streaming\Events\StreamEvent;
 use Prism\Prism\Streaming\Events\StreamStartEvent;
@@ -25,15 +28,14 @@ use Prism\Prism\Streaming\Events\TextStartEvent;
 use Prism\Prism\Streaming\Events\ThinkingCompleteEvent;
 use Prism\Prism\Streaming\Events\ThinkingEvent;
 use Prism\Prism\Streaming\Events\ThinkingStartEvent;
+use Prism\Prism\Streaming\Events\ToolCallDeltaEvent;
 use Prism\Prism\Streaming\Events\ToolCallEvent;
-use Prism\Prism\Streaming\Events\ToolResultEvent;
 use Prism\Prism\Text\Request;
 use Prism\Prism\ValueObjects\Citation;
 use Prism\Prism\ValueObjects\MessagePartWithCitations;
 use Prism\Prism\ValueObjects\Messages\AssistantMessage;
 use Prism\Prism\ValueObjects\Messages\ToolResultMessage;
 use Prism\Prism\ValueObjects\ToolCall;
-use Prism\Prism\ValueObjects\ToolResult;
 use Prism\Prism\ValueObjects\Usage;
 use Psr\Http\Message\StreamInterface;
 use Throwable;
@@ -75,16 +77,29 @@ class Stream
             $streamEvent = $this->processEvent($event);
 
             if ($streamEvent instanceof Generator) {
-                yield from $streamEvent;
+                foreach ($streamEvent as $event) {
+                    yield $event;
+                }
             } elseif ($streamEvent instanceof StreamEvent) {
                 yield $streamEvent;
             }
         }
 
-        // Handle tool calls if present
         if ($this->state->hasToolCalls()) {
-            yield from $this->handleToolCalls($request, $depth);
+            foreach ($this->handleToolCalls($request, $depth) as $item) {
+                yield $item;
+            }
+
+            return;
         }
+
+        $this->state->markStepFinished();
+        yield new StepFinishEvent(
+            id: EventID::generate(),
+            timestamp: time()
+        );
+
+        yield $this->emitStreamEndEvent();
     }
 
     /**
@@ -108,16 +123,16 @@ class Stream
 
     /**
      * @param  array<string, mixed>  $event
+     * @return Generator<StreamEvent>
      */
-    protected function handleMessageStart(array $event): StreamStartEvent
+    protected function handleMessageStart(array $event): Generator
     {
         $message = $event['message'] ?? [];
         $this->state->withMessageId($message['id'] ?? EventID::generate());
 
-        // Capture initial usage data
         $usageData = $message['usage'] ?? [];
         if (! empty($usageData)) {
-            $this->state->withUsage(new Usage(
+            $this->state->addUsage(new Usage(
                 promptTokens: $usageData['input_tokens'] ?? 0,
                 completionTokens: $usageData['output_tokens'] ?? 0,
                 cacheWriteInputTokens: $usageData['cache_creation_input_tokens'] ?? null,
@@ -125,12 +140,26 @@ class Stream
             ));
         }
 
-        return new StreamStartEvent(
-            id: EventID::generate(),
-            timestamp: time(),
-            model: $message['model'] ?? 'unknown',
-            provider: 'anthropic'
-        );
+        // Only emit StreamStartEvent once per streaming session
+        if ($this->state->shouldEmitStreamStart()) {
+            $this->state->markStreamStarted();
+
+            yield new StreamStartEvent(
+                id: EventID::generate(),
+                timestamp: time(),
+                model: $message['model'] ?? 'unknown',
+                provider: 'anthropic'
+            );
+        }
+
+        if ($this->state->shouldEmitStepStart()) {
+            $this->state->markStepStarted();
+
+            yield new StepStartEvent(
+                id: EventID::generate(),
+                timestamp: time()
+            );
+        }
     }
 
     /**
@@ -152,6 +181,9 @@ class Stream
             ),
             'thinking' => $this->handleThinkingStart(),
             'tool_use' => $this->handleToolUseStart($contentBlock),
+            'server_tool_use' => $this->handleProviderToolUseStart($contentBlock),
+            'web_search_tool_result' => $this->handleProviderToolResultStart($contentBlock),
+            'web_fetch_tool_result' => $this->handleProviderToolResultStart($contentBlock),
             default => null,
         };
     }
@@ -170,6 +202,7 @@ class Stream
             ['thinking', 'thinking_delta'] => $this->handleThinkingDelta($delta),
             ['thinking', 'signature_delta'] => $this->handleSignatureDelta($delta),
             ['tool_use', 'input_json_delta'] => $this->handleToolInputDelta($delta),
+            ['server_tool_use', 'input_json_delta'] => $this->handleProviderToolInputDelta($delta),
             default => null,
         };
     }
@@ -180,17 +213,14 @@ class Stream
     protected function handleContentBlockStop(array $event): ?StreamEvent
     {
         $result = match ($this->state->currentBlockType()) {
-            'text' => new TextCompleteEvent(
-                id: EventID::generate(),
-                timestamp: time(),
-                messageId: $this->state->messageId()
-            ),
+            'text' => $this->handleTextComplete(),
             'thinking' => new ThinkingCompleteEvent(
                 id: EventID::generate(),
                 timestamp: time(),
                 reasoningId: $this->state->reasoningId()
             ),
             'tool_use' => $this->handleToolUseComplete(),
+            'server_tool_use' => $this->handleProviderToolUseComplete(),
             default => null,
         };
 
@@ -223,14 +253,27 @@ class Stream
     /**
      * @param  array<string, mixed>  $event
      */
-    protected function handleMessageStop(array $event): StreamEndEvent
+    protected function handleMessageStop(array $event): ?StreamEndEvent
+    {
+        if (! $this->state->finishReason() instanceof FinishReason) {
+            $this->state->withFinishReason(FinishReason::Stop);
+        }
+
+        return null;
+    }
+
+    protected function emitStreamEndEvent(): StreamEndEvent
     {
         return new StreamEndEvent(
             id: EventID::generate(),
             timestamp: time(),
-            finishReason: FinishReason::Stop, // Default, will be updated by message_delta
+            finishReason: $this->state->finishReason() ?? FinishReason::Stop,
             usage: $this->state->usage(),
-            citations: $this->state->citations() !== [] ? $this->state->citations() : null
+            citations: $this->state->citations() !== [] ? $this->state->citations() : null,
+            additionalContent: [
+                'thinking' => $this->state->thinkingSummaries() === [] ? null : implode('', $this->state->thinkingSummaries()),
+                'thinking_signature' => $this->state->currentThinkingSignature() === '' ? null : $this->state->currentThinkingSignature(),
+            ]
         );
     }
 
@@ -256,6 +299,17 @@ class Stream
             id: EventID::generate(),
             timestamp: time(),
             reasoningId: $this->state->reasoningId()
+        );
+    }
+
+    protected function handleTextComplete(): TextCompleteEvent
+    {
+        $this->state->markTextCompleted();
+
+        return new TextCompleteEvent(
+            id: EventID::generate(),
+            timestamp: time(),
+            messageId: $this->state->messageId()
         );
     }
 
@@ -362,12 +416,23 @@ class Stream
     /**
      * @param  array<string, mixed>  $delta
      */
-    protected function handleToolInputDelta(array $delta): null
+    protected function handleToolInputDelta(array $delta): ?ToolCallDeltaEvent
     {
         $partialJson = $delta['partial_json'] ?? '';
 
         if ($this->state->currentBlockIndex() !== null && isset($this->state->toolCalls()[$this->state->currentBlockIndex()])) {
             $this->state->appendToolCallInput($this->state->currentBlockIndex(), $partialJson);
+
+            $toolCall = $this->state->toolCalls()[$this->state->currentBlockIndex()];
+
+            return new ToolCallDeltaEvent(
+                id: EventID::generate(),
+                timestamp: time(),
+                toolId: $toolCall['id'],
+                toolName: $toolCall['name'],
+                delta: $partialJson,
+                messageId: $this->state->messageId()
+            );
         }
 
         return null;
@@ -434,54 +499,28 @@ class Stream
 
         // Execute tools and emit results
         $toolResults = [];
-        foreach ($toolCalls as $toolCall) {
-            try {
-                $tool = $this->resolveTool($toolCall->name, $request->tools());
-                $result = call_user_func_array($tool->handle(...), $toolCall->arguments());
-
-                $toolResult = new ToolResult(
-                    toolCallId: $toolCall->id,
-                    toolName: $toolCall->name,
-                    args: $toolCall->arguments(),
-                    result: $result
-                );
-
-                $toolResults[] = $toolResult;
-
-                yield new ToolResultEvent(
-                    id: EventID::generate(),
-                    timestamp: time(),
-                    toolResult: $toolResult,
-                    messageId: $this->state->messageId(),
-                    success: true
-                );
-            } catch (Throwable $e) {
-                $errorResultObj = new ToolResult(
-                    toolCallId: $toolCall->id,
-                    toolName: $toolCall->name,
-                    args: $toolCall->arguments(),
-                    result: []
-                );
-
-                yield new ToolResultEvent(
-                    id: EventID::generate(),
-                    timestamp: time(),
-                    toolResult: $errorResultObj,
-                    messageId: $this->state->messageId(),
-                    success: false,
-                    error: $e->getMessage()
-                );
-            }
-        }
+        yield from $this->callToolsAndYieldEvents($request->tools(), $toolCalls, $this->state->messageId(), $toolResults);
 
         // Add messages to request for next turn
         if ($toolResults !== []) {
             $request->addMessage(new AssistantMessage(
                 content: $this->state->currentText(),
-                toolCalls: $toolCalls
+                toolCalls: $toolCalls,
+                additionalContent: in_array($this->state->currentThinking(), ['', '0'], true) ? [] : [
+                    'thinking' => $this->state->currentThinking(),
+                    'thinking_signature' => $this->state->currentThinkingSignature(),
+                ]
             ));
 
             $request->addMessage(new ToolResultMessage($toolResults));
+            $request->resetToolChoice();
+
+            // Emit step finish after tool calls
+            $this->state->markStepFinished();
+            yield new StepFinishEvent(
+                id: EventID::generate(),
+                timestamp: time()
+            );
 
             // Continue streaming if within step limit
             $depth++;
@@ -489,8 +528,85 @@ class Stream
                 $this->state->reset();
                 $nextResponse = $this->sendRequest($request);
                 yield from $this->processStream($nextResponse, $request, $depth);
+            } else {
+                yield $this->emitStreamEndEvent();
             }
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $contentBlock
+     */
+    protected function handleProviderToolUseStart(array $contentBlock): ProviderToolEvent
+    {
+        if ($this->state->currentBlockIndex() !== null) {
+            $this->state->addProviderToolCall($this->state->currentBlockIndex(), [
+                'type' => $contentBlock['type'] ?? 'server_tool_use',
+                'id' => $contentBlock['id'] ?? EventID::generate(),
+                'name' => $contentBlock['name'] ?? 'unknown',
+                'input' => '',
+            ]);
+        }
+
+        return new ProviderToolEvent(
+            id: EventID::generate(),
+            timestamp: time(),
+            toolType: $contentBlock['name'] ?? 'unknown',
+            status: 'started',
+            itemId: $contentBlock['id'],
+            data: $contentBlock,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $delta
+     */
+    protected function handleProviderToolInputDelta(array $delta): null
+    {
+        $partialJson = $delta['partial_json'] ?? '';
+
+        if ($this->state->currentBlockIndex() !== null && isset($this->state->providerToolCalls()[$this->state->currentBlockIndex()])) {
+            $this->state->appendProviderToolCallInput($this->state->currentBlockIndex(), $partialJson);
+        }
+
+        return null;
+    }
+
+    protected function handleProviderToolUseComplete(): ?ProviderToolEvent
+    {
+        if ($this->state->currentBlockIndex() === null || ! isset($this->state->providerToolCalls()[$this->state->currentBlockIndex()])) {
+            return null;
+        }
+
+        $providerToolCall = $this->state->providerToolCalls()[$this->state->currentBlockIndex()];
+
+        return new ProviderToolEvent(
+            id: EventID::generate(),
+            timestamp: time(),
+            toolType: $providerToolCall['name'],
+            status: 'completed',
+            itemId: $providerToolCall['id'],
+            data: $providerToolCall,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $contentBlock
+     */
+    protected function handleProviderToolResultStart(array $contentBlock): ?ProviderToolEvent
+    {
+        if ($this->state->currentBlockIndex() !== null) {
+            $this->state->addProviderToolResult($this->state->currentBlockIndex(), $contentBlock);
+        }
+
+        return new ProviderToolEvent(
+            id: EventID::generate(),
+            timestamp: time(),
+            toolType: $contentBlock['type'],
+            status: 'result_received',
+            itemId: $contentBlock['tool_use_id'] ?? EventID::generate(),
+            data: $contentBlock,
+        );
     }
 
     /**
@@ -600,11 +716,14 @@ class Stream
 
     protected function sendRequest(Request $request): Response
     {
-        return $this->client
+        /** @var Response $response */
+        $response = $this->client
             ->withOptions(['stream' => true])
             ->post('messages', Arr::whereNotNull([
                 'stream' => true,
                 ...Text::buildHttpRequestPayload($request),
             ]));
+
+        return $response;
     }
 }

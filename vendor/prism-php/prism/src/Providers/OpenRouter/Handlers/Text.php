@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Prism\Prism\Providers\OpenRouter\Handlers;
 
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Prism\Prism\Concerns\CallsTools;
 use Prism\Prism\Enums\FinishReason;
 use Prism\Prism\Exceptions\PrismException;
@@ -69,6 +70,7 @@ class Text
         );
 
         $request = $request->addMessage(new ToolResultMessage($toolResults));
+        $request->resetToolChoice();
 
         $this->addStep($data, $request, $toolResults);
 
@@ -99,6 +101,7 @@ class Text
      */
     protected function sendRequest(Request $request): array
     {
+        /** @var Response $response */
         $response = $this->client->post(
             'chat/completions',
             array_merge([
@@ -122,17 +125,19 @@ class Text
             finishReason: $this->mapFinishReason($data),
             toolCalls: ToolCallMap::map(data_get($data, 'choices.0.message.tool_calls', [])),
             toolResults: $toolResults,
+            providerToolCalls: [],
             usage: new Usage(
-                data_get($data, 'usage.prompt_tokens'),
-                data_get($data, 'usage.completion_tokens'),
+                (int) data_get($data, 'usage.prompt_tokens', 0),
+                (int) data_get($data, 'usage.completion_tokens', 0),
             ),
             meta: new Meta(
-                id: data_get($data, 'id'),
-                model: data_get($data, 'model'),
+                id: data_get($data, 'id', ''),
+                model: data_get($data, 'model', $request->model()),
             ),
             messages: $request->messages(),
             systemPrompts: $request->systemPrompts(),
             additionalContent: [],
+            raw: $data,
         ));
     }
 }

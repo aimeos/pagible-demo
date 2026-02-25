@@ -5,7 +5,7 @@
 <script>
   import gql from 'graphql-tag'
   import { recording } from '../audio'
-  import { useMessageStore } from '../stores'
+  import { useAuthStore, useMessageStore } from '../stores'
 
   export default {
     props: {
@@ -19,7 +19,7 @@
 
     emits: ['change', 'error', 'update:files'],
 
-    inject: ['compose', 'translate', 'transcribe', 'txlocales'],
+    inject: ['write', 'translate', 'transcribe', 'txlocales'],
 
     data() {
       return {
@@ -34,7 +34,9 @@
 
     setup() {
       const messages = useMessageStore()
-      return { messages }
+      const auth = useAuthStore()
+
+      return { auth, messages }
     },
 
     methods: {
@@ -52,7 +54,7 @@
       },
 
 
-      composeText(code) {
+      writeText(code) {
         const context = [
           'generate for field "' + (this.fields[code].label || code) + '"',
           'required output format is "' + this.fields[code].type + '"',
@@ -64,7 +66,7 @@
 
         this.composing[code] = true
 
-        this.compose(this.data[code] || 'Create a suitable text based on the context', context).then(result => {
+        this.write(this.data[code] || 'Create a suitable text based on the context', context).then(result => {
           this.update(code, result)
         }).finally(() => {
           this.composing[code] = false
@@ -91,7 +93,7 @@
           this.dictating[code] = true
           this.audio[code] = null
 
-          rec.stop().then(buffer => {
+          rec.stop()?.then(buffer => {
             this.transcribe(buffer).then(transcription => {
               this.update(code, transcription.asText())
             }).finally(() => {
@@ -174,7 +176,7 @@
             />
           </template>
 
-          <v-card>
+          <v-card v-if="auth.can('text:translate')">
             <v-toolbar density="compact">
               <v-toolbar-title>{{ $gettext('Translate') }}</v-toolbar-title>
               <v-btn icon="mdi-close" @click="menu[code] = false" />
@@ -191,14 +193,14 @@
             </v-list>
           </v-card>
         </component>
-        <v-btn
+        <v-btn v-if="auth.can('text:write')"
           :title="$gettext('Generate text')"
           :loading="composing[code]"
-          @click="composeText(code)"
+          @click="writeText(code)"
           icon="mdi-creation"
           variant="text"
         />
-        <v-btn
+        <v-btn v-if="auth.can('audio:transcribe')"
           @click="record(code)"
           :class="{dictating: audio[code]}"
           :icon="audio[code] ? 'mdi-microphone-outline' : 'mdi-microphone'"

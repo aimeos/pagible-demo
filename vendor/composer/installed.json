@@ -89,40 +89,113 @@
             "install-path": "../aimeos/laravel-analytics-matomo"
         },
         {
-            "name": "aimeos/pagible",
-            "version": "0.8.5",
-            "version_normalized": "0.8.5.0",
+            "name": "aimeos/laravel-nestedset",
+            "version": "7.0.1",
+            "version_normalized": "7.0.1.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/aimeos/pagible.git",
-                "reference": "d99a337ae0420baccfc38d56d601307c7669d28c"
+                "url": "https://github.com/aimeos/laravel-nestedset.git",
+                "reference": "0a48675f29ad0379806eaddaf1a0e60fbf562d7d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/d99a337ae0420baccfc38d56d601307c7669d28c",
-                "reference": "d99a337ae0420baccfc38d56d601307c7669d28c",
+                "url": "https://api.github.com/repos/aimeos/laravel-nestedset/zipball/0a48675f29ad0379806eaddaf1a0e60fbf562d7d",
+                "reference": "0a48675f29ad0379806eaddaf1a0e60fbf562d7d",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/database": "^10.0|^11.0|^12.0",
+                "illuminate/events": "^10.0|^11.0|^12.0",
+                "illuminate/support": "^10.0|^11.0|^12.0",
+                "php": "^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^10.5|^11.5|^12.5",
+                "ramsey/uuid": "^4.7"
+            },
+            "time": "2026-02-08T18:13:31+00:00",
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aimeos\\Nestedset\\NestedSetServiceProvider"
+                    ]
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aimeos\\Nestedset\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Alexander Kalnoy",
+                    "email": "lazychaser@gmail.com"
+                },
+                {
+                    "name": "Aimeos",
+                    "email": "aimeos@aimeos.org"
+                }
+            ],
+            "description": "Nested Set Model for Laravel",
+            "keywords": [
+                "database",
+                "hierarchy",
+                "laravel",
+                "nested sets",
+                "nsm"
+            ],
+            "support": {
+                "issues": "https://github.com/aimeos/laravel-nestedset/issues",
+                "source": "https://github.com/aimeos/laravel-nestedset/tree/7.0.1"
+            },
+            "install-path": "../aimeos/laravel-nestedset"
+        },
+        {
+            "name": "aimeos/pagible",
+            "version": "dev-master",
+            "version_normalized": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aimeos/pagible.git",
+                "reference": "88848b095c8c42e16b17ba199150e50b436b9bd1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/88848b095c8c42e16b17ba199150e50b436b9bd1",
+                "reference": "88848b095c8c42e16b17ba199150e50b436b9bd1",
                 "shasum": ""
             },
             "require": {
                 "aimeos/laravel-analytics-bridge": "~1.0",
+                "aimeos/laravel-nestedset": "~7.0",
+                "aimeos/prisma": "dev-master",
                 "ezyang/htmlpurifier": "^4.18",
                 "intervention/image": "^3.11",
-                "kalnoy/nestedset": "^6.0",
                 "laravel-json-api/laravel": "^5.1",
                 "laravel/framework": "^11.0||^12.0",
+                "laravel/mcp": "~0.5",
                 "laravel/scout": "^10.20",
                 "league/commonmark": "^2.6",
                 "mll-lab/graphql-php-scalars": "^6.4",
                 "nuwave/lighthouse": "^6.54",
-                "prism-php/prism": "0.97",
+                "prism-php/prism": "0.99.19",
                 "symfony/uid": "^7.0"
             },
             "require-dev": {
+                "larastan/larastan": "^3.9",
                 "laravel-json-api/testing": "^3.1",
                 "om/potrans": "^1.0.1",
                 "orchestra/testbench": "^9.0||^10.0"
             },
-            "time": "2026-01-24T20:25:28+00:00",
+            "time": "2026-02-25T14:22:00+00:00",
+            "default-branch": true,
             "type": "library",
             "extra": {
                 "laravel": {
@@ -162,9 +235,56 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible/issues",
-                "source": "https://github.com/aimeos/pagible/tree/0.8.5"
+                "source": "https://github.com/aimeos/pagible/tree/master"
             },
             "install-path": "../aimeos/pagible"
+        },
+        {
+            "name": "aimeos/prisma",
+            "version": "dev-master",
+            "version_normalized": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aimeos/prisma.git",
+                "reference": "bc67c27ca1a8f8b53a796b8d24209d583a3e60af"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aimeos/prisma/zipball/bc67c27ca1a8f8b53a796b8d24209d583a3e60af",
+                "reference": "bc67c27ca1a8f8b53a796b8d24209d583a3e60af",
+                "shasum": ""
+            },
+            "require": {
+                "ext-fileinfo": "*",
+                "ext-gd": "*",
+                "guzzlehttp/guzzle": "^7.0",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "firebase/php-jwt": "^6.11",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^10.5||^11.5||^12.4",
+                "vlucas/phpdotenv": "^5.6"
+            },
+            "time": "2026-02-17T10:38:28+00:00",
+            "default-branch": true,
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aimeos\\Prisma\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-2.1+"
+            ],
+            "description": "A powerful PHP package for integrating media related Large Language Models (LLMs) into your applications",
+            "support": {
+                "issues": "https://github.com/aimeos/prisma/issues",
+                "source": "https://github.com/aimeos/prisma/tree/master"
+            },
+            "install-path": "../aimeos/prisma"
         },
         {
             "name": "brick/math",
@@ -1955,72 +2075,6 @@
             "install-path": "../intervention/image"
         },
         {
-            "name": "kalnoy/nestedset",
-            "version": "v6.0.6",
-            "version_normalized": "6.0.6.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/lazychaser/laravel-nestedset.git",
-                "reference": "3cfc56a9759fb592bc903056166bfc0867f9e679"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/lazychaser/laravel-nestedset/zipball/3cfc56a9759fb592bc903056166bfc0867f9e679",
-                "reference": "3cfc56a9759fb592bc903056166bfc0867f9e679",
-                "shasum": ""
-            },
-            "require": {
-                "illuminate/database": "^7.0|^8.0|^9.0|^10.0|^11.0|^12.0",
-                "illuminate/events": "^7.0|^8.0|^9.0|^10.0|^11.0|^12.0",
-                "illuminate/support": "^7.0|^8.0|^9.0|^10.0|^11.0|^12.0",
-                "php": "^8.0"
-            },
-            "require-dev": {
-                "phpunit/phpunit": "7.*|8.*|9.*|^10.5"
-            },
-            "time": "2025-04-22T19:38:02+00:00",
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "Kalnoy\\Nestedset\\NestedSetServiceProvider"
-                    ]
-                },
-                "branch-alias": {
-                    "dev-master": "v5.0.x-dev"
-                }
-            },
-            "installation-source": "dist",
-            "autoload": {
-                "psr-4": {
-                    "Kalnoy\\Nestedset\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Alexander Kalnoy",
-                    "email": "lazychaser@gmail.com"
-                }
-            ],
-            "description": "Nested Set Model for Laravel 5.7 and up",
-            "keywords": [
-                "database",
-                "hierarchy",
-                "laravel",
-                "nested sets",
-                "nsm"
-            ],
-            "support": {
-                "issues": "https://github.com/lazychaser/laravel-nestedset/issues",
-                "source": "https://github.com/lazychaser/laravel-nestedset/tree/v6.0.6"
-            },
-            "install-path": "../kalnoy/nestedset"
-        },
-        {
             "name": "laragraph/utils",
             "version": "v2.3.0",
             "version_normalized": "2.3.0.0",
@@ -2880,6 +2934,82 @@
                 "source": "https://github.com/laravel/framework"
             },
             "install-path": "../laravel/framework"
+        },
+        {
+            "name": "laravel/mcp",
+            "version": "v0.6.0",
+            "version_normalized": "0.6.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel/mcp.git",
+                "reference": "28860a10ca0cc5433e25d897ba7af844e6c7b6a2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel/mcp/zipball/28860a10ca0cc5433e25d897ba7af844e6c7b6a2",
+                "reference": "28860a10ca0cc5433e25d897ba7af844e6c7b6a2",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "illuminate/console": "^11.45.3|^12.41.1|^13.0",
+                "illuminate/container": "^11.45.3|^12.41.1|^13.0",
+                "illuminate/contracts": "^11.45.3|^12.41.1|^13.0",
+                "illuminate/http": "^11.45.3|^12.41.1|^13.0",
+                "illuminate/json-schema": "^12.41.1|^13.0",
+                "illuminate/routing": "^11.45.3|^12.41.1|^13.0",
+                "illuminate/support": "^11.45.3|^12.41.1|^13.0",
+                "illuminate/validation": "^11.45.3|^12.41.1|^13.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.20",
+                "orchestra/testbench": "^9.15|^10.8|^11.0",
+                "pestphp/pest": "^3.8.5|^4.3.2",
+                "phpstan/phpstan": "^2.1.27",
+                "rector/rector": "^2.2.4"
+            },
+            "time": "2026-02-24T08:43:06+00:00",
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Mcp": "Laravel\\Mcp\\Server\\Facades\\Mcp"
+                    },
+                    "providers": [
+                        "Laravel\\Mcp\\Server\\McpServiceProvider"
+                    ]
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Laravel\\Mcp\\": "src/",
+                    "Laravel\\Mcp\\Server\\": "src/Server/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Taylor Otwell",
+                    "email": "taylor@laravel.com"
+                }
+            ],
+            "description": "Rapidly build MCP servers for your Laravel applications.",
+            "homepage": "https://github.com/laravel/mcp",
+            "keywords": [
+                "laravel",
+                "mcp"
+            ],
+            "support": {
+                "issues": "https://github.com/laravel/mcp/issues",
+                "source": "https://github.com/laravel/mcp"
+            },
+            "install-path": "../laravel/mcp"
         },
         {
             "name": "laravel/pail",
@@ -5845,17 +5975,17 @@
         },
         {
             "name": "prism-php/prism",
-            "version": "v0.97.0",
-            "version_normalized": "0.97.0.0",
+            "version": "v0.99.19",
+            "version_normalized": "0.99.19.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "9114a787eb415d1453312a9564c9fafb9bf9270f"
+                "reference": "7ebf450f6137fcb6d79cc52f5bffb6d7569b2019"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/9114a787eb415d1453312a9564c9fafb9bf9270f",
-                "reference": "9114a787eb415d1453312a9564c9fafb9bf9270f",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/7ebf450f6137fcb6d79cc52f5bffb6d7569b2019",
+                "reference": "7ebf450f6137fcb6d79cc52f5bffb6d7569b2019",
                 "shasum": ""
             },
             "require": {
@@ -5864,6 +5994,8 @@
                 "php": "^8.2"
             },
             "require-dev": {
+                "brianium/paratest": "^7.8.4",
+                "laravel/mcp": "^0.5.2",
                 "laravel/pint": "^1.14",
                 "mockery/mockery": "^1.6",
                 "orchestra/testbench": "^10",
@@ -5872,14 +6004,14 @@
                 "pestphp/pest-plugin-laravel": "^3.0",
                 "phpstan/extension-installer": "^1.3",
                 "phpstan/phpdoc-parser": "^2.0",
-                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan": "2.1.34",
                 "phpstan/phpstan-deprecation-rules": "^2.0",
                 "projektgopher/whisky": "^0.7.0",
-                "rector/rector": "^2.1",
+                "rector/rector": "2.3.3",
                 "spatie/laravel-ray": "^1.39",
                 "symplify/rule-doc-generator-contracts": "^11.2"
             },
-            "time": "2025-10-28T22:08:02+00:00",
+            "time": "2026-01-28T12:09:02+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -5913,7 +6045,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.97.0"
+                "source": "https://github.com/prism-php/prism/tree/v0.99.19"
             },
             "funding": [
                 {

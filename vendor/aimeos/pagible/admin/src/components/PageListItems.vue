@@ -26,6 +26,7 @@
       return {
         menu: {},
         items: [],
+        actions: false,
         loading: true,
         checked: null,
         clip: null,
@@ -870,34 +871,61 @@
   <div class="header">
     <div class="bulk">
       <v-checkbox-btn v-model="checked" @click.stop="toggle()" />
-      <v-menu>
-        <template #activator="{ props }">
-          <v-btn append-icon="mdi-menu-down" variant="text" v-bind="props" :disabled="!isChecked">{{ $gettext('Actions') }}</v-btn>
+
+      <component :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+        v-model="actions"
+        transition="scale-transition"
+        location="end center"
+        max-width="300">
+
+        <template v-slot:activator="{ props }">
+          <v-btn v-bind="props"
+            :disabled="!isChecked || embed || !auth.can('page:add')"
+            :title="$gettext('Actions')"
+            icon="mdi-dots-vertical"
+            variant="text"
+          />
         </template>
-        <v-list>
-          <v-list-item v-if="isChecked && auth.can('page:publish')">
-            <v-btn prepend-icon="mdi-publish" variant="text" @click="publish()">{{ $gettext('Publish') }}</v-btn>
-          </v-list-item>
-          <v-list-item v-if="isChecked && auth.can('page:save')">
-            <v-btn prepend-icon="mdi-eye" variant="text" @click="status(null, 1)">{{ $gettext('Enable') }}</v-btn>
-          </v-list-item>
-          <v-list-item v-if="isChecked && auth.can('page:save')">
-            <v-btn prepend-icon="mdi-eye-off" variant="text" @click="status(null, 0)">{{ $gettext('Disable') }}</v-btn>
-          </v-list-item>
+        <v-card>
+          <v-toolbar density="compact">
+            <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
+            <v-btn icon="mdi-close" @click="actions = false" />
+          </v-toolbar>
 
-          <v-divider></v-divider>
+          <v-list @click="actions = false">
+            <v-list-item v-if="isChecked && auth.can('page:publish')">
+              <v-btn prepend-icon="mdi-publish" variant="text" @click="publish()">{{ $gettext('Publish') }}</v-btn>
+            </v-list-item>
+            <v-list-item v-if="isChecked && auth.can('page:save')">
+              <v-btn prepend-icon="mdi-eye" variant="text" @click="status(null, 1)">{{ $gettext('Enable') }}</v-btn>
+            </v-list-item>
+            <v-list-item v-if="isChecked && auth.can('page:save')">
+              <v-btn prepend-icon="mdi-eye-off" variant="text" @click="status(null, 0)">{{ $gettext('Disable') }}</v-btn>
+            </v-list-item>
 
-          <v-list-item v-if="canTrash && auth.can('page:drop')">
-            <v-btn prepend-icon="mdi-delete" variant="text" @click="drop()">{{ $gettext('Delete') }}</v-btn>
-          </v-list-item>
-          <v-list-item v-if="isTrashed && auth.can('page:keep')">
-            <v-btn prepend-icon="mdi-delete-restore" variant="text" @click="keep()">{{ $gettext('Restore') }}</v-btn>
-          </v-list-item>
-          <v-list-item v-if="isChecked && auth.can('page:purge')">
-            <v-btn prepend-icon="mdi-delete-forever" variant="text" @click="purge()">{{ $gettext('Purge') }}</v-btn>
-          </v-list-item>
-        </v-list>
-      </v-menu>
+            <v-divider></v-divider>
+
+            <v-list-item v-if="canTrash && auth.can('page:drop')">
+              <v-btn prepend-icon="mdi-delete" variant="text" @click="drop()">{{ $gettext('Delete') }}</v-btn>
+            </v-list-item>
+            <v-list-item v-if="isTrashed && auth.can('page:keep')">
+              <v-btn prepend-icon="mdi-delete-restore" variant="text" @click="keep()">{{ $gettext('Restore') }}</v-btn>
+            </v-list-item>
+            <v-list-item v-if="isChecked && auth.can('page:purge')">
+              <v-btn prepend-icon="mdi-delete-forever" variant="text" @click="purge()">{{ $gettext('Purge') }}</v-btn>
+            </v-list-item>
+          </v-list>
+        </v-card>
+      </component>
+
+      <v-btn v-if="!this.embed && this.auth.can('page:add')"
+        @click="add()"
+        :disabled="loading"
+        :title="$gettext('Add page')"
+        icon="mdi-plus"
+        color="primary"
+        variant="tonal"
+      />
     </div>
 
     <div class="search">
@@ -1027,7 +1055,7 @@
               <v-list-group v-if="!this.embed && auth.can('page:add')">
                 <template v-slot:activator="{ props }">
                   <v-list-item v-bind="props" @click.stop>
-                    <v-btn prepend-icon="mdi-content-paste" variant="text">{{ $gettext('Insert  ') }}</v-btn>
+                    <v-btn prepend-icon="mdi-content-paste" variant="text">{{ $gettext('Insert') }}</v-btn>
                   </v-list-item>
                 </template>
                 <v-list-item>
@@ -1066,7 +1094,7 @@
         }"
         :title="title(node)"
       >
-        <div class="item-text" @click="$emit('select', node)">
+        <a href="#" class="item-text" @click="$emit('select', node)">
           <div class="item-head">
             <span class="item-lang" v-if="node.lang">{{ node.lang }}</span>
             <v-icon v-if="node.publish_at" class="publish-at" icon="mdi-clock-outline" />
@@ -1074,7 +1102,7 @@
             <span class="item-title">{{ node.name || $gettext('New') }}</span>
           </div>
           <div v-if="node.title" class="item-subtitle">{{ node.title }}</div>
-        </div>
+        </a>
         <a class="item-aux" :href="url(node)" target="_blank" draggable="false">
           <div class="item-domain">{{ node.domain }}</div>
           <span class="item-path item-subtitle">{{ url(node) }}</span>
@@ -1086,20 +1114,25 @@
 
   <p v-if="loading" class="loading">
     {{ $gettext('Loading') }}
-    <svg class="spinner" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><circle class="spin1" cx="4" cy="12" r="3"/><circle class="spin1 spin2" cx="12" cy="12" r="3"/><circle class="spin1 spin3" cx="20" cy="12" r="3"/></svg>
+    <svg class="spinner" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <circle class="spin1" cx="4" cy="12" r="3"/>
+      <circle class="spin1 spin2" cx="12" cy="12" r="3"/>
+      <circle class="spin1 spin3" cx="20" cy="12" r="3"/>
+    </svg>
   </p>
 
   <p v-if="!loading && !items.length" class="notfound">
     {{ $gettext('No entries found') }}
   </p>
 
-  <div v-if="!loading && !items.length && !this.embed && this.auth.can('page:add')" class="btn-group">
+  <div v-if="!this.embed && this.auth.can('page:add')" class="btn-group">
     <v-btn
       @click="add()"
+      :disabled="loading"
       :title="$gettext('Add page')"
-      icon="mdi-folder-plus"
+      icon="mdi-plus"
       color="primary"
-      variant="flat"
+      variant="tonal"
     />
   </div>
 </template>
@@ -1119,6 +1152,10 @@
     display: flex;
     padding: 4px 0;
     user-select: none;
+  }
+
+  .tree-node-inner:focus-within {
+    background-color: rgb(var(--v-theme-surface-light));
   }
 
   .tree-node-inner .actions {
@@ -1145,6 +1182,15 @@
 
   .tree-node-inner .item-content.cut {
     opacity: 0.5;
+  }
+
+  .tree-node-inner .item-text {
+    color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+    outline: none;
+  }
+
+  .tree-node-inner .item-text:not(:focus) {
+    text-decoration: none;
   }
 
   .tree-node-inner .item-domain {

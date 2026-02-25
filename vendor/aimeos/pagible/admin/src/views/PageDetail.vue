@@ -25,7 +25,7 @@
       PageDetailMetrics
     },
 
-    inject: ['closeView', 'compose', 'translate', 'txlocales'],
+    inject: ['closeView', 'write', 'translate', 'txlocales'],
 
     props: {
       'item': {type: Object, required: true}
@@ -33,7 +33,7 @@
 
     provide() {
       return { // re-provide custom methods
-        compose: this.composeText,
+        write: this.writeText,
         translate: this.translateText
       }
     },
@@ -59,8 +59,10 @@
       latest: null,
       pubmenu: null,
       publishAt: null,
+      publishing: false,
       translating: false,
       vhistory: false,
+      saving: false,
       savecnt: 0,
     }),
 
@@ -101,7 +103,7 @@
     },
 
     created() {
-      this.$options._compose = this.compose
+      this.$options._write = this.write
 
       if(!this.item?.id || !this.auth.can('page:view')) {
         return
@@ -169,11 +171,7 @@
       },
 
 
-      composeText(prompt, context = [], files = []) {
-        if(!this.$options._compose) {
-          return Promise.reject(new Error('Compose method is not available in PageDetail component'))
-        }
-
+      writeText(prompt, context = [], files = []) {
         if(!Array.isArray(context)) {
           context = [context]
         }
@@ -181,7 +179,7 @@
         context.push('page content as JSON: ' + JSON.stringify(this.item.content))
         context.push('required output language: ' + (this.item.lang || 'en'))
 
-        return this.$options._compose(prompt, context, files)
+        return this.$options._write(prompt, context, files)
       },
 
 
@@ -306,6 +304,8 @@
           return
         }
 
+        this.publishing = true
+
         this.save(true).then(valid => {
           if(!valid) {
             return
@@ -339,6 +339,8 @@
             this.messages.add(this.$gettext('Error publishing page') + ":\n" + error, 'error')
             this.$log(`PageDetail::publish(): Error publishing page`, at, error)
           })
+        }).finally(() => {
+          this.publishing = false
         })
       },
 
@@ -384,6 +386,8 @@
             files: this.item.config[key].files || [],
           }
         }
+
+        this.saving = true
 
         return this.$apollo.mutate({
           mutation: gql`mutation ($id: ID!, $input: PageInput!, $elements: [ID!], $files: [ID!]) {
@@ -432,11 +436,18 @@
         }).catch(error => {
           this.messages.add(this.$gettext('Error saving page') + ":\n" + error, 'error')
           this.$log(`PageDetail::save(): Error saving page`, error)
+        }).finally(() => {
+          this.saving = false
         })
       },
 
 
       translatePage(lang) {
+        if(!this.auth.can('text:translate')) {
+          this.messages.add(this.$gettext('Permission denied'), 'error')
+          return
+        }
+
         if(!this.schemas.content) {
           this.messages.add(this.$gettext('No page schema for "content" found'), 'error')
           return
@@ -571,7 +582,7 @@
             item.files = this.files(v.files || [])
             delete item.aux
             return item
-          }).reverse() // latest versions first
+          })
         }).catch(error => {
           this.messages.add(this.$gettext('Error fetching page versions') + ":\n" + error, 'error')
           this.$log(`PageDetail::versions(): Error fetching page versions`, id, error)
@@ -604,7 +615,7 @@
     </v-app-bar-title>
 
     <template v-slot:append>
-      <v-menu>
+      <v-menu v-if="auth.can('text:translate')">
         <template #activator="{ props }">
           <v-btn v-bind="props"
             :title="$gettext('Translate page')"
@@ -634,6 +645,7 @@
 
       <v-btn
         @click="save()"
+        :loading="saving"
         :title="$gettext('Save')"
         :disabled="!hasChanged || hasError || !auth.can('page:save')"
         :variant="!hasChanged || hasError || !auth.can('page:save') ? 'plain' : 'flat'"
@@ -645,6 +657,7 @@
       <v-menu v-model="pubmenu" :close-on-content-click="false">
         <template #activator="{ props }">
           <v-btn v-bind="props" icon
+            :loading="publishing"
             :title="$gettext('Schedule publishing')"
             :disabled="item.published && !hasChanged || hasError || !auth.can('page:publish')"
             :variant="item.published && !hasChanged || hasError || !auth.can('page:publish') ? 'plain' : 'flat'"
@@ -672,6 +685,7 @@
 
       <v-btn icon
         @click="publish()"
+        :loading="publishing"
         :title="$gettext('Publish')"
         :disabled="item.published && !hasChanged || hasError || !auth.can('page:publish')"
         :variant="item.published && !hasChanged || hasError || !auth.can('page:publish') ? 'plain' : 'flat'"
@@ -710,7 +724,7 @@
           @click="aside = asidePage">
           {{ $gettext('Page') }}
         </v-tab>
-        <v-tab value="metrics"
+        <v-tab v-if="auth.can('page:metrics')" value="metrics"
           @click="aside = ''">
           {{ $gettext('Metrics') }}
         </v-tab>
@@ -748,7 +762,7 @@
           />
         </v-window-item>
 
-        <v-window-item value="metrics">
+        <v-window-item v-if="auth.can('page:metrics')" value="metrics">
           <PageDetailMetrics ref="metrics"
             :item="item"
           />
@@ -764,6 +778,7 @@
   <Teleport to="body">
     <HistoryDialog ref="history"
       v-model="vhistory"
+      :readonly="!auth.can('page:save')"
       :current="{
         data: {
           cache: item.cache,
@@ -785,8 +800,8 @@
         files: currentAssets
       }"
       :load="() => versions(item.id)"
-      @use="use($event)"
       @revert="use($event); reset()"
+      @use="use($event)"
     />
   </Teleport>
 </template>

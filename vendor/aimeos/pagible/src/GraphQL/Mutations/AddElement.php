@@ -10,40 +10,51 @@ namespace Aimeos\Cms\GraphQL\Mutations;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Aimeos\Cms\Models\Element;
+use Aimeos\Cms\Permission;
+use GraphQL\Error\Error;
 
 
 final class AddElement
 {
     /**
      * @param  null  $rootValue
-     * @param  array  $args
+     * @param  array<string, mixed>  $args
      */
     public function __invoke( $rootValue, array $args ) : Element
     {
-        $element = new Element();
+        if( !Permission::can( 'element:add', Auth::user() ) ) {
+            throw new Error( 'Insufficient permissions' );
+        }
 
-        DB::connection( config( 'cms.db', 'sqlite' ) )->transaction( function() use ( $element, $args ) {
+        if( @$args['input']['type'] === 'html' && @$args['input']['data']->text ) {
+            $args['input']['data']->text = \Aimeos\Cms\Utils::html( (string) $args['input']['data']->text );
+        }
 
-            $editor = Auth::user()?->name ?? request()->ip();
+        return DB::connection( config( 'cms.db', 'sqlite' ) )->transaction( function() use ( $args ) {
 
+            $editor = Auth::user()->name ?? request()->ip();
+
+            $element = new Element();
             $element->fill( $args['input'] ?? [] );
-            $element->tenant_id = \Aimeos\Cms\Tenancy::value();
             $element->data = $args['input']['data'] ?? [];
+            $element->tenant_id = \Aimeos\Cms\Tenancy::value();
             $element->editor = $editor;
             $element->save();
 
             $element->files()->attach( $args['files'] ?? [] );
 
+            $data = $args['input'] ?? [];
+            ksort( $data );
+
             $version = $element->versions()->create( [
-                'data' => array_map( fn( $v ) => is_null( $v ) ? (string) $v : $v, $args['input'] ?? [] ),
+                'data' => array_map( fn( $v ) => is_null( $v ) ? (string) $v : $v, $data ),
                 'lang' => $args['input']['lang'] ?? null,
                 'editor' => $editor,
             ] );
 
             $version->files()->attach( $args['files'] ?? [] );
 
+            return $element->refresh();
         }, 3 );
-
-        return $element;
     }
 }

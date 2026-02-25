@@ -7,36 +7,41 @@
 
 namespace Aimeos\Cms\GraphQL\Mutations;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Aimeos\Cms\Models\Version;
 use Aimeos\Cms\Models\Page;
+use Aimeos\Cms\Permission;
+use GraphQL\Error\Error;
 
 
 final class SavePage
 {
     /**
      * @param  null  $rootValue
-     * @param  array  $args
+     * @param  array<string, mixed>  $args
      */
     public function __invoke( $rootValue, array $args ) : Page
     {
-        $page = Page::withTrashed()->findOrFail( $args['id'] );
+        if( !Permission::can( 'page:save', Auth::user() ) ) {
+            throw new Error( 'Insufficient permissions' );
+        }
 
-        DB::connection( config( 'cms.db', 'sqlite' ) )->transaction( function() use ( $page, $args ) {
+        return DB::connection( config( 'cms.db', 'sqlite' ) )->transaction( function() use ( $args ) {
 
-            $input = (array) $args['input'] ?? [];
+            /** @var Page $page */
+            $page = Page::withTrashed()->findOrFail( $args['id'] );
+            $input = $this->sanitize( $args['input'] ?? [] );
 
             $data = array_diff_key( $input, array_flip( ['meta', 'config', 'content'] ) );
-            $data = array_replace( (array) $page->latest?->data ?? [], $data );
+            $data = array_replace( (array) $page->latest?->data, $data );
 
             $aux = array_intersect_key( $input, array_flip( ['meta', 'config', 'content'] ) );
-            $aux = array_replace( (array) $page->latest?->aux ?? [], $aux );
+            $aux = array_replace( (array) $page->latest?->aux, $aux );
 
             $version = $page->versions()->create([
                 'data' => array_map( fn( $v ) => $v ?? '', $data ),
-                'editor' => Auth::user()?->name ?? request()->ip(),
+                'editor' => Auth::user()->name ?? request()->ip(),
                 'lang' => $args['input']['lang'] ?? null,
                 'aux' => $aux
             ]);
@@ -44,10 +49,30 @@ final class SavePage
             $version->elements()->attach( $args['elements'] ?? [] );
             $version->files()->attach( $args['files'] ?? [] );
 
-            $page->removeVersions();
+            return $page->removeVersions();
+        } );
+    }
 
-        }, 3 );
 
-        return $page;
+    /**
+     * Sanitizes the input data based on user permissions and content type
+     *
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    protected function sanitize( array $input ) : array
+    {
+        if( !Permission::can( 'config:page', Auth::user() ) ) {
+            unset( $input['config'] );
+        }
+
+        foreach( $input['content'] ?? [] as &$content )
+        {
+            if( @$content->type === 'html' && @$content->data->text ) {
+                $content->data->text = \Aimeos\Cms\Utils::html( (string) $content->data->text );
+            }
+        }
+
+        return $input;
     }
 }

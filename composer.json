@@ -8,7 +8,7 @@
     "require": {
         "php": "^8.2",
         "aimeos/laravel-analytics-matomo": "dev-master",
-        "aimeos/pagible": "~0.7",
+        "aimeos/pagible": "dev-master",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1"
     },

@@ -20,13 +20,28 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Http\UploadedFile;
 use Intervention\Image\ImageManager;
 
 
 /**
  * File model
+ *
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $mime
+ * @property string|null $lang
+ * @property string $name
+ * @property string|null $path
+ * @property mixed $previews
+ * @property \stdClass $description
+ * @property \stdClass $transcription
+ * @property string $editor
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static> withoutTenancy()
  */
 class File extends Model
 {
@@ -39,7 +54,7 @@ class File extends Model
     /**
      * The model's default values for attributes.
      *
-     * @var array
+     * @var array<string, mixed>
      */
     protected $attributes = [
         'tenant_id' => '',
@@ -56,7 +71,7 @@ class File extends Model
     /**
      * The automatic casts for the attributes.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'name' => 'string',
@@ -71,7 +86,7 @@ class File extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array
+     * @var list<string>
      */
     protected $fillable = [
         'transcription',
@@ -83,7 +98,7 @@ class File extends Model
     /**
      * The attributes that are return by toArray()
      *
-     * @var array
+     * @var list<string>
      */
     protected $visible = [
         'lang',
@@ -148,7 +163,7 @@ class File extends Model
         $ext = $manager->driver()->supports( 'image/webp' ) ? 'webp' : 'jpg';
 
         if( is_string( $resource ) && str_starts_with( $resource, 'http' ) ) {
-            $resource = Http::withOptions( ['stream' => true] )->get( $resource )->getBody()->detach();
+            $resource = Http::withOptions( ['stream' => true] )->get( $resource )->toPsrResponse()->getBody()->detach();
         }
 
         if( $resource instanceof UploadedFile ) {
@@ -188,7 +203,7 @@ class File extends Model
     /**
      * Get all (shared) content elements referencing the file.
      *
-     * @return BelongsToMany Eloquent relationship to the element referencing the file
+     * @return BelongsToMany<Element, $this> Eloquent relationship to the element referencing the file
      */
     public function byelements() : BelongsToMany
     {
@@ -200,7 +215,7 @@ class File extends Model
     /**
      * Get all pages referencing the file.
      *
-     * @return BelongsToMany Eloquent relationship to the pages referencing the file
+     * @return BelongsToMany<Page, $this> Eloquent relationship to the pages referencing the file
      */
     public function bypages() : BelongsToMany
     {
@@ -212,12 +227,23 @@ class File extends Model
     /**
      * Get all versions referencing the file.
      *
-     * @return BelongsToMany Eloquent relationship to the versions referencing the file
+     * @return BelongsToMany<Version, $this> Eloquent relationship to the versions referencing the file
      */
     public function byversions() : BelongsToMany
     {
         return $this->belongsToMany( Version::class, 'cms_version_file' )
             ->select('id', 'versionable_id', 'versionable_type', 'published', 'publish_at' );
+    }
+
+
+    /**
+     * Get the current timestamp in seconds precision.
+     *
+     * @return \Illuminate\Support\Carbon Current timestamp
+     */
+    public function freshTimestamp()
+    {
+        return Date::now()->startOfSecond(); // SQL Server workaround
     }
 
 
@@ -248,11 +274,23 @@ class File extends Model
     /**
      * Get the page's latest head/meta data.
      *
-     * @return MorphOne Eloquent relationship to the latest version of the file
+     * @return MorphOne<Version, $this> Eloquent relationship to the latest version of the file
      */
     public function latest() : MorphOne
     {
-        return $this->morphOne( Version::class, 'versionable' )->latestOfMany();
+        return $this->morphOne( Version::class, 'versionable' )->ofMany( ['created_at' => 'max', 'id' => 'max'] );
+    }
+
+
+    /**
+     * Get the prunable model query.
+     *
+     * @return Builder<static> Eloquent query builder instance for pruning
+     */
+    public function prunable() : Builder
+    {
+        return static::withoutTenancy()->where( 'deleted_at', '<=', now()->subDays( config( 'cms.prune', 30 ) ) )
+            ->doesntHave( 'versions' )->doesntHave( 'bypages' )->doesntHave( 'byelements' );
     }
 
 
@@ -267,19 +305,15 @@ class File extends Model
         $path = $this->path;
         $previews = $this->previews;
 
-        DB::connection( $this->getConnectionName() )->transaction( function() use ( $version ) {
+        $this->fill( (array) $version->data );
+        $this->previews = (array) $version->data?->previews;
+        $this->path = $version->data?->path;
+        $this->mime = $version->data?->mime;
+        $this->editor = $version->editor;
+        $this->save();
 
-            $this->fill( (array) $version->data );
-            $this->previews = (array) $version->data?->previews ?? [];
-            $this->path = $version->data?->path;
-            $this->mime = $version->data?->mime;
-            $this->editor = $version->editor;
-            $this->save();
-
-            $version->published = true;
-            $version->save();
-
-        }, 3 );
+        $version->published = true;
+        $version->save();
 
         $num = Version::where( 'versionable_id', $this->id )
             ->where( 'versionable_type', File::class )
@@ -289,9 +323,12 @@ class File extends Model
         if( $num === 0 )
         {
             $disk = Storage::disk( config( 'cms.disk', 'public' ) );
-            $disk->delete( $path );
 
-            foreach( $previews as $filepath ) {
+            if( $path ) {
+                $disk->delete( $path );
+            }
+
+            foreach( (array) $previews as $filepath ) {
                 $disk->delete( $filepath );
             }
         }
@@ -301,14 +338,16 @@ class File extends Model
 
 
     /**
-     * Get the prunable model query.
+     * Get the element's published head/meta data.
      *
-     * @return Builder Eloquent query builder instance for pruning
+     * @return MorphOne<Version, $this> Eloquent relationship to the last published version of the element
      */
-    public function prunable() : Builder
+    public function published() : MorphOne
     {
-        return static::withoutTenancy()->where( 'deleted_at', '<=', now()->subDays( config( 'cms.prune', 30 ) ) )
-            ->doesntHave( 'versions' )->doesntHave( 'pages' )->doesntHave( 'elements' );
+        return $this->morphOne( Version::class, 'versionable' )
+            ->ofMany( ['created_at' => 'max', 'id' => 'max'], function( $query ) {
+                $query->where( (new Version)->qualifyColumn( 'published' ), true );
+            } );
     }
 
 
@@ -349,7 +388,7 @@ class File extends Model
     {
         $disk = Storage::disk( config( 'cms.disk', 'public' ) );
 
-        foreach( $this->previews as $path )
+        foreach( (array) $this->previews as $path )
         {
             $disk->delete( $path );
             unset( $this->previews[$path] );
@@ -371,20 +410,20 @@ class File extends Model
 
         $versions = Version::where( 'versionable_id', $this->id )
             ->where( 'versionable_type', File::class )
-            ->orderBy( 'id', 'desc' )
-            ->take( $num + 10 ) // keep $num versions, delete up to 10 older versions
+            ->orderByDesc( 'created_at' )
+            ->limit( $num + 10 ) // keep $num versions, delete up to 10 older versions
             ->get();
 
         if( $versions->count() <= $num ) {
             return $this;
         }
 
-        $paths = [$this->path => true];
+        $paths = [(string) $this->path => true];
 
         foreach( $versions->slice( $num ) as $version )
         {
             if( $version->data?->path ) {
-                $paths[$version->data->path] = true;
+                $paths[(string) $version->data->path] = true;
             }
         }
 
@@ -393,13 +432,13 @@ class File extends Model
 
         foreach( $toDelete as $version )
         {
-            if( !$version->data?->path || isset( $paths[$version->data?->path] ) ) {
+            if( !$version->data?->path || isset( $paths[(string) $version->data->path] ) ) {
                 continue;
             }
 
-            $disk->delete( $version->data->path );
+            $disk->delete( (string) $version->data->path );
 
-            foreach( $version->data?->previews ?? [] as $path ) {
+            foreach( (array) ($version->data->previews ?? []) as $path ) {
                 $disk->delete( $path );
             }
         }
@@ -415,18 +454,18 @@ class File extends Model
     /**
      * Get all of the files's versions.
      *
-     * @return MorphMany Eloquent relationship to the versions of the file
+     * @return MorphMany<Version, $this> Eloquent relationship to the versions of the file
      */
     public function versions() : MorphMany
     {
-        return $this->morphMany( Version::class, 'versionable' );
+        return $this->morphMany( Version::class, 'versionable' )->orderByDesc( 'created_at' )->orderByDesc( 'id' );
     }
 
 
     /**
      * Interact with the "name" property.
      *
-     * @return Attribute Eloquent attribute for the "name" property
+     * @return Attribute<mixed, mixed> Eloquent attribute for the "name" property
      */
     protected function name(): Attribute
     {
@@ -439,7 +478,7 @@ class File extends Model
     /**
      * Interact with the "description" property.
      *
-     * @return Attribute Eloquent attribute for the "description" property
+     * @return Attribute<mixed, mixed> Eloquent attribute for the "description" property
      */
     protected function description(): Attribute
     {
@@ -454,7 +493,7 @@ class File extends Model
      *
      * @param string $filename Name of the file
      * @param string|null $ext File extension to use, if not given, the original file extension is used
-     * @param array $size Image width and height, if used
+     * @param array<string, mixed> $size Image width and height, if used
      * @return string New file name
      */
     protected function filename( string $filename, ?string $ext = null, array $size = [] ) : string
@@ -482,7 +521,7 @@ class File extends Model
             ->chunk( 100, function( $versions ) use ( $store ) {
                 foreach( $versions as $version )
                 {
-                    foreach( $version->data?->previews ?? [] as $path ) {
+                    foreach( $version->data->previews ?? [] as $path ) {
                         $store->delete( $path );
                     }
 
@@ -496,7 +535,7 @@ class File extends Model
             ->where( 'versionable_type', File::class )
             ->delete();
 
-        foreach( $this->previews as $path ) {
+        foreach( (array) $this->previews as $path ) {
             $store->delete( $path );
         }
 
@@ -509,7 +548,7 @@ class File extends Model
     /**
      * Interact with the tag property.
      *
-     * @return Attribute Eloquent attribute for the "tag" property
+     * @return Attribute<mixed, mixed> Eloquent attribute for the "tag" property
      */
     protected function tag(): Attribute
     {
@@ -522,7 +561,7 @@ class File extends Model
     /**
      * Interact with the "transcription" property.
      *
-     * @return Attribute Eloquent attribute for the "transcription" property
+     * @return Attribute<mixed, mixed> Eloquent attribute for the "transcription" property
      */
     protected function transcription(): Attribute
     {

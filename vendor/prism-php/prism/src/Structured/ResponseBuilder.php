@@ -7,6 +7,8 @@ namespace Prism\Prism\Structured;
 use Illuminate\Support\Collection;
 use Prism\Prism\Enums\FinishReason;
 use Prism\Prism\Exceptions\PrismStructuredDecodingException;
+use Prism\Prism\ValueObjects\ToolCall;
+use Prism\Prism\ValueObjects\ToolResult;
 use Prism\Prism\ValueObjects\Usage;
 
 readonly class ResponseBuilder
@@ -34,14 +36,33 @@ readonly class ResponseBuilder
         return new Response(
             steps: $this->steps,
             text: $finalStep->text,
-            structured: $finalStep->structured === [] && $finalStep->finishReason === FinishReason::Stop
-                ? $this->decodeObject($finalStep->text)
-                : $finalStep->structured,
+            structured: $this->extractFinalStructuredData($finalStep),
             finishReason: $finalStep->finishReason,
             usage: $this->calculateTotalUsage(),
             meta: $finalStep->meta,
+            toolCalls: $this->aggregateToolCalls(),
+            toolResults: $this->aggregateToolResults(),
             additionalContent: $finalStep->additionalContent,
+            raw: $finalStep->raw,
         );
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    protected function extractFinalStructuredData(Step $finalStep): array
+    {
+        if ($this->shouldDecodeFromText($finalStep)) {
+            return $this->decodeObject($finalStep->text);
+        }
+
+        return $finalStep->structured;
+    }
+
+    protected function shouldDecodeFromText(Step $finalStep): bool
+    {
+        return $finalStep->structured === []
+            && $finalStep->finishReason === FinishReason::Stop;
     }
 
     /**
@@ -60,6 +81,28 @@ readonly class ResponseBuilder
         } catch (\JsonException) {
             throw PrismStructuredDecodingException::make($responseText);
         }
+    }
+
+    /**
+     * @return array<int, ToolCall>
+     */
+    protected function aggregateToolCalls(): array
+    {
+        return $this->steps
+            ->flatMap(fn (Step $step): array => $step->toolCalls)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, ToolResult>
+     */
+    protected function aggregateToolResults(): array
+    {
+        return $this->steps
+            ->flatMap(fn (Step $step): array => $step->toolResults)
+            ->values()
+            ->all();
     }
 
     protected function calculateTotalUsage(): Usage

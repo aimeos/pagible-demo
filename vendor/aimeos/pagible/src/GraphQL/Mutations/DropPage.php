@@ -9,28 +9,40 @@ namespace Aimeos\Cms\GraphQL\Mutations;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Aimeos\Cms\Models\Page;
+use Aimeos\Cms\Permission;
+use GraphQL\Error\Error;
 
 
 final class DropPage
 {
     /**
      * @param  null  $rootValue
-     * @param  array  $args
+     * @param  array<string, mixed>  $args
+     * @return array<int, mixed>
      */
     public function __invoke( $rootValue, array $args ) : array
     {
-        $items = Page::withTrashed()->whereIn( 'id', $args['id'] )->get();
-        $editor = Auth::user()?->name ?? request()->ip();
-
-        foreach( $items as $item )
-        {
-            $item->editor = $editor;
-            $item->delete();
-
-            Cache::forget( Page::key( $item ) );
+        if( !Permission::can( 'page:drop', Auth::user() ) ) {
+            throw new Error( 'Insufficient permissions' );
         }
 
-        return $items->all();
+        return DB::connection( config( 'cms.db', 'sqlite' ) )->transaction( function() use ( $args ) {
+
+            $items = Page::withTrashed()->whereIn( 'id', $args['id'] )->get();
+            $editor = Auth::user()->name ?? request()->ip();
+
+            foreach( $items as $item )
+            {
+                /** @var Page $item */
+                $item->editor = $editor;
+
+                $item->delete();
+                Cache::forget( Page::key( $item ) );
+            }
+
+            return $items->all();
+        }, 3 );
     }
 }

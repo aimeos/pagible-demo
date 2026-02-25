@@ -13,11 +13,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Collection;
 
 
 /**
  * Version model
+ *
+ * @property string $id
+ * @property string $tenant_id
+ * @property string|null $lang
+ * @property \stdClass|null $data
+ * @property \stdClass|null $aux
+ * @property string|null $publish_at
+ * @property bool $published
+ * @property string $editor
+ * @property string|null $versionable_id
+ * @property string|null $versionable_type
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static> withoutTenancy()
  */
 class Version extends Model
 {
@@ -28,7 +42,7 @@ class Version extends Model
     /**
      * The model's default values for attributes.
      *
-     * @var array
+     * @var array<string, mixed>
      */
     protected $attributes = [
         'tenant_id' => '',
@@ -43,18 +57,22 @@ class Version extends Model
     /**
      * The automatic casts for the attributes.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'data' => 'object',
         'aux' => 'object',
-        'created_at' => 'datetime:Y-m-d H:i:s',
     ];
+
+    /**
+     * The date format with milliseconds used by created_at.
+     */
+    protected $dateFormat = 'Y-m-d H:i:s.v';
 
     /**
      * The attributes that are mass assignable.
      *
-     * @var array
+     * @var list<string>
      */
     protected $fillable = [
         'publish_at',
@@ -74,6 +92,8 @@ class Version extends Model
 
     /**
      * Get the shared element attached to the version.
+     *
+     * @return BelongsToMany<Element, $this>
      */
     public function elements() : BelongsToMany
     {
@@ -83,10 +103,23 @@ class Version extends Model
 
     /**
      * Get all files referenced by the versioned data.
+     *
+     * @return BelongsToMany<File, $this>
      */
     public function files() : BelongsToMany
     {
         return $this->belongsToMany( File::class, 'cms_version_file' );
+    }
+
+
+    /**
+     * Get a fresh timestamp for the model.
+     *
+     * @return \Illuminate\Support\Carbon
+     */
+    public function freshTimestamp()
+    {
+        return Date::now();
     }
 
 
@@ -102,7 +135,7 @@ class Version extends Model
     /**
      * Maps the elements by ID automatically.
      *
-     * @return Collection List elements with ID as keys and element models as values
+     * @return Collection<string, Element> List elements with ID as keys and element models as values
      */
     public function getElementsAttribute() : Collection
     {
@@ -114,7 +147,7 @@ class Version extends Model
     /**
      * Maps the files by ID automatically.
      *
-     * @return Collection List files with ID as keys and file models as values
+     * @return Collection<string, File> List files with ID as keys and file models as values
      */
     public function getFilesAttribute() : Collection
     {
@@ -135,9 +168,42 @@ class Version extends Model
 
     /**
      * Get the parent versionable model (page, file or element).
+     *
+     * @return MorphTo<Model, $this>
      */
     public function versionable() : MorphTo
     {
         return $this->morphTo();
+    }
+
+
+    /**
+     * Returns the list of changed attributes.
+     * Required to return the correct boolean value if the "published" property
+     * is stored as integer in the database.
+     *
+     * @return array<string, mixed> List of changed attributes
+     */
+    public function getDirty()
+    {
+        $dirty = [];
+
+        foreach( $this->getAttributes() as $key => $value )
+        {
+            if( $key === 'published' )
+            {
+                if( (bool)$value !== (bool)$this->original[$key] ) {
+                    $dirty[$key] = $value;
+                }
+
+                continue;
+            }
+
+            if( !$this->originalIsEquivalent( $key ) ) {
+                $dirty[$key] = $value;
+            }
+        }
+
+        return $dirty;
     }
 }

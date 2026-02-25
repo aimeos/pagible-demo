@@ -64,7 +64,8 @@ class Text
 
     protected function sendRequest(Request $request): ClientResponse
     {
-        return $this->client->post(
+        /** @var ClientResponse $response */
+        $response = $this->client->post(
             'chat/completions',
             Arr::whereNotNull([
                 'model' => $request->model(),
@@ -76,6 +77,8 @@ class Text
                 'tool_choice' => ToolChoiceMap::map($request->toolChoice()),
             ])
         );
+
+        return $response;
     }
 
     /**
@@ -89,6 +92,7 @@ class Text
         );
 
         $request->addMessage(new ToolResultMessage($toolResults));
+        $request->resetToolChoice();
 
         $this->addStep($data, $request, $clientResponse, FinishReason::ToolCalls, $toolResults);
 
@@ -125,6 +129,7 @@ class Text
             finishReason: $finishReason,
             toolCalls: $this->mapToolCalls(data_get($data, 'choices.0.message.tool_calls', []) ?? []),
             toolResults: $toolResults,
+            providerToolCalls: [],
             usage: new Usage(
                 data_get($data, 'usage.prompt_tokens'),
                 data_get($data, 'usage.completion_tokens'),
@@ -137,6 +142,7 @@ class Text
             messages: $request->messages(),
             systemPrompts: $request->systemPrompts(),
             additionalContent: [],
+            raw: $data,
         ));
     }
 

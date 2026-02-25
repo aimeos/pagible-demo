@@ -68,17 +68,29 @@ extend type Mutation {
   "Log out authenticated user"
   cmsLogout: User @guard
 
-  "Generate texts from prompts and passed file IDs"
-  compose(prompt: String!, context: String, files: [String!]): String
+  "Summarize the content of the file passed by its file ID"
+  describe(file: String!, lang: String): String
 
-  "Generate images from prompts and passed file IDs"
-  imagine(prompt: String!, context: String, files: [String!]): [String!]
+  "Remove the part of the image covered by the mask (black: keep, white: erase), returns a base64 encoded image"
+  erase(file: Upload!, mask: Upload!): String
 
-  "Refine existing page content"
-  refine(prompt: String!, content: JSON!, type: String, context: String): JSON
+  "Generate images from prompts and passed file IDs, returns a base64 encoded image"
+  imagine(prompt: String!, context: String, files: [String!]): String
+
+  "Edit an image using a mask image and a prompt, returns a base64 encoded image"
+  inpaint(file: Upload!, mask: Upload!, prompt: String!): String
+
+  "Remove image background, returns a base64 encoded image"
+  isolate(file: Upload!): String
 
   "Get page metrics for the last X days"
   metrics(url: String!, days: Int, lang: String): Stats
+
+  "Edit an image using a prompt, returns a base64 encoded image"
+  repaint(file: Upload!, prompt: String!): String
+
+  "Refine existing page content"
+  refine(prompt: String!, content: JSON!, type: String, context: String): JSON
 
   "Synthesize pages and content from prompts and passed file IDs"
   synthesize(prompt: String!, context: String, files: [String!]): String
@@ -88,6 +100,15 @@ extend type Mutation {
 
   "Translate texts"
   translate(texts: [String!]!, to: String!, from: String, context: String): [String!]!
+
+  "Extend/outpaint image, returns a base64 encoded image"
+  uncrop(file: Upload!, top: Int!, right: Int, bottom: Int, left: Int): String
+
+  "Upscale image, returns a base64 encoded image"
+  upscale(file: Upload!, factor: Int!): String
+
+  "Generate texts from prompts and passed file IDs"
+  write(prompt: String!, context: String, files: [String!]): String
 
 
   "Add a new page below the page referenced by 'parent' and before the page referenced by 'ref' (or append if NULL)"
@@ -240,7 +261,7 @@ type Page {
   parent: Page
 
   "Relation to the children of the current page"
-  children: [Page!]! @paginate
+  children: [Page!]! @hasMany(type: PAGINATOR)
 
   "Relation to the ancestors of the current page up to the root page"
   ancestors: [Page!]!
@@ -251,14 +272,14 @@ type Page {
   "List of files assigned to the page"
   files: [File!]! @belongsToMany
 
-  "List of versions for the page meta data"
-  versions: [Version!]! @morphMany
-
   "Latest version of the page meta data"
-  latest: Version @hasOne
+  latest: Version @morphOne
 
   "Published version of the page meta data"
-  published: Version @hasOne
+  published: Version @morphOne
+
+  "List of versions for the page meta data"
+  versions: [Version!]! @morphMany
 }
 
 input PageFilter {
@@ -404,14 +425,14 @@ type Element {
   "List of files assigned to the content element"
   files: [File!]! @belongsToMany
 
-  "List of versioned data for the content element"
-  versions: [Version!]! @morphMany
-
   "Latest version of the content element"
-  latest: Version @hasOne
+  latest: Version @morphOne
 
   "Published version of the content element"
-  published: Version @hasOne
+  published: Version @morphOne
+
+  "List of versioned data for the content element"
+  versions: [Version!]! @morphMany
 }
 
 input ElementFilter {
@@ -501,7 +522,10 @@ type File {
   byversions_count: Int!
 
   "Latest version of the file"
-  latest: Version @hasOne
+  latest: Version @morphOne
+
+  "Published version of the content element"
+  published: Version @morphOne
 
   "List of versioned data for the file"
   versions: [Version!]! @morphMany

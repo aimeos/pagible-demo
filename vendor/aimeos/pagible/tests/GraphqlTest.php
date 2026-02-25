@@ -8,6 +8,9 @@
 namespace Tests;
 
 use Aimeos\Cms\Models\File;
+use Aimeos\Prisma\Prisma;
+use Aimeos\Prisma\Responses\FileResponse;
+use Aimeos\Prisma\Responses\TextResponse;
 use Database\Seeders\CmsSeeder;
 use Illuminate\Http\UploadedFile;
 use Aimeos\AnalyticsBridge\Facades\Analytics;
@@ -51,26 +54,55 @@ class GraphqlTest extends TestAbstract
             'name' => 'Test editor',
             'email' => 'editor@testbench',
             'password' => 'secret',
-            'cmseditor' => 0x7fffffff
+            'cmseditor' => 0x7fffffffffffffff
         ]);
     }
 
 
-    public function testCompose()
+    public function testDescribe()
     {
         $this->seed( CmsSeeder::class );
 
         $file = File::firstOrFail();
-        $expected = 'Generated content based on the prompt.';
-        Prism::fake( [TextResponseFake::make()->withText( $expected )] );
+        $expected = 'Description of the file content.';
+        Prisma::fake( [TextResponse::fromText( $expected )] );
 
-        $response = $this->actingAs( $this->user )->graphQL( "
+        $response = $this->actingAs( $this->user )->graphQL( '
             mutation {
-                compose(prompt: \"Generate content\", context: \"This is a test context.\", files: [\"" . $file->id . "\"])
+                describe(file: "' . $file->id . '", lang: "en")
             }
-        " )->assertJson( [
+        ' )->assertJson( [
             'data' => [
-                'compose' => $expected
+                'describe' => $expected
+            ]
+        ] );
+    }
+
+
+    public function testErase()
+    {
+        $image = file_get_contents( __DIR__ . '/assets/image.png' );
+        Prisma::fake( [FileResponse::fromBinary( $image, 'image/png' )] );
+
+        $response = $this->actingAs( $this->user )->multipartGraphQL( [
+            'query' => '
+                mutation($file: Upload!, $mask: Upload!) {
+                    erase(file: $file, mask: $mask)
+                }
+            ',
+            'variables' => [
+                'file' => null,
+                'mask' => null,
+            ],
+        ], [
+            '0' => ['variables.file'],
+            '1' => ['variables.mask'],
+        ], [
+            '0' => UploadedFile::fake()->createWithContent('test.png', $image),
+            '1' => UploadedFile::fake()->createWithContent('test.png', $image),
+        ] )->assertJson( [
+            'data' => [
+                'erase' => base64_encode( $image )
             ]
         ] );
     }
@@ -82,18 +114,7 @@ class GraphqlTest extends TestAbstract
 
         $file = File::firstOrFail();
         $image = base64_encode( file_get_contents( __DIR__ . '/assets/image.png' ) );
-
-        Prism::fake( [new \Prism\Prism\Images\Response(
-            images: [
-                new \Prism\Prism\ValueObjects\GeneratedImage(
-                    revisedPrompt: null,
-                    base64: $image,
-                ),
-            ],
-            usage: new \Prism\Prism\ValueObjects\Usage(0, 0),
-            meta: new \Prism\Prism\ValueObjects\Meta('fake', 'fake'),
-            additionalContent: [],
-        )] );
+        Prisma::fake( [FileResponse::fromBase64( $image, 'image/png' )] );
 
         $response = $this->actingAs( $this->user )->graphQL( "
             mutation {
@@ -101,10 +122,63 @@ class GraphqlTest extends TestAbstract
             }
         " )->assertJson( [
             'data' => [
-                'imagine' => [
-                    'Generate content',
-                    $image
-                ]
+                'imagine' => $image
+            ]
+        ] );
+    }
+
+
+    public function testInpaint()
+    {
+        $image = file_get_contents( __DIR__ . '/assets/image.png' );
+        Prisma::fake( [FileResponse::fromBinary( $image, 'image/png' )] );
+
+        $response = $this->actingAs( $this->user )->multipartGraphQL( [
+            'query' => '
+                mutation($file: Upload!, $mask: Upload!, $prompt: String!) {
+                    inpaint(file: $file, mask: $mask, prompt: $prompt)
+                }
+            ',
+            'variables' => [
+                'file' => null,
+                'mask' => null,
+                'prompt' => 'Test prompt',
+            ],
+        ], [
+            '0' => ['variables.file'],
+            '1' => ['variables.mask'],
+        ], [
+            '0' => UploadedFile::fake()->createWithContent('test.png', $image),
+            '1' => UploadedFile::fake()->createWithContent('test.png', $image),
+        ] )->assertJson( [
+            'data' => [
+                'inpaint' => base64_encode( $image )
+            ]
+        ] );
+    }
+
+
+    public function testIsolate()
+    {
+        $image = file_get_contents( __DIR__ . '/assets/image.png' );
+        Prisma::fake( [FileResponse::fromBinary( $image, 'image/png' )] );
+
+        $response = $this->actingAs( $this->user )->multipartGraphQL( [
+            'query' => '
+                mutation($file: Upload!) {
+                    isolate(file: $file)
+                }
+            ',
+            'variables' => [
+                'file' => null,
+            ],
+        ], [
+            '0' => ['variables.file'],
+        ], [
+            '0' => UploadedFile::fake()->createWithContent('test.png', $image),
+        ] )->assertJson( [
+            'data' => [
+                'isolate' => base64_encode( $image )
             ]
         ] );
     }
@@ -173,8 +247,10 @@ class GraphqlTest extends TestAbstract
                         new \Prism\Prism\ValueObjects\ToolCall( '2', 'classify', ['category' => 'example'] ),
                     ],
                     [],
+                    [],
                     new \Prism\Prism\ValueObjects\Usage(0, 0),
                     new \Prism\Prism\ValueObjects\Meta('fake', 'fake'),
+                    [],
                     [],
                     []
                 ),
@@ -203,7 +279,11 @@ class GraphqlTest extends TestAbstract
 
     public function testTranscribe()
     {
-        Prism::fake( [new \Prism\Prism\Audio\TextResponse( '[]' )] );
+        Prisma::fake( [
+            TextResponse::fromText( 'test transcription' )->withStructured( [
+                ['start' => 0, 'end' => 1, 'text' => 'test transcription'],
+            ] )
+        ] );
 
         $response = $this->actingAs( $this->user )->multipartGraphQL( [
             'query' => '
@@ -220,7 +300,83 @@ class GraphqlTest extends TestAbstract
             '0' => UploadedFile::fake()->create('test.mp3', 500, 'audio/mpeg'),
         ] )->assertJson( [
             'data' => [
-                'transcribe' => '[]'
+                'transcribe' => '[{"start":"00:00:00.000","end":"00:00:01.000","text":"test transcription"}]'
+            ]
+        ] );
+    }
+
+
+    public function testUncrop()
+    {
+        $this->seed( CmsSeeder::class );
+
+        $image = file_get_contents( __DIR__ . '/assets/image.png' );
+        Prisma::fake( [FileResponse::fromBinary( $image, 'image/png' )] );
+
+        $response = $this->actingAs( $this->user )->multipartGraphQL( [
+            'query' => '
+                mutation($file: Upload!) {
+                    uncrop(file: $file, top: 100, right: 100, bottom: 100, left: 100)
+                }
+            ',
+            'variables' => [
+                'file' => null,
+            ],
+        ], [
+            '0' => ['variables.file'],
+        ], [
+            '0' => UploadedFile::fake()->createWithContent('test.png', $image),
+        ] )->assertJson( [
+            'data' => [
+                'uncrop' => base64_encode( $image )
+            ]
+        ] );
+    }
+
+
+    public function testUpscale()
+    {
+        $this->seed( CmsSeeder::class );
+
+        $image = file_get_contents( __DIR__ . '/assets/image.png' );
+        Prisma::fake( [FileResponse::fromBinary( $image, 'image/png' )] );
+
+        $response = $this->actingAs( $this->user )->multipartGraphQL( [
+            'query' => '
+                mutation($file: Upload!) {
+                    upscale(file: $file, factor: 2)
+                }
+            ',
+            'variables' => [
+                'file' => null,
+            ],
+        ], [
+            '0' => ['variables.file'],
+        ], [
+            '0' => UploadedFile::fake()->createWithContent('test.png', $image),
+        ] )->assertJson( [
+            'data' => [
+                'upscale' => base64_encode( $image )
+            ]
+        ] );
+    }
+
+
+    public function testWrite()
+    {
+        $this->seed( CmsSeeder::class );
+
+        $file = File::firstOrFail();
+        $expected = 'Generated content based on the prompt.';
+        Prism::fake( [TextResponseFake::make()->withText( $expected )] );
+
+        $response = $this->actingAs( $this->user )->graphQL( "
+            mutation {
+                write(prompt: \"Generate content\", context: \"This is a test context.\", files: [\"" . $file->id . "\"])
+            }
+        " )->assertJson( [
+            'data' => [
+                'write' => $expected
             ]
         ] );
     }

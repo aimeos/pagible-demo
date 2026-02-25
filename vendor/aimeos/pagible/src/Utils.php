@@ -19,24 +19,40 @@ class Utils
 
 
     /**
+     * Sanitizes the given HTML text to ensure it is safe for output.
+     *
+     * @param string|null $text The HTML text to sanitize
+     * @return string The sanitized HTML text
+     */
+    public static function html( ?string $text ) : string
+    {
+        $config = \HTMLPurifier_Config::createDefault();
+        $config->set( 'Attr.AllowedFrameTargets', ['_blank', '_self'] );
+        $config->set( 'Cache.SerializerPath', sys_get_temp_dir() );
+
+        return ( new \HTMLPurifier( $config ) )->purify( (string) $text );
+    }
+
+
+    /**
      * Returns a collection of files associated with the given page.
      *
      * @param Page $page The page object containing content and files
-     * @return Collection A collection of File models associated with the page
+     * @return Collection<int, \Aimeos\Cms\Models\File> A collection of File models associated with the page
      */
     public static function files( Page $page ) : Collection
     {
         $lang = $page->lang;
 
-        return Collection::make( $page->content )
+        return Collection::make( (array) $page->content )
             ->map( fn( $item ) => $item->files ?? [] )
             ->collapse()
             ->unique()
             ->map( fn( $id ) => $page->files[$id] ?? null )
             ->filter()
             ->pluck( null, 'id' )
-            ->each( fn( $file ) => $file->description = $file->description?->{$lang}
-                ?? $file->description?->{substr( $lang, 0, 2 )}
+            ->each( fn( $file ) => $file->description = $file->description->{$lang}
+                ?? $file->description->{substr( $lang, 0, 2 )}
                 ?? null
         );
     }
@@ -100,9 +116,9 @@ class Utils
      */
     public static function slugify( string $title ): string
     {
-        $title = preg_replace( '/[?&=%#@!$^*()+=\[\]{}|\\"\'<>;:.,_\s]/u', '-', $title );
-        $title = preg_replace( '/-+/', '-', $title );
-        $title = preg_replace( '/^-|-$/', '', $title );
+        $title = (string) preg_replace( '/[?&=%#@!$^*()+=\[\]{}|\\"\'<>;:.,_\s]/u', '-', $title );
+        $title = (string) preg_replace( '/-+/', '-', $title );
+        $title = (string) preg_replace( '/^-|-$/', '', $title );
 
         return mb_strtolower( trim( $title, '-' ) );
     }
