@@ -7,8 +7,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "aimeos/laravel-analytics-matomo": "dev-master",
-        "aimeos/pagible": "dev-master",
+        "aimeos/laravel-analytics-matomo": "~1.0",
+        "aimeos/pagible": "~0.9",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1"
     },

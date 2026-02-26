@@ -357,7 +357,7 @@ class Page extends Model
      */
     public function nav( $level = 0 ) : \Aimeos\Nestedset\Collection
     {
-        return $this->ancestorsAndSelf( $this->id ) // @phpstan-ignore-line property.notFound
+        return $this->defaultOrder()->ancestorsAndSelf( $this->id ) // @phpstan-ignore-line property.notFound
             ->skip( $level )->first()
             ?->subtree?->toTree()
             ?? new \Aimeos\Nestedset\Collection();
@@ -371,7 +371,7 @@ class Page extends Model
      */
     public function parent() : BelongsTo
     {
-        return $this->belongsTo(Nav::class, $this->getParentIdName())->setModel(new Nav());
+        return $this->belongsTo( Nav::class, $this->getParentIdName() )->setModel( new Nav() );
     }
 
 
@@ -603,7 +603,7 @@ class Page extends Model
     protected function relatedId(): Attribute
     {
         return Attribute::make(
-            set: fn( $value ) => !empty( $value) ? (int) $value : null,
+            set: fn( $value ) => !empty( $value) ? (string) $value : null,
         );
     }
 
