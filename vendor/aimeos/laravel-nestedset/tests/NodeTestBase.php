@@ -1,8 +1,9 @@
 <?php
 
-use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
-abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
+abstract class NodeTestBase extends \Orchestra\Testbench\TestCase
 {
     abstract protected static function getTableName(): string;
 
@@ -13,28 +14,45 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
     protected array $ids = [];
     protected CategoryData $categoryData;
 
-    public static function setUpBeforeClass(): void
+    protected function getPackageProviders($app)
     {
-        $schema = Capsule::schema();
-        $table = static::getTableName();
+        return [\Aimeos\Nestedset\NestedSetServiceProvider::class];
+    }
 
-        $schema->dropIfExists($table);
-
-        $schema->create($table, function (\Illuminate\Database\Schema\Blueprint $table) {
-            static::createTable($table);
-        });
-
-        Capsule::enableQueryLog();
-
-        date_default_timezone_set('Europe/Berlin');
+    protected function defineEnvironment($app)
+    {
+        $app['config']->set('database.default', 'testing');
+        $app['config']->set('database.connections.testing', [
+            'driver'   => env('DB_DRIVER', 'sqlite'),
+            'host'     => env('DB_HOST', ''),
+            'port'     => env('DB_PORT', ''),
+            'database' => env('DB_DATABASE', ':memory:'),
+            'username' => env('DB_USERNAME', ''),
+            'password' => env('DB_PASSWORD', ''),
+            'prefix'   => 'prfx_',
+        ]);
     }
 
     public function setUp(): void
     {
-        $this->ids = $this->categoryData->getIds();
-        Capsule::table(static::getTableName())->insert($this->categoryData->getData());
+        parent::setUp();
 
-        Capsule::flushQueryLog();
+        $table = static::getTableName();
+
+        Schema::dropIfExists($table);
+        Schema::create($table, function (\Illuminate\Database\Schema\Blueprint $table) {
+            static::createTable($table);
+        });
+
+        DB::enableQueryLog();
+
+        date_default_timezone_set('Europe/Berlin');
+
+        $this->ids = $this->categoryData->getIds();
+        $this->seedTable(static::getTableName(), $this->categoryData->getData());
+        $this->ids = $this->refreshIds(static::getTableName(), $this->ids);
+
+        DB::flushQueryLog();
 
         $modelClass = static::getModelClass();
         $modelClass::resetActionsPerformed();
@@ -42,7 +60,26 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
 
     public function tearDown(): void
     {
-        Capsule::table(static::getTableName())->delete();
+        DB::table(static::getTableName())->delete();
+
+        parent::tearDown();
+    }
+
+    protected function refreshIds(string $table, array $ids): array
+    {
+        $dbIds = DB::table($table)->pluck('id')->all();
+        $map = [];
+
+        foreach ($dbIds as $dbId) {
+            foreach ($ids as $key => $id) {
+                if (strcasecmp((string) $id, (string) $dbId) === 0) {
+                    $map[$key] = $dbId;
+                    break;
+                }
+            }
+        }
+
+        return $map + $ids;
     }
 
     protected function assertNodeReceivesValidValues($node)
@@ -63,7 +100,7 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
         $table = $table ?? static::getTableName();
         $checks = array();
 
-        $connection = Capsule::connection();
+        $connection = DB::connection();
 
         $table = $connection->getQueryGrammar()->wrapTable($table);
 
@@ -87,7 +124,7 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
         $actual = $connection->selectOne($sql);
 
         $this->assertEquals(null, $actual->errors, "The tree structure of $table is broken!");
-        $actual = (array)Capsule::connection()->selectOne($sql);
+        $actual = (array)DB::connection()->selectOne($sql);
 
         $this->assertEquals(array('errors' => null), $actual, "The tree structure of $table is broken!");
     }
@@ -548,7 +585,7 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
     public function testToTreeBuildsWithCustomOrder()
     {
         $tree = static::getModelClass()::whereBetween('_lft', array(8, 17))
-            ->orderBy('title')
+            ->orderBy('name')
             ->get()
             ->toTree();
 
@@ -557,7 +594,7 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
         $root = $tree->first();
         $this->assertEquals('mobile', $root->name);
         $this->assertEquals(4, count($root->children));
-        $this->assertEquals($root, $root->children->first()->parent);
+        $this->assertEquals($root->getAttributes(), $root->children->first()->parent->getAttributes());
     }
 
     public function testToTreeWithSpecifiedRoot()
@@ -877,6 +914,73 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
         $this->assertEquals($this->ids[2], $nodes->first()->getKey());
     }
 
+    public function testSiblingsRelation()
+    {
+        $node = $this->findCategory('samsung');
+        $result = $node->siblings;
+
+        $this->assertEquals(3, $result->count());
+        $this->assertEquals([$this->ids[6], $this->ids[9], $this->ids[10]], $result->pluck('id')->all());
+    }
+
+    public function testSiblingsAndSelfRelation()
+    {
+        $node = $this->findCategory('samsung');
+        $result = $node->siblingsAndSelf;
+
+        $this->assertEquals(4, $result->count());
+        $this->assertEquals(
+            [$this->ids[6], $this->ids[7], $this->ids[9], $this->ids[10]],
+            $result->pluck('id')->all()
+        );
+    }
+
+    public function testSiblingsEagerlyLoaded()
+    {
+        $nodes = static::getModelClass()::whereIn('id', [$this->ids[2], $this->ids[5]])->get();
+
+        $nodes->load('siblings');
+
+        $this->assertEquals(2, $nodes->count());
+        $this->assertTrue($nodes->first()->relationLoaded('siblings'));
+    }
+
+    public function testSiblingsAndSelfEagerlyLoaded()
+    {
+        $nodes = static::getModelClass()::whereIn('id', [$this->ids[3], $this->ids[7]])->get();
+
+        $nodes->load('siblingsAndSelf');
+
+        $this->assertEquals(2, $nodes->count());
+        $this->assertTrue($nodes->first()->relationLoaded('siblingsAndSelf'));
+
+        // apple (id=3, parent=2) has sibling lenovo (id=4), plus itself = 2
+        $this->assertEquals(2, $nodes->first()->siblingsAndSelf->count());
+    }
+
+    public function testSiblingsRelationQuery()
+    {
+        // apple (id=3) has 1 sibling, galaxy (id=8) has 0 siblings
+        $nodes = static::getModelClass()::has('siblings')->whereIn('id', [$this->ids[3], $this->ids[8]])->get();
+
+        $this->assertEquals(1, $nodes->count());
+        $this->assertEquals($this->ids[3], $nodes->first()->getKey());
+
+        // nodes with more than 2 siblings: nokia(6), samsung(7), sony(9), lenovo(10) each have 3 siblings
+        $nodes = static::getModelClass()::has('siblings', '>', 2)->get();
+
+        $this->assertEquals(4, $nodes->count());
+    }
+
+    public function testSiblingsOfRootNode()
+    {
+        $node = $this->findCategory('store');
+        $result = $node->siblings;
+
+        $this->assertEquals(1, $result->count());
+        $this->assertEquals($this->ids[11], $result->first()->getKey());
+    }
+
     public function testRebuildTree()
     {
         $fixed = static::getModelClass()::rebuildTree([
@@ -970,10 +1074,10 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
 
     public function testEagerLoadAncestors()
     {
-        $queryLogCount = count(Capsule::connection()->getQueryLog());
+        $queryLogCount = count(DB::connection()->getQueryLog());
         $categories = static::getModelClass()::with('ancestors')->orderBy('name')->get();
 
-        $this->assertEquals($queryLogCount + 2, count(Capsule::connection()->getQueryLog()));
+        $this->assertEquals($queryLogCount + 2, count(DB::connection()->getQueryLog()));
 
 
         $expectedShape = [
@@ -1005,10 +1109,10 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
 
     public function testLazyLoadAncestors()
     {
-        $queryLogCount = count(Capsule::connection()->getQueryLog());
+        $queryLogCount = count(DB::connection()->getQueryLog());
         $categories = static::getModelClass()::orderBy('name')->get();
 
-        $this->assertEquals($queryLogCount + 1, count(Capsule::connection()->getQueryLog()));
+        $this->assertEquals($queryLogCount + 1, count(DB::connection()->getQueryLog()));
 
         $expectedShape = [
             'apple (' . $this->ids[3] . ')}' => 'store (' . $this->ids[1] . ') > notebooks (' . $this->ids[2] . ')',
@@ -1035,7 +1139,7 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
         }
 
         // assert that there is number of original query + 1 + number of rows to fulfill the relation
-        $this->assertEquals($queryLogCount + 12, count(Capsule::connection()->getQueryLog()));
+        $this->assertEquals($queryLogCount + 12, count(DB::connection()->getQueryLog()));
 
         $this->assertEquals($expectedShape, $output);
     }
@@ -1051,6 +1155,74 @@ abstract class NodeTestBase extends \PHPUnit\Framework\TestCase
         })->pluck('name')->all();
 
         $this->assertEquals(['nokia', 'samsung', 'galaxy', 'sony', 'lenovo'], $categories);
+    }
+
+    public function testMultipleRootNodesAreSiblings()
+    {
+        $store = $this->findCategory('store');
+        $store2 = $this->findCategory('store_2');
+
+        $this->assertTrue($store->isSiblingOf($store2));
+        $this->assertTrue($store2->isSiblingOf($store));
+    }
+
+    public function testMultipleRootNodesAreNotChildren()
+    {
+        $store = $this->findCategory('store');
+        $store2 = $this->findCategory('store_2');
+
+        $this->assertFalse($store->isChildOf($store2));
+        $this->assertFalse($store2->isChildOf($store));
+    }
+
+    public function testMultipleRootNodesInToTree()
+    {
+        $tree = static::getModelClass()::defaultOrder()->get()->toTree();
+
+        $this->assertEquals(2, $tree->count());
+        $this->assertEquals('store', $tree->first()->name);
+        $this->assertEquals('store_2', $tree->last()->name);
+    }
+
+    public function testMultipleRootNodesInToFlatTree()
+    {
+        $tree = static::getModelClass()::defaultOrder()->get()->toFlatTree();
+
+        $this->assertEquals(11, $tree->count());
+        $this->assertEquals('store', $tree->first()->name);
+        $this->assertEquals('store_2', $tree->last()->name);
+    }
+
+    public function testNewRootNodeIsSiblingOfExisting()
+    {
+        $model = static::getModelClass();
+        $node = new $model(['name' => 'store_3']);
+        $node->save();
+
+        $this->assertTreeNotBroken();
+        $this->assertTrue($node->isRoot());
+
+        $store = $this->findCategory('store');
+        $this->assertTrue($node->isSiblingOf($store));
+        $this->assertTrue($store->isSiblingOf($node));
+    }
+
+    public function testSetParentIdToNullKeepsRoot()
+    {
+        $store = $this->findCategory('store');
+        $store->parent_id = null;
+
+        $this->assertTrue($store->isRoot());
+        $this->assertTreeNotBroken();
+    }
+
+    public function testChildIsNotSiblingOfRoot()
+    {
+        $store = $this->findCategory('store');
+        $notebooks = $this->findCategory('notebooks');
+
+        $this->assertFalse($store->isSiblingOf($notebooks));
+        $this->assertFalse($notebooks->isSiblingOf($store));
     }
 
     public function testReplication()

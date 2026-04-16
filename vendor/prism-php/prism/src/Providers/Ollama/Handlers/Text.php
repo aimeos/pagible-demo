@@ -43,20 +43,19 @@ class Text
 
         $this->validateResponse($data);
 
-        $responseMessage = new AssistantMessage(
-            data_get($data, 'message.content') ?? '',
-            $this->mapToolCalls(data_get($data, 'message.tool_calls', [])),
-        );
-
-        $request->addMessage($responseMessage);
-
         // Check for tool calls first, regardless of finish reason
         if (! empty(data_get($data, 'message.tool_calls'))) {
             return $this->handleToolCalls($data, $request);
         }
 
-        return match ($this->mapFinishReason($data)) {
-            FinishReason::Stop => $this->handleStop($data, $request),
+        $finishReason = $this->mapFinishReason($data);
+
+        return match ($finishReason) {
+            FinishReason::Stop,
+            FinishReason::Length,
+            FinishReason::Unknown,
+            FinishReason::ContentFilter,
+            FinishReason::Other => $this->handleStop($data, $request),
             default => throw new PrismException('Ollama: unknown finish reason'),
         };
     }
@@ -96,15 +95,18 @@ class Text
      */
     protected function handleToolCalls(array $data, Request $request): Response
     {
-        $toolResults = $this->callTools(
-            $request->tools(),
-            $this->mapToolCalls(data_get($data, 'message.tool_calls', [])),
-        );
+        $toolCalls = $this->mapToolCalls(data_get($data, 'message.tool_calls', []));
 
-        $request->addMessage(new ToolResultMessage($toolResults));
-        $request->resetToolChoice();
+        $toolResults = $this->callTools($request->tools(), $toolCalls);
 
         $this->addStep($data, $request, $toolResults);
+
+        $request->addMessage(new AssistantMessage(
+            data_get($data, 'message.content') ?? '',
+            $toolCalls,
+        ));
+        $request->addMessage(new ToolResultMessage($toolResults));
+        $request->resetToolChoice();
 
         if ($this->shouldContinue($request)) {
             return $this->handle($request);

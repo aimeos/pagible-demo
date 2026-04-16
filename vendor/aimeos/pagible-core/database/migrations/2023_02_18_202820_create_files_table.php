@@ -1,0 +1,51 @@
+<?php
+
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        Schema::connection(config('cms.db', 'sqlite'))->dropIfExists('cms_files');
+    }
+
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        Schema::connection(config('cms.db', 'sqlite'))->create('cms_files', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('tenant_id');
+            $table->string('mime', 100);
+            $table->string('lang', 5)->nullable();
+            $table->string('name');
+            $table->string('path');
+            $table->json('previews');
+            $table->json('description');
+            $table->json('transcription');
+            $table->uuid('latest_id')->nullable();
+            $table->string('editor');
+            $table->softDeletes();
+            $table->timestamps();
+
+            $table->index(['mime', 'tenant_id']);
+            $table->index(['deleted_at', 'tenant_id']);
+            $table->index(['latest_id']);
+        });
+    }
+};

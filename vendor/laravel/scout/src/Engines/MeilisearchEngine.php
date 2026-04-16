@@ -2,7 +2,9 @@
 
 namespace Laravel\Scout\Engines;
 
+use BackedEnum;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\LazyCollection;
 use Laravel\Scout\Builder;
 use Laravel\Scout\Contracts\UpdatesIndexSettings;
@@ -180,18 +182,26 @@ class MeilisearchEngine extends Engine implements UpdatesIndexSettings
     protected function filters(Builder $builder)
     {
         $filters = collect($builder->wheres)
-            ->map(function ($value, $key) {
+            ->map(function ($where) {
+                $field = $where['field'];
+                $value = $where['value'];
+                $operator = $where['operator'];
+
+                if ($value instanceof BackedEnum) {
+                    return sprintf('%s%s%s', $field, $operator, $value->value);
+                }
+
                 if (is_bool($value)) {
-                    return sprintf('%s=%s', $key, $value ? 'true' : 'false');
+                    return sprintf('%s%s%s', $field, $operator, $value ? 'true' : 'false');
                 }
 
                 if (is_null($value)) {
-                    return sprintf('%s %s', $key, 'IS NULL');
+                    return sprintf('%s %s', $field, $operator === '!=' ? 'IS NOT NULL' : 'IS NULL');
                 }
 
                 return is_numeric($value)
-                    ? sprintf('%s=%s', $key, $value)
-                    : sprintf('%s="%s"', $key, addcslashes((string) $value, '"\\'));
+                    ? sprintf('%s%s%s', $field, $operator, $value)
+                    : sprintf('%s%s"%s"', $field, $operator, $value);
             });
 
         $whereInOperators = [
@@ -447,7 +457,9 @@ class MeilisearchEngine extends Engine implements UpdatesIndexSettings
         $indexes = $this->meilisearch->getIndexes($query);
 
         foreach ($indexes->getResults() as $index) {
-            $tasks[] = $index->delete();
+            if (str($index->getUid())->startsWith(Config::get('scout.prefix'))) {
+                $tasks[] = $index->delete();
+            }
         }
 
         return $tasks;

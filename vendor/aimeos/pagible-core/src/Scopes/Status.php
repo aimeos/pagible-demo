@@ -1,0 +1,47 @@
+<?php
+
+/**
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
+ */
+
+
+namespace Aimeos\Cms\Scopes;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Scope;
+use Illuminate\Support\Facades\Auth;
+
+
+/**
+ * Status scope for limiting query results.
+ *
+ * @implements Scope<\Illuminate\Database\Eloquent\Model>
+ */
+class Status implements Scope
+{
+    /**
+     * Applys additional restrictions to the query builder.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model> $builder Query builder
+     * @param \Illuminate\Database\Eloquent\Model $model Eloquent model
+     */
+    public function apply( Builder $builder, Model $model ): void
+    {
+        if( !\Aimeos\Cms\Permission::can( 'page:view', Auth::user() ) ) {
+            $builder->whereIn( $model->qualifyColumn( 'status' ), [1, 2] );
+        }
+    }
+
+
+    /**
+     * Adds additional macros to the query builder.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model> $builder Query builder
+     */
+    public function extend( Builder $builder ): void
+    {
+        $scope = $this;
+        $builder->macro( 'withoutStatus', fn( Builder $builder ) => $builder->withoutGlobalScope( $scope ));
+    }
+}

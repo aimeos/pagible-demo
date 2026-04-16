@@ -253,7 +253,7 @@ class Stream
             id: EventID::generate(),
             timestamp: time(),
             finishReason: $this->state->finishReason() ?? FinishReason::Stop,
-            usage: $this->state->usage(),
+            usage: $this->state->usage() ?? new Usage(0, 0),
             additionalContent: Arr::whereNotNull([
                 'grounding_metadata' => $this->state->metadata()['grounding_metadata'] ?? null,
                 'thoughtSummaries' => $this->state->thinkingSummaries() === [] ? null : $this->state->thinkingSummaries(),
@@ -337,10 +337,6 @@ class Stream
         yield from $this->callToolsAndYieldEvents($request->tools(), $mappedToolCalls, $this->state->messageId(), $toolResults);
 
         if ($toolResults !== []) {
-            $request->addMessage(new AssistantMessage($this->state->currentText(), $mappedToolCalls));
-            $request->addMessage(new ToolResultMessage($toolResults));
-            $request->resetToolChoice();
-
             // Emit step finish after tool calls
             $this->state->markStepFinished();
             yield new StepFinishEvent(
@@ -348,10 +344,14 @@ class Stream
                 timestamp: time()
             );
 
+            $request->addMessage(new AssistantMessage($this->state->currentText(), $mappedToolCalls));
+            $request->addMessage(new ToolResultMessage($toolResults));
+            $request->resetToolChoice();
+
             $depth++;
             if ($depth < $request->maxSteps()) {
                 $previousUsage = $this->state->usage();
-                $this->state->reset();
+                $this->state->reset()->withMessageId(EventID::generate());
                 $this->currentThoughtSignature = null;
                 $nextResponse = $this->sendRequest($request);
                 yield from $this->processStream($nextResponse, $request, $depth);

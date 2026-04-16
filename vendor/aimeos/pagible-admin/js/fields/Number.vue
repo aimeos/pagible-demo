@@ -1,0 +1,66 @@
+/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+
+<script>
+/**
+ * Configuration:
+ * - `max`: int, maximum number of characters allowed in the input field
+ * - `min`: int, minimum number of characters required in the input field
+ * - `placeholder`: string, placeholder text for the input field
+ * - `required`: boolean, if true, the field is required
+ * - `step`: int, step size for the number input
+ */
+export default {
+  props: {
+    modelValue: { type: Number },
+    config: { type: Object, default: () => {} },
+    assets: { type: Object, default: () => {} },
+    readonly: { type: Boolean, default: false },
+    context: { type: Object }
+  },
+
+  emits: ['update:modelValue', 'error'],
+
+  computed: {
+    hasError() {
+      const val = this.modelValue ?? this.config.default ?? 0
+      return !this.rules.every((rule) => rule(val) === true)
+    },
+
+    rules() {
+      return [(v) => !this.config.required || !!v || this.$gettext(`Value is required`)]
+    }
+  },
+
+  watch: {
+    modelValue: {
+      immediate: true,
+      handler(val) {
+        this.$emit(
+          'error',
+          !this.rules.every((rule) => {
+            return rule(val ?? this.config.default ?? 0) === true
+          })
+        )
+      }
+    }
+  }
+}
+</script>
+
+<template>
+  <v-number-input
+    :error="hasError"
+    :rules="rules"
+    :readonly="readonly"
+    :clearable="!readonly && !config.required"
+    :max="config.max"
+    :min="config.min"
+    :step="config.step || 1"
+    :placeholder="config.placeholder || ''"
+    :modelValue="modelValue ?? config.default ?? 0"
+    @update:modelValue="$emit('update:modelValue', $event)"
+    density="comfortable"
+    hide-details="auto"
+    variant="outlined"
+  ></v-number-input>
+</template>

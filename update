@@ -1,6 +1,6 @@
 #/bin/bash
 
-echo no | composer up
+composer up --no-dev
 git add .
 git commit -m "Package update"
 git push

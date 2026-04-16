@@ -61,5 +61,13 @@ return [
                 'x_title' => env('OPENROUTER_SITE_X_TITLE', null),
             ],
         ],
+        'perplexity' => [
+            'api_key' => env('PERPLEXITY_API_KEY', ''),
+            'url' => env('PERPLEXITY_URL', 'https://api.perplexity.ai'),
+        ],
+        'z' => [
+            'url' => env('Z_URL', 'https://api.z.ai/api/paas/v4'),
+            'api_key' => env('Z_API_KEY', ''),
+        ],
     ],
 ];

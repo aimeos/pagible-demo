@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file. This projec
 
 ## Unreleased
 
+## [5.2.1] - 2026-04-14
+
+### Fixed
+
+- [#327](https://github.com/laravel-json-api/laravel/pull/327) Fix nullable types on media type exception.
+
+## [5.2.0] - 2026-03-28
+
+### Added
+
+- Package now supports Laravel 13.
+
 ## [5.1.0] - 2025-02-24
 
 ### Added

@@ -1,0 +1,2181 @@
+msgid ""
+msgstr ""
+"Content-Transfer-Encoding: 8bit\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: de\n"
+"Language-Team: none\n"
+"Last-Translator: Automatically generated\n"
+"MIME-Version: 1.0\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Project-Id-Version: PACKAGE VERSION\n"
+
+#: js/ai.js:26
+#: js/ai.js:76
+#: js/ai.js:135
+#: js/components/ElementListItems.vue:97
+#: js/components/ElementListItems.vue:150
+#: js/components/ElementListItems.vue:209
+#: js/components/ElementListItems.vue:255
+#: js/components/ElementListItems.vue:306
+#: js/components/ElementListItems.vue:345
+#: js/components/Fields.vue:82
+#: js/components/FileAiDialog.vue:140
+#: js/components/FileDetailItem.vue:132
+#: js/components/FileDetailItem.vue:161
+#: js/components/FileDetailItem.vue:193
+#: js/components/FileDetailItem.vue:198
+#: js/components/FileDetailItem.vue:238
+#: js/components/FileDetailItemImage.vue:295
+#: js/components/FileDetailItemVideo.vue:33
+#: js/components/FileDetailItemVideo.vue:108
+#: js/components/FileDetailItemVideo.vue:155
+#: js/components/FileListItems.vue:111
+#: js/components/FileListItems.vue:189
+#: js/components/FileListItems.vue:248
+#: js/components/FileListItems.vue:291
+#: js/components/FileListItems.vue:339
+#: js/components/FileListItems.vue:378
+#: js/components/PageDetailContentList.vue:340
+#: js/components/PageDetailContentList.vue:429
+#: js/components/PageListItems.vue:132
+#: js/components/PageListItems.vue:254
+#: js/components/PageListItems.vue:315
+#: js/components/PageListItems.vue:416
+#: js/components/PageListItems.vue:496
+#: js/components/PageListItems.vue:624
+#: js/components/PageListItems.vue:654
+#: js/components/PageListItems.vue:780
+#: js/components/PageListItems.vue:827
+#: js/components/PageListItems.vue:909
+#: js/components/PageListItems.vue:978
+#: js/fields/File.vue:87
+#: js/fields/Images.vue:99
+#: js/fields/Items.vue:141
+#: js/views/ElementDetail.vue:148
+#: js/views/ElementDetail.vue:220
+#: js/views/ElementDetail.vue:323
+#: js/views/FileDetail.vue:78
+#: js/views/FileDetail.vue:150
+#: js/views/FileDetail.vue:233
+#: js/views/PageDetail.vue:358
+#: js/views/PageDetail.vue:434
+#: js/views/PageDetail.vue:531
+#: js/views/PageDetail.vue:639
+#: js/views/PageList.vue:196
+msgid "Permission denied"
+msgstr "Zugriff verweigert"
+
+#: js/ai.js:54
+msgid "Error transcribing file"
+msgstr "Fehler bei der Transkription der Datei"
+
+#: js/ai.js:114
+msgid "Error translating texts"
+msgstr "Fehler beim Übersetzen der Texte"
+
+#: js/ai.js:142
+msgid "Prompt is required for generating text"
+msgstr "Eingabe ist für die Texterstellung erforderlich"
+
+#: js/ai.js:173
+msgid "Error generating text"
+msgstr "Fehler beim Erzeugen des Texts"
+
+#: js/components/AsideCount.vue:65
+msgid "Used elements"
+msgstr "Verwendete Elemente"
+
+#: js/components/AsideList.vue:69
+msgid "Filters"
+msgstr "Filter"
+
+#: js/components/AsideList.vue:76
+msgid "Reset"
+msgstr "Zurücksetzen"
+
+#: js/components/AsideMeta.vue:21
+msgid "id"
+msgstr "Schlüssel"
+
+#: js/components/AsideMeta.vue:25
+#: js/components/FileListItems.vue:673
+#: js/fields/Audio.vue:116
+#: js/fields/File.vue:336
+#: js/fields/Image.vue:165
+#: js/fields/Video.vue:116
+msgid "mime"
+msgstr "Dateityp"
+
+#: js/components/AsideMeta.vue:29
+#: js/components/ElementListItems.vue:624
+#: js/components/FileListItems.vue:683
+#: js/components/PageListItems.vue:1256
+#: js/fields/Audio.vue:120
+#: js/fields/File.vue:340
+#: js/fields/Image.vue:169
+#: js/fields/Video.vue:120
+#: js/views/ElementList.vue:185
+#: js/views/FileList.vue:184
+#: js/views/PageList.vue:436
+msgid "editor"
+msgstr "Redakteur"
+
+#: js/components/AsideMeta.vue:33
+msgid "created"
+msgstr "Erstellt"
+
+#: js/components/AsideMeta.vue:39
+#: js/fields/Audio.vue:124
+#: js/fields/File.vue:344
+#: js/fields/Image.vue:173
+#: js/fields/Video.vue:124
+msgid "updated"
+msgstr "Aktualisiert"
+
+#: js/components/AsideMeta.vue:45
+msgid "deleted"
+msgstr "Gelöscht"
+
+#: js/components/AsideMeta.vue:57
+#: js/components/AsideMeta.vue:59
+msgid "Meta data"
+msgstr "Metadaten"
+
+#: js/components/ElementDetailItem.vue:75
+#: js/components/ElementDetailRefs.vue:102
+#: js/components/FileDetailItem.vue:310
+#: js/components/FileDetailRefs.vue:119
+#: js/components/FileDetailRefs.vue:141
+msgid "Name"
+msgstr "Name"
+
+#: js/components/ElementDetailItem.vue:88
+#: js/components/FileDetailItem.vue:323
+#: js/components/PageDetailItemProps.vue:167
+#: js/components/User.vue:102
+msgid "Language"
+msgstr "Sprache"
+
+#: js/components/ElementDetailRefs.vue:71
+#: js/components/FileDetailRefs.vue:88
+msgid "yes"
+msgstr "Ja"
+
+#: js/components/ElementDetailRefs.vue:74
+#: js/components/FileDetailRefs.vue:91
+msgid "no"
+msgstr "Nein"
+
+#: js/components/ElementDetailRefs.vue:95
+#: js/components/Navigation.vue:39
+#: js/components/SchemaDialog.vue:55
+#: js/routes.js:36
+#: js/views/ElementList.vue:128
+msgid "Shared elements"
+msgstr "Gemeinsame Elemente"
+
+#: js/components/ElementDetailRefs.vue:100
+#: js/components/ElementDetailRefs.vue:122
+#: js/components/FileDetailRefs.vue:117
+#: js/components/FileDetailRefs.vue:139
+#: js/components/FileDetailRefs.vue:161
+msgid "ID"
+msgstr "ID"
+
+#: js/components/ElementDetailRefs.vue:101
+#: js/components/FileDetailRefs.vue:118
+msgid "URL"
+msgstr "URL"
+
+#: js/components/ElementDetailRefs.vue:123
+#: js/components/FileDetailRefs.vue:140
+#: js/components/FileDetailRefs.vue:162
+msgid "Type"
+msgstr "Typ"
+
+#: js/components/ElementDetailRefs.vue:124
+#: js/components/FileDetailRefs.vue:163
+#: js/views/ElementList.vue:161
+#: js/views/FileList.vue:160
+#: js/views/PageList.vue:394
+msgid "Published"
+msgstr "Veröffentlicht"
+
+#: js/components/ElementListItems.vue:182
+msgid "Error trashing shared element"
+msgstr "Fehler beim Löschen eines gemeinsamen Elements"
+
+#: js/components/ElementListItems.vue:246
+msgid "Error restoring shared element"
+msgstr "Fehler beim Wiederherstellen eines gemeinsamen Elements"
+
+#: js/components/ElementListItems.vue:297
+msgid "Error publishing shared element"
+msgstr "Fehler beim Veröffentlichen eines gemeinsamen Elements"
+
+#: js/components/ElementListItems.vue:338
+msgid "Error purging shared element"
+msgstr "Fehler beim Bereinigen eines gemeinsamen Elements"
+
+#: js/components/ElementListItems.vue:449
+msgid "Error fetching shared elements"
+msgstr "Fehler beim Abrufen von gemeinsamen Elementen"
+
+#: js/components/ElementListItems.vue:503
+#: js/components/FileListItems.vue:547
+#: js/components/PageDetailContentList.vue:744
+#: js/components/PageListItems.vue:1117
+msgid "Toggle selection"
+msgstr "Auswahl invertieren"
+
+#: js/components/ElementListItems.vue:507
+#: js/components/ElementListItems.vue:517
+#: js/components/ElementListItems.vue:524
+#: js/components/ElementListItems.vue:643
+#: js/components/ElementListItems.vue:652
+#: js/components/ElementListItems.vue:659
+#: js/components/FileListItems.vue:551
+#: js/components/FileListItems.vue:561
+#: js/components/FileListItems.vue:568
+#: js/components/FileListItems.vue:706
+#: js/components/FileListItems.vue:715
+#: js/components/FileListItems.vue:723
+#: js/components/PageDetailContentList.vue:752
+#: js/components/PageDetailContentList.vue:823
+#: js/components/PageDetailContentList.vue:832
+#: js/components/PageDetailContentList.vue:840
+#: js/components/PageListItems.vue:1130
+#: js/components/PageListItems.vue:1137
+#: js/components/PageListItems.vue:1321
+#: js/components/PageListItems.vue:1329
+#: js/fields/Items.vue:274
+#: js/fields/Items.vue:284
+#: js/fields/Items.vue:292
+#: js/fields/Table.vue:195
+#: js/fields/Table.vue:203
+#: js/fields/Table.vue:289
+#: js/fields/Table.vue:297
+msgid "Actions"
+msgstr "Aktionen"
+
+#: js/components/ElementListItems.vue:525
+#: js/components/ElementListItems.vue:660
+#: js/components/Fields.vue:205
+#: js/components/FieldsDialog.vue:65
+#: js/components/FileAiDialog.vue:248
+#: js/components/FileDetailItemImage.vue:565
+#: js/components/FileDetailItemImage.vue:673
+#: js/components/FileDetailItemImage.vue:727
+#: js/components/FileDetailItemImage.vue:812
+#: js/components/FileDetailItemImage.vue:911
+#: js/components/FileDialog.vue:38
+#: js/components/FileListItems.vue:569
+#: js/components/FileListItems.vue:724
+#: js/components/FileUrlDialog.vue:196
+#: js/components/HistoryDialog.vue:127
+#: js/components/PageDetailContentList.vue:843
+#: js/components/PageListItems.vue:1138
+#: js/components/PageListItems.vue:1332
+#: js/components/SchemaDialog.vue:38
+#: js/components/User.vue:115
+#: js/fields/Items.vue:295
+#: js/fields/Items.vue:378
+#: js/fields/Table.vue:206
+#: js/fields/Table.vue:300
+msgid "Close"
+msgstr "Schließen"
+
+#: js/components/ElementListItems.vue:531
+#: js/components/ElementListItems.vue:668
+#: js/components/FileListItems.vue:575
+#: js/components/FileListItems.vue:730
+#: js/components/PageListItems.vue:1144
+#: js/components/PageListItems.vue:1340
+#: js/views/ElementDetail.vue:453
+#: js/views/ElementDetail.vue:462
+#: js/views/FileDetail.vue:355
+#: js/views/FileDetail.vue:364
+#: js/views/PageDetail.vue:794
+#: js/views/PageDetail.vue:803
+msgid "Publish"
+msgstr "Veröffentlichen"
+
+#: js/components/ElementListItems.vue:536
+#: js/components/ElementListItems.vue:673
+#: js/components/FileListItems.vue:580
+#: js/components/FileListItems.vue:735
+#: js/components/PageDetailContentList.vue:778
+#: js/components/PageDetailContentList.vue:861
+#: js/components/PageListItems.vue:1162
+#: js/components/PageListItems.vue:1451
+#: js/fields/Items.vue:313
+#: js/fields/Table.vue:230
+#: js/fields/Table.vue:324
+msgid "Delete"
+msgstr "Löschen"
+
+#: js/components/ElementListItems.vue:541
+#: js/components/ElementListItems.vue:678
+#: js/components/FileListItems.vue:585
+#: js/components/FileListItems.vue:740
+#: js/components/PageListItems.vue:1167
+#: js/components/PageListItems.vue:1456
+msgid "Restore"
+msgstr "Wiederherstellen"
+
+#: js/components/ElementListItems.vue:546
+#: js/components/ElementListItems.vue:683
+#: js/components/FileListItems.vue:590
+#: js/components/FileListItems.vue:745
+#: js/components/PageListItems.vue:1172
+#: js/components/PageListItems.vue:1461
+msgid "Purge"
+msgstr "Dauerhaft löschen"
+
+#: js/components/ElementListItems.vue:556
+#: js/components/ElementListItems.vue:741
+#: js/components/PageDetailContentList.vue:961
+#: js/components/PageDetailItemConfig.vue:208
+#: js/components/PageDetailItemMeta.vue:207
+#: js/fields/Items.vue:444
+msgid "Add element"
+msgstr "Element hinzufügen"
+
+#: js/components/ElementListItems.vue:569
+#: js/components/FileListItems.vue:613
+#: js/components/PageDetailContentList.vue:788
+#: js/components/PageListItems.vue:1193
+msgid "Search for"
+msgstr "Suche nach"
+
+#: js/components/ElementListItems.vue:578
+msgid "Reload elements"
+msgstr "Elemente neu laden"
+
+#: js/components/ElementListItems.vue:587
+#: js/components/FileListItems.vue:648
+#: js/components/PageListItems.vue:1213
+#: js/components/PageListItems.vue:1214
+msgid "Sort by"
+msgstr "Sortieren nach"
+
+#: js/components/ElementListItems.vue:595
+#: js/components/ElementListItems.vue:604
+#: js/components/FileListItems.vue:100
+#: js/components/FileListItems.vue:658
+#: js/components/PageListItems.vue:1222
+#: js/components/PageListItems.vue:1236
+msgid "latest"
+msgstr "Neueste"
+
+#: js/components/ElementListItems.vue:596
+#: js/components/ElementListItems.vue:609
+#: js/components/FileListItems.vue:101
+#: js/components/FileListItems.vue:663
+#: js/components/PageListItems.vue:1223
+#: js/components/PageListItems.vue:1241
+msgid "oldest"
+msgstr "Älteste"
+
+#: js/components/ElementListItems.vue:614
+#: js/components/FileListItems.vue:668
+#: js/components/PageListItems.vue:1246
+#: js/fields/Audio.vue:108
+#: js/fields/File.vue:328
+#: js/fields/Image.vue:157
+#: js/fields/Video.vue:108
+msgid "name"
+msgstr "Name"
+
+#: js/components/ElementListItems.vue:619
+msgid "type"
+msgstr "Typ"
+
+#: js/components/ElementListItems.vue:702
+#: js/components/PageListItems.vue:550
+#: js/components/PageListItems.vue:1484
+msgid "New"
+msgstr "Neu"
+
+#: js/components/ElementListItems.vue:718
+#: js/components/FileListItems.vue:845
+#: js/components/HistoryDialog.vue:143
+#: js/components/PageListItems.vue:1498
+#: js/fields/Autocomplete.vue:170
+#: js/fields/Combobox.vue:27
+msgid "Loading"
+msgstr "Laden"
+
+#: js/components/ElementListItems.vue:733
+#: js/components/FileListItems.vue:861
+#: js/components/PageListItems.vue:1514
+msgid "No entries found"
+msgstr "Keine Einträge gefunden"
+
+#: js/components/Fields.vue:185
+#: js/components/Fields.vue:195
+#: js/components/Fields.vue:204
+#: js/fields/Items.vue:357
+#: js/fields/Items.vue:366
+#: js/fields/Items.vue:375
+msgid "Translate"
+msgstr "Übersetzen"
+
+#: js/components/Fields.vue:222
+#: js/fields/Items.vue:397
+msgid "Generate text"
+msgstr "Text generieren"
+
+#: js/components/Fields.vue:233
+#: js/components/FileAiDialog.vue:242
+#: js/components/FileDetailItem.vue:389
+#: js/components/PageDetailContentList.vue:728
+#: js/fields/Items.vue:408
+#: js/views/PageList.vue:344
+msgid "Dictate"
+msgstr "Diktieren"
+
+#: js/components/FieldsDialog.vue:49
+#: js/components/FieldsDialog.vue:71
+msgid "Content Element"
+msgstr "Inhaltselement"
+
+#: js/components/FieldsDialog.vue:61
+#: js/views/ElementDetail.vue:406
+#: js/views/FileDetail.vue:310
+#: js/views/PageDetail.vue:750
+msgid "Save"
+msgstr "Speichern"
+
+#: js/components/FileAiDialog.vue:128
+#: js/components/FileListItems.vue:174
+#: js/components/FileUrlDialog.vue:79
+#: js/components/FileUrlDialog.vue:170
+#: js/fields/File.vue:133
+#: js/fields/Images.vue:157
+msgid "Error adding file %{path}"
+msgstr "Fehler beim Hinzufügen der Datei %{path}"
+
+#: js/components/FileAiDialog.vue:181
+msgid "Error creating file"
+msgstr "Fehler beim Erstellen der Datei"
+
+#: js/components/FileAiDialog.vue:229
+#: js/components/FileAiDialog.vue:254
+msgid "Create image"
+msgstr "Bild erstellen"
+
+#: js/components/FileAiDialog.vue:260
+msgid "Describe the image content"
+msgstr "Beschreiben Sie den Bildinhalt"
+
+#: js/components/FileAiDialog.vue:273
+msgid "New image"
+msgstr "Neues Bild"
+
+#: js/components/FileAiDialog.vue:278
+msgid "Current images"
+msgstr "Aktuelle Bilder"
+
+#: js/components/FileAiDialog.vue:284
+#: js/components/FileAiDialog.vue:313
+#: js/components/FileUrlDialog.vue:243
+#: js/fields/Audio.vue:73
+#: js/fields/File.vue:293
+#: js/fields/Image.vue:115
+#: js/fields/Images.vue:296
+#: js/fields/Video.vue:73
+msgid "Remove"
+msgstr "Entfernen"
+
+#: js/components/FileAiDialog.vue:305
+msgid "Images used"
+msgstr "Verwendete Bilder"
+
+#: js/components/FileAiDialog.vue:324
+msgid "Select images"
+msgstr "Bilder auswählen"
+
+#: js/components/FileDetailItem.vue:117
+msgid "Error describing file"
+msgstr "Fehler beim Beschreiben der Datei"
+
+#: js/components/FileDetailItem.vue:166
+msgid "Transcription is only available for audio and video files"
+msgstr "Die Transkription ist nur für Audio- und Videodateien verfügbar"
+
+#: js/components/FileDetailItem.vue:363
+msgid "Descriptions"
+msgstr "Beschreibungen"
+
+#: js/components/FileDetailItem.vue:371
+#: js/components/FileDetailItem.vue:430
+msgid "Translate text"
+msgstr "Text übersetzen"
+
+#: js/components/FileDetailItem.vue:379
+msgid "Generate description"
+msgstr "Beschreibung generieren"
+
+#: js/components/FileDetailItem.vue:406
+msgid "Description (%{lang})"
+msgstr "Beschreibung (%{lang})"
+
+#: js/components/FileDetailItem.vue:422
+msgid "Transcriptions"
+msgstr "Transkriptionen"
+
+#: js/components/FileDetailItem.vue:438
+msgid "Transcribe file content"
+msgstr "Dateiinhalt transkribieren"
+
+#: js/components/FileDetailItem.vue:456
+msgid "Transcription (%{lang})"
+msgstr "Transkription (%{lang})"
+
+#: js/components/FileDetailItemImage.vue:171
+msgid "Error erasing image part"
+msgstr "Fehler beim Entfernen des Bildteils"
+
+#: js/components/FileDetailItemImage.vue:264
+msgid "Error editing image part"
+msgstr "Fehler beim Bearbeiten des Bildteils"
+
+#: js/components/FileDetailItemImage.vue:287
+msgid "Error removing background"
+msgstr "Fehler beim Entfernen des Hintergrunds"
+
+#: js/components/FileDetailItemImage.vue:360
+msgid "Error editing image"
+msgstr "Fehler beim Bearbeiten des Bilds"
+
+#: js/components/FileDetailItemImage.vue:448
+msgid "Error uncropping image"
+msgstr "Fehler beim Erweitern des Bildinhalts"
+
+#: js/components/FileDetailItemImage.vue:494
+msgid "Error upscaling image"
+msgstr "Fehler beim Hochskalieren des Bilds"
+
+#: js/components/FileDetailItemImage.vue:538
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: js/components/FileDetailItemImage.vue:545
+#: js/components/FileDetailItemImage.vue:554
+#: js/components/FileDetailItemImage.vue:562
+msgid "Select area"
+msgstr "Bereich auswählen"
+
+#: js/components/FileDetailItemImage.vue:577
+msgid "Original ratio"
+msgstr "Originalformat"
+
+#: js/components/FileDetailItemImage.vue:586
+msgid "No ratio"
+msgstr "Beliebiges Format"
+
+#: js/components/FileDetailItemImage.vue:591
+msgid "Square"
+msgstr "Quadratisch"
+
+#: js/components/FileDetailItemImage.vue:637
+msgid "Crop selected area"
+msgstr "Zuschneiden auf ausgewählten Bereich"
+
+#: js/components/FileDetailItemImage.vue:647
+msgid "Erase selected area"
+msgstr "Ausgewählten Bereich löschen"
+
+#: js/components/FileDetailItemImage.vue:662
+#: js/components/FileDetailItemImage.vue:670
+#: js/components/FileDetailItemImage.vue:691
+msgid "Edit image"
+msgstr "Bild bearbeiten"
+
+#: js/components/FileDetailItemImage.vue:681
+msgid "Describe the changes"
+msgstr "Beschreiben Sie die Änderungen"
+
+#: js/components/FileDetailItemImage.vue:700
+msgid "Remove background"
+msgstr "Hintergrund entfernen"
+
+#: js/components/FileDetailItemImage.vue:716
+#: js/components/FileDetailItemImage.vue:724
+#: js/components/FileDetailItemImage.vue:782
+msgid "Expand image"
+msgstr "Bildinhalt erweitern"
+
+#: js/components/FileDetailItemImage.vue:739
+msgid "Top"
+msgstr "Oben"
+
+#: js/components/FileDetailItemImage.vue:751
+msgid "Left"
+msgstr "Links"
+
+#: js/components/FileDetailItemImage.vue:761
+msgid "Right"
+msgstr "Rechts"
+
+#: js/components/FileDetailItemImage.vue:773
+msgid "Bottom"
+msgstr "Unten"
+
+#: js/components/FileDetailItemImage.vue:790
+msgid "Upscale"
+msgstr "Hochskalieren"
+
+#: js/components/FileDetailItemImage.vue:801
+#: js/components/FileDetailItemImage.vue:809
+msgid "Upscale image"
+msgstr "Bild hochskalieren"
+
+#: js/components/FileDetailItemImage.vue:825
+#: js/components/FileDetailItemImage.vue:835
+#: js/components/FileDetailItemImage.vue:845
+#: js/components/FileDetailItemImage.vue:855
+msgid "Scale %{factor}"
+msgstr "Skalierung %{factor}"
+
+#: js/components/FileDetailItemImage.vue:866
+msgid "Rotate counter-clockwise"
+msgstr "Drehen gegen den Uhrzeigersinn"
+
+#: js/components/FileDetailItemImage.vue:872
+msgid "Rotate clockwise"
+msgstr "Drehen im Uhrzeigersinn"
+
+#: js/components/FileDetailItemImage.vue:879
+msgid "Flip horizontally"
+msgstr "Horizontal spiegeln"
+
+#: js/components/FileDetailItemImage.vue:885
+msgid "Flip vertically"
+msgstr "Vertikal spiegeln"
+
+#: js/components/FileDetailItemImage.vue:888
+msgid "Download"
+msgstr "Herunterladen"
+
+#: js/components/FileDetailItemImage.vue:892
+#: js/components/FileDetailItemImage.vue:902
+#: js/components/FileDetailItemImage.vue:910
+msgid "Undo"
+msgstr "Rückgängig machen"
+
+#: js/components/FileDetailItemImage.vue:918
+msgid "Previous edit"
+msgstr "Vorherige Version"
+
+#: js/components/FileDetailItemImage.vue:923
+msgid "Original"
+msgstr "Original"
+
+#: js/components/FileDetailItemVideo.vue:40
+msgid "No video element found"
+msgstr "Kein Videoelement gefunden"
+
+#: js/components/FileDetailItemVideo.vue:94
+msgid "Error saving video cover"
+msgstr "Fehler beim Speichern des Titelbilds"
+
+#: js/components/FileDetailItemVideo.vue:145
+msgid "Error removing video cover"
+msgstr "Fehler beim Entfernen des Titelbilds"
+
+#: js/components/FileDetailItemVideo.vue:161
+msgid "No file selected"
+msgstr "Keine Datei ausgewählt"
+
+#: js/components/FileDetailItemVideo.vue:200
+msgid "Error uploading video cover"
+msgstr "Fehler beim Hochladen des Titelbilds"
+
+#: js/components/FileDetailItemVideo.vue:233
+msgid "Use as cover image"
+msgstr "Als Titelbild verwenden"
+
+#: js/components/FileDetailItemVideo.vue:239
+msgid "Upload cover image"
+msgstr "Titelbild hochladen"
+
+#: js/components/FileDetailRefs.vue:112
+#: js/components/Navigation.vue:33
+#: js/routes.js:27
+#: js/views/PageList.vue:276
+#: js/views/PageList.vue:292
+msgid "Pages"
+msgstr "Seiten"
+
+#: js/components/FileDetailRefs.vue:134
+#: js/views/ElementList.vue:144
+msgid "Elements"
+msgstr "Elemente"
+
+#: js/components/FileDetailRefs.vue:156
+msgid "Versions"
+msgstr "Versionen"
+
+#: js/components/FileDialog.vue:28
+#: js/components/FileDialog.vue:44
+#: js/components/Navigation.vue:45
+#: js/routes.js:45
+#: js/views/FileList.vue:127
+#: js/views/FileList.vue:143
+msgid "Files"
+msgstr "Dateien"
+
+#: js/components/FileListItems.vue:103
+#: js/components/FileListItems.vue:688
+msgid "usage"
+msgstr "Verwendung"
+
+#: js/components/FileListItems.vue:221
+msgid "Error trashing file"
+msgstr "Fehler beim Löschen der Datei"
+
+#: js/components/FileListItems.vue:284
+msgid "Error restoring file"
+msgstr "Fehler beim Wiederherstellen der Datei"
+
+#: js/components/FileListItems.vue:332
+#: js/views/FileDetail.vue:124
+msgid "Error publishing file"
+msgstr "Fehler beim Veröffentlichen der Datei"
+
+#: js/components/FileListItems.vue:371
+msgid "Error purging file"
+msgstr "Fehler beim Bereinigen der Datei"
+
+#: js/components/FileListItems.vue:491
+msgid "Error fetching files"
+msgstr "Fehler beim Abrufen von Dateien"
+
+#: js/components/FileListItems.vue:601
+#: js/components/FileListItems.vue:870
+#: js/components/FileUrlDialog.vue:192
+#: js/fields/Images.vue:308
+#: js/fields/Images.vue:327
+msgid "Add files"
+msgstr "Dateien hinzufügen"
+
+#: js/components/FileListItems.vue:624
+msgid "Reload files"
+msgstr "Dateien neu laden"
+
+#: js/components/FileListItems.vue:632
+msgid "Grid view"
+msgstr "Gitteransicht"
+
+#: js/components/FileListItems.vue:639
+msgid "List view"
+msgstr "Listenansicht"
+
+#: js/components/FileListItems.vue:678
+msgid "language"
+msgstr "Sprache"
+
+#: js/components/FileUrlDialog.vue:126
+msgid "At least one URL is longer than 255 characters"
+msgstr "Mindestens eine URL ist länger als 255 Zeichen"
+
+#: js/components/FileUrlDialog.vue:161
+msgid "At least one file is not of type \"%{mime}*\""
+msgstr "Mindestens eine Datei ist nicht vom Typ \"%{mime}*\""
+
+#: js/components/FileUrlDialog.vue:165
+msgid "The file is not of type \"%{mime}*\""
+msgstr "Die Datei ist nicht vom Typ \"%{mime}*\""
+
+#: js/components/FileUrlDialog.vue:183
+#: js/components/FileUrlDialog.vue:202
+#: js/fields/Images.vue:314
+msgid "Add files from URLs"
+msgstr "Dateien von URLs hinzufügen"
+
+#: js/components/FileUrlDialog.vue:192
+#: js/fields/Audio.vue:84
+#: js/fields/File.vue:304
+#: js/fields/Image.vue:126
+#: js/fields/Video.vue:84
+msgid "Add file"
+msgstr "Datei hinzufügen"
+
+#: js/components/FileUrlDialog.vue:215
+msgid "Enter one URL per line"
+msgstr "Geben Sie eine URL pro Zeile ein"
+
+#: js/components/FileUrlDialog.vue:231
+msgid "Enter URL"
+msgstr "URL eingeben"
+
+#: js/components/HistoryDialog.vue:118
+#: js/components/HistoryDialog.vue:134
+msgid "History"
+msgstr "Historie"
+
+#: js/components/HistoryDialog.vue:165
+msgid "No changes"
+msgstr "Keine Änderungen"
+
+#: js/components/HistoryDialog.vue:175
+msgid "Current"
+msgstr "Aktuell"
+
+#: js/components/HistoryDialog.vue:236
+msgid "Revert"
+msgstr "Rückgängig"
+
+#: js/components/HistoryDialog.vue:321
+msgid "Use version"
+msgstr "Version verwenden"
+
+#: js/components/Navigation.vue:28
+msgid "Panels"
+msgstr "Paneele"
+
+#: js/components/PageDetailContentList.vue:151
+#: js/components/PageDetailContentList.vue:161
+#: js/components/PageDetailContentList.vue:638
+msgid "Content element not found"
+msgstr "Inhaltselement nicht gefunden"
+
+#: js/components/PageDetailContentList.vue:390
+msgid "Error refining content"
+msgstr "Fehler bei der Verfeinerung des Inhalts"
+
+#: js/components/PageDetailContentList.vue:436
+msgid "Element not found"
+msgstr "Element nicht gefunden"
+
+#: js/components/PageDetailContentList.vue:441
+msgid "Element is already shared"
+msgstr "Element ist bereits geteilt"
+
+#: js/components/PageDetailContentList.vue:509
+msgid "Unable to make element shared"
+msgstr "Element kann nicht geteilt werden"
+
+#: js/components/PageDetailContentList.vue:528
+msgid "Not available for this content element"
+msgstr "Nicht verfügbar für dieses Inhaltselement"
+
+#: js/components/PageDetailContentList.vue:645
+msgid "Element is not shared"
+msgstr "Element ist nicht geteilt"
+
+#: js/components/PageDetailContentList.vue:693
+msgid "Describe the task you want to perform"
+msgstr "Beschreiben Sie die Aufgabe, die Sie durchführen möchten"
+
+#: js/components/PageDetailContentList.vue:707
+#: js/views/PageList.vue:314
+msgid "Hide help"
+msgstr "Hilfe ausblenden"
+
+#: js/components/PageDetailContentList.vue:707
+#: js/views/PageList.vue:314
+msgid "Show help"
+msgstr "Hilfe anzeigen"
+
+#: js/components/PageDetailContentList.vue:719
+msgid "Refining ..."
+msgstr "Verfeinerung ..."
+
+#: js/components/PageDetailContentList.vue:719
+msgid "Refine content based on prompt"
+msgstr "Inhalt basierend auf Eingabe verfeinern"
+
+#: js/components/PageDetailContentList.vue:736
+#: js/views/PageList.vue:352
+msgid "Help"
+msgstr "Hilfe"
+
+#: js/components/PageDetailContentList.vue:737
+msgid "AI can add or improve content based on your input"
+msgstr "KI kann auf der Grundlage Ihrer Eingaben Inhalte hinzufügen oder verbessern"
+
+#: js/components/PageDetailContentList.vue:738
+msgid "It can take a long time depending on the task and content size"
+msgstr "Je nach Aufgabe und Umfang des Inhalts kann es lange dauern"
+
+#: js/components/PageDetailContentList.vue:758
+#: js/components/PageDetailContentList.vue:851
+#: js/components/PageListItems.vue:1368
+#: js/fields/Items.vue:303
+msgid "Copy"
+msgstr "Kopieren"
+
+#: js/components/PageDetailContentList.vue:763
+#: js/components/PageDetailContentList.vue:856
+#: js/components/PageListItems.vue:1363
+#: js/fields/Items.vue:308
+msgid "Cut"
+msgstr "Auschneiden"
+
+#: js/components/PageDetailContentList.vue:768
+#: js/components/PageListItems.vue:1376
+#: js/components/PageListItems.vue:1401
+msgid "Paste"
+msgstr "Einfügen"
+
+#: js/components/PageDetailContentList.vue:773
+#: js/components/PageDetailContentList.vue:914
+msgid "Merge"
+msgstr "Zusammenführen"
+
+#: js/components/PageDetailContentList.vue:869
+#: js/fields/Items.vue:321
+msgid "Paste before"
+msgstr "Einfügen vor"
+
+#: js/components/PageDetailContentList.vue:874
+#: js/fields/Items.vue:326
+msgid "Paste after"
+msgstr "Einfügen nach"
+
+#: js/components/PageDetailContentList.vue:879
+#: js/fields/Items.vue:331
+#: js/fields/Table.vue:217
+#: js/fields/Table.vue:311
+msgid "Insert before"
+msgstr "Einschieben vor"
+
+#: js/components/PageDetailContentList.vue:884
+#: js/fields/Items.vue:336
+#: js/fields/Table.vue:225
+#: js/fields/Table.vue:319
+msgid "Insert after"
+msgstr "Einschieben nach"
+
+#: js/components/PageDetailContentList.vue:894
+msgid "Make shared"
+msgstr "Gemeinsam nutzen"
+
+#: js/components/PageDetailContentList.vue:899
+msgid "Merge copy"
+msgstr "Kopie einfügen"
+
+#: js/components/PageDetailContentList.vue:904
+msgid "Change to"
+msgstr "Ändern zu"
+
+#: js/components/PageDetailContentList.vue:909
+msgid "Split"
+msgstr "Aufteilen"
+
+#: js/components/PageDetailContentList.vue:923
+msgid "Shared element"
+msgstr "Gemeinsames Element"
+
+#: js/components/PageDetailEditor.vue:74
+msgid "Double-click to edit"
+msgstr "Doppelklick zum Bearbeiten"
+
+#: js/components/PageDetailEditor.vue:234
+msgid "Edit element"
+msgstr "Element bearbeiten"
+
+#: js/components/PageDetailEditor.vue:241
+msgid "Add element before"
+msgstr "Element hinzufügen vor"
+
+#: js/components/PageDetailEditor.vue:247
+msgid "Add element after"
+msgstr "Element hinzufügen nach"
+
+#: js/components/PageDetailEditor.vue:254
+msgid "Remove element"
+msgstr "Element entfernen"
+
+#: js/components/PageDetailEditor.vue:261
+msgid "Preview mode"
+msgstr "Vorschau-Modus"
+
+#: js/components/PageDetailEditor.vue:264
+msgid "Not CMS content"
+msgstr "Kein CMS-Inhalt"
+
+#: js/components/PageDetailEditor.vue:272
+msgid "Fullscreen mode"
+msgstr "Vollbildmodus"
+
+#: js/components/PageDetailEditor.vue:280
+msgid "Exit fullscreen mode"
+msgstr "Vollbildmodus beenden"
+
+#: js/components/PageDetailItem.vue:68
+msgid "Detail"
+msgstr "Details"
+
+#: js/components/PageDetailItem.vue:75
+msgid "Meta"
+msgstr "Meta"
+
+#: js/components/PageDetailItem.vue:82
+msgid "Config"
+msgstr "Konfiguration"
+
+#: js/components/PageDetailItemConfig.vue:50
+#: js/components/PageDetailItemMeta.vue:50
+msgid "The element has already been added"
+msgstr "Das Element ist bereits hinzugefügt worden"
+
+#: js/components/PageDetailItemConfig.vue:182
+msgid "Remove content element"
+msgstr "Inhaltselement entfernen"
+
+#: js/components/PageDetailItemProps.vue:73
+msgid "The path is already in use by another page"
+msgstr "Der Pfad wird bereits von einer anderen Seite verwendet"
+
+#: js/components/PageDetailItemProps.vue:148
+#: js/views/PageList.vue:423
+msgid "Disabled"
+msgstr "Deaktiviert"
+
+#: js/components/PageDetailItemProps.vue:149
+#: js/views/PageList.vue:421
+msgid "Enabled"
+msgstr "Aktiviert"
+
+#: js/components/PageDetailItemProps.vue:150
+msgid "Hidden in navigation"
+msgstr "Versteckt in der Navigation"
+
+#: js/components/PageDetailItemProps.vue:154
+msgid "Status"
+msgstr "Status"
+
+#: js/components/PageDetailItemProps.vue:178
+#: js/components/PageDetailItemProps.vue:220
+#: js/views/Login.vue:106
+#: js/views/Login.vue:118
+msgid "Field is required"
+msgstr "Feld ist notwendig"
+
+#: js/components/PageDetailItemProps.vue:181
+msgid "Page title"
+msgstr "Titel der Seite"
+
+#: js/components/PageDetailItemProps.vue:192
+msgid "Page name"
+msgstr "Name der Seite"
+
+#: js/components/PageDetailItemProps.vue:203
+msgid "Path must not start with a slash (/)"
+msgstr "Der Pfad darf nicht mit einem Schrägstrich (/) beginnen"
+
+#: js/components/PageDetailItemProps.vue:209
+msgid "URL path"
+msgstr "URL-Pfad"
+
+#: js/components/PageDetailItemProps.vue:224
+msgid "Domain name is invalid"
+msgstr "Der Domänenname ist ungültig"
+
+#: js/components/PageDetailItemProps.vue:228
+msgid "Domain"
+msgstr "Domänenname"
+
+#: js/components/PageDetailItemProps.vue:243
+msgid "Theme"
+msgstr "Thema"
+
+#: js/components/PageDetailItemProps.vue:252
+msgid "Page type"
+msgstr "Typ der Seite"
+
+#: js/components/PageDetailItemProps.vue:263
+msgid "Page tag"
+msgstr "Seitenmarke"
+
+#: js/components/PageDetailItemProps.vue:272
+#: js/views/PageList.vue:431
+msgid "No cache"
+msgstr "Nicht im Cache"
+
+#: js/components/PageDetailItemProps.vue:273
+#: js/components/PageDetailItemProps.vue:274
+#: js/components/PageDetailItemProps.vue:275
+#: js/components/PageDetailItemProps.vue:276
+msgid "%{num} minute"
+msgid_plural "%{num} minutes"
+msgstr[0] "%{num} Minute"
+msgstr[1] "%{num} Minuten"
+
+#: js/components/PageDetailItemProps.vue:277
+#: js/components/PageDetailItemProps.vue:278
+#: js/components/PageDetailItemProps.vue:279
+#: js/components/PageDetailItemProps.vue:280
+#: js/components/PageDetailItemProps.vue:281
+msgid "%{num} hour"
+msgid_plural "%{num} hours"
+msgstr[0] "%{num} Stunde"
+msgstr[1] "%{num} Stunden"
+
+#: js/components/PageDetailItemProps.vue:285
+msgid "Cache time"
+msgstr "Cache-Zeit"
+
+#: js/components/PageDetailItemProps.vue:304
+msgid "URL is not valid"
+msgstr "URL ist nicht gültig"
+
+#: js/components/PageDetailItemProps.vue:308
+msgid "Redirect URL"
+msgstr "Ziel URL"
+
+#: js/components/PageDetailMetrics.vue:247
+msgid "Page metrics"
+msgstr "Seitenmetriken"
+
+#: js/components/PageDetailMetrics.vue:253
+msgid "Days"
+msgstr "Tage"
+
+#: js/components/PageDetailMetrics.vue:280
+msgid "Weekly Insights"
+msgstr "Wochenrückblick"
+
+#: js/components/PageDetailMetrics.vue:284
+msgid "Page Views"
+msgstr "Seitenaufrufe"
+
+#: js/components/PageDetailMetrics.vue:300
+msgid "Page Visits"
+msgstr "Seitenbesuche"
+
+#: js/components/PageDetailMetrics.vue:321
+#: js/components/PageDetailMetrics.vue:491
+msgid "Conversions"
+msgstr "Konversionen"
+
+#: js/components/PageDetailMetrics.vue:342
+msgid "Visit Duration (minutes)"
+msgstr "Besuchsdauer (Minuten)"
+
+#: js/components/PageDetailMetrics.vue:362
+msgid "Google Impressions"
+msgstr "Google Aufrufe"
+
+#: js/components/PageDetailMetrics.vue:384
+msgid "Google Clicks"
+msgstr "Google Klicks"
+
+#: js/components/PageDetailMetrics.vue:402
+msgid "Google Conversion Rate"
+msgstr "Google Konversionsrate"
+
+#: js/components/PageDetailMetrics.vue:428
+msgid "Views & Visits"
+msgstr "Aufrufe & Besuche"
+
+#: js/components/PageDetailMetrics.vue:473
+#: js/components/PageDetailMetrics.vue:732
+msgid "Views"
+msgstr "Aufrufe"
+
+#: js/components/PageDetailMetrics.vue:482
+msgid "Visits"
+msgstr "Besuche"
+
+#: js/components/PageDetailMetrics.vue:505
+msgid "Visit Durations (minutes)"
+msgstr "Besuchsdauer (Minuten)"
+
+#: js/components/PageDetailMetrics.vue:549
+msgid "Duration"
+msgstr "Dauer"
+
+#: js/components/PageDetailMetrics.vue:566
+msgid "Referrers"
+msgstr "Verweisquellen"
+
+#: js/components/PageDetailMetrics.vue:613
+msgid "Countries"
+msgstr "Länder"
+
+#: js/components/PageDetailMetrics.vue:629
+msgid "Page Speed"
+msgstr "Seitengeschwindigkeit"
+
+#: js/components/PageDetailMetrics.vue:634
+msgid "Round trip time"
+msgstr "Zeit bis zur Rückantwort"
+
+#: js/components/PageDetailMetrics.vue:648
+msgid "Time to first byte"
+msgstr "Zeit bis zum ersten Byte"
+
+#: js/components/PageDetailMetrics.vue:662
+msgid "First contentful paint"
+msgstr "Erste Darstellung"
+
+#: js/components/PageDetailMetrics.vue:676
+msgid "Largest contentful paint"
+msgstr "Größte Darstellung"
+
+#: js/components/PageDetailMetrics.vue:690
+msgid "Interaction to next paint"
+msgstr "Darstellung nach Interaktion"
+
+#: js/components/PageDetailMetrics.vue:704
+msgid "Cumulative layout shift"
+msgstr "Layout-Verschiebung"
+
+#: js/components/PageDetailMetrics.vue:726
+msgid "Google Search: Queries"
+msgstr "Google Suche: Abfragen"
+
+#: js/components/PageDetailMetrics.vue:733
+#: js/components/PageDetailMetrics.vue:816
+msgid "Clicks"
+msgstr "Klicks"
+
+#: js/components/PageDetailMetrics.vue:734
+msgid "Percent"
+msgstr "Prozentsatz"
+
+#: js/components/PageDetailMetrics.vue:735
+msgid "Position"
+msgstr "Position"
+
+#: js/components/PageDetailMetrics.vue:762
+msgid "Google Search: Impressions & Clicks"
+msgstr "Google Suche: Aufrufe & Klicks"
+
+#: js/components/PageDetailMetrics.vue:807
+msgid "Impressions"
+msgstr "Aufrufe"
+
+#: js/components/PageDetailMetrics.vue:830
+msgid "Google Search: Conversions"
+msgstr "Google Suche: Umsätze"
+
+#: js/components/PageDetailMetrics.vue:874
+msgid "Percentage"
+msgstr "Prozentsatz"
+
+#: js/components/PageListItems.vue:166
+msgid "Error adding root page"
+msgstr "Fehler beim Hinzufügen der Stammseite"
+
+#: js/components/PageListItems.vue:300
+msgid "Error trashing page"
+msgstr "Fehler beim Löschen der Seite"
+
+#: js/components/PageListItems.vue:372
+msgid "Error fetching pages"
+msgstr "Fehler beim Abrufen von Seiten"
+
+#: js/components/PageListItems.vue:475
+msgid "Error inserting page"
+msgstr "Fehler beim Einfügen der Seite"
+
+#: js/components/PageListItems.vue:544
+msgid "Error restoring page"
+msgstr "Fehler beim Wiederherstellen der Seite"
+
+#: js/components/PageListItems.vue:554
+msgid "%{name} (%{lang}, path: %{path}, domain: %{domain})"
+msgstr "%{name} (%{lang}, Pfad: %{path}, Domain: %{domain})"
+
+#: js/components/PageListItems.vue:557
+msgid "%{name} (%{lang}, path: %{path})"
+msgstr "%{name} (%{lang}, Pfad: %{path})"
+
+#: js/components/PageListItems.vue:646
+msgid "Error moving page"
+msgstr "Fehler beim Verschieben der Seite"
+
+#: js/components/PageListItems.vue:754
+msgid "Error copying page"
+msgstr "Fehler beim Kopieren der Seite"
+
+#: js/components/PageListItems.vue:759
+#: js/views/PageDetail.vue:212
+msgid "Error fetching page"
+msgstr "Fehler beim Abrufen der Seite"
+
+#: js/components/PageListItems.vue:820
+#: js/views/PageDetail.vue:405
+msgid "Error publishing page"
+msgstr "Fehler beim Veröffentlichen der Seite"
+
+#: js/components/PageListItems.vue:868
+msgid "Error purging page"
+msgstr "Fehler beim Bereinigen der Seite"
+
+#: js/components/PageListItems.vue:971
+msgid "Error searching pages"
+msgstr "Fehler beim Suchen der Seiten"
+
+#: js/components/PageListItems.vue:1013
+#: js/views/PageDetail.vue:521
+msgid "Error saving page"
+msgstr "Fehler beim Speichern der Seite"
+
+#: js/components/PageListItems.vue:1149
+#: js/components/PageListItems.vue:1350
+msgid "Enable"
+msgstr "Aktivieren"
+
+#: js/components/PageListItems.vue:1154
+#: js/components/PageListItems.vue:1345
+msgid "Disable"
+msgstr "Deaktivieren"
+
+#: js/components/PageListItems.vue:1183
+#: js/components/PageListItems.vue:1521
+msgid "Add page"
+msgstr "Seite hinzufügen"
+
+#: js/components/PageListItems.vue:1203
+msgid "Reload page tree"
+msgstr "Seitenbaum neu laden"
+
+#: js/components/PageListItems.vue:1224
+#: js/components/PageListItems.vue:1231
+msgid "tree"
+msgstr "Baum"
+
+#: js/components/PageListItems.vue:1251
+msgid "title"
+msgstr "Titel"
+
+#: js/components/PageListItems.vue:1277
+msgid "Use arrow keys to navigate. Alt plus arrow keys to reorder."
+msgstr "Verwenden Sie die Pfeiltasten zur Navigation. Mit Alt und den Pfeiltasten können Sie die Reihenfolge ändern."
+
+#: js/components/PageListItems.vue:1278
+msgid "Moved to position %{position} of %{total}"
+msgstr "Verschoben an %{position} von %{total}"
+
+#: js/components/PageListItems.vue:1279
+msgid "Outdented to level %{level}, position %{position} of %{total}"
+msgstr "Verschoben auf Ebene %{level}, Position %{position} von %{total}"
+
+#: js/components/PageListItems.vue:1280
+msgid "Indented to level %{level}, position %{position} of %{total}"
+msgstr "Verschoben auf Ebene %{level}, Position %{position} von %{total}"
+
+#: js/components/PageListItems.vue:1305
+msgid "Toggle child nodes"
+msgstr "Unterknoten ein-/ausklappen"
+
+#: js/components/PageListItems.vue:1355
+msgid "Hide"
+msgstr "Verstecken"
+
+#: js/components/PageListItems.vue:1382
+#: js/components/PageListItems.vue:1407
+#: js/components/PageListItems.vue:1432
+msgid "Before"
+msgstr "Vor"
+
+#: js/components/PageListItems.vue:1387
+#: js/components/PageListItems.vue:1412
+#: js/components/PageListItems.vue:1437
+msgid "Into"
+msgstr "In"
+
+#: js/components/PageListItems.vue:1392
+#: js/components/PageListItems.vue:1417
+#: js/components/PageListItems.vue:1442
+msgid "After"
+msgstr "Nach"
+
+#: js/components/PageListItems.vue:1426
+msgid "Insert"
+msgstr "Einschieben"
+
+#: js/components/SchemaDialog.vue:29
+#: js/components/SchemaDialog.vue:45
+msgid "Content elements"
+msgstr "Inhaltselemente"
+
+#: js/components/SchemaItems.vue:29
+msgid "uncategorized"
+msgstr "unkategorisiert"
+
+#: js/components/User.vue:61
+msgid "Failed to load user"
+msgstr "Nutzerdaten konnten nicht geladen werden"
+
+#: js/components/User.vue:96
+msgid "Toggle light/dark mode"
+msgstr "Umschalten zwischen Hell- und Dunkelmodus"
+
+#: js/components/User.vue:109
+#: js/components/User.vue:114
+msgid "Switch language"
+msgstr "Sprache wechseln"
+
+#: js/components/User.vue:130
+msgid "User menu"
+msgstr "Benutzermenü"
+
+#: js/components/User.vue:141
+msgid "Logout"
+msgstr "Abmelden"
+
+#: js/fields/Audio.vue:44
+#: js/fields/Audio.vue:68
+#: js/fields/File.vue:248
+#: js/fields/File.vue:288
+#: js/fields/Image.vue:80
+#: js/fields/Image.vue:110
+#: js/fields/Images.vue:291
+#: js/fields/Video.vue:44
+#: js/fields/Video.vue:68
+msgid "Edit"
+msgstr "bearbeiten"
+
+#: js/fields/Audio.vue:59
+#: js/fields/File.vue:279
+#: js/fields/Image.vue:101
+#: js/fields/Images.vue:282
+#: js/fields/Video.vue:59
+msgid "Open menu"
+msgstr "Menü öffnen"
+
+#: js/fields/Audio.vue:90
+#: js/fields/File.vue:310
+#: js/fields/Image.vue:132
+#: js/fields/Video.vue:90
+msgid "Add file from URL"
+msgstr "Datei von URL hinzufügen"
+
+#: js/fields/Audio.vue:94
+#: js/fields/File.vue:314
+#: js/fields/Image.vue:143
+#: js/fields/Video.vue:94
+msgid "Upload file"
+msgstr "Datei hochladen"
+
+#: js/fields/Audio.vue:112
+#: js/fields/File.vue:332
+#: js/fields/Image.vue:161
+#: js/fields/Video.vue:112
+msgid "description"
+msgstr "Beschreibung"
+
+#: js/fields/Autocomplete.vue:41
+#: js/fields/Color.vue:24
+#: js/fields/Date.vue:28
+#: js/fields/Html.vue:17
+#: js/fields/Number.vue:30
+#: js/fields/Select.vue:22
+#: js/fields/Url.vue:30
+msgid "Value is required"
+msgstr "Wert ist notwendig"
+
+#: js/fields/Autocomplete.vue:169
+#: js/fields/Combobox.vue:26
+msgid "No data available"
+msgstr "Keine Daten verfügbar"
+
+#: js/fields/Color.vue:25
+msgid "Value must be a hex color code"
+msgstr "Wert muss ein Hex-Farbcode sein"
+
+#: js/fields/File.vue:80
+msgid "File is required"
+msgstr "Datei ist erforderlich"
+
+#: js/fields/Image.vue:139
+#: js/fields/Images.vue:323
+msgid "Create file"
+msgstr "Datei erstellen"
+
+#: js/fields/Images.vue:79
+#: js/fields/Items.vue:98
+msgid "Minimum is %{num} entries"
+msgstr "Das Minimum ist %{num} Einträge"
+
+#: js/fields/Images.vue:83
+#: js/fields/Items.vue:95
+msgid "Maximum is %{num} entries"
+msgstr "Das Maximum ist %{num} Einträge"
+
+#: js/fields/Markdown.vue:124
+#: js/fields/Plaintext.vue:33
+#: js/fields/String.vue:33
+#: js/fields/Text.vue:105
+msgid "Minimum length is %{num} characters"
+msgstr "Mindestlänge ist %{num} Zeichen"
+
+#: js/fields/Markdown.vue:128
+#: js/fields/Plaintext.vue:37
+#: js/fields/String.vue:37
+#: js/fields/Text.vue:109
+msgid "Maximum length is %{num} characters"
+msgstr "Maximallänge ist %{num} Zeichen"
+
+#: js/fields/Radio.vue:22
+msgid "Selection is required"
+msgstr "Auswahl ist notwendig"
+
+#: js/fields/Table.vue:72
+msgid "Minimum are %{num} columns"
+msgstr "Minimum sind %{num} Spalten"
+
+#: js/fields/Table.vue:76
+msgid "Maximum are %{num} columns"
+msgstr "Maximal sind %{num} Spalten"
+
+#: js/fields/Table.vue:167
+msgid "Move column"
+msgstr "Spalte verschieben"
+
+#: js/fields/Table.vue:185
+msgid "Column actions"
+msgstr "Spaltenaktionen"
+
+#: js/fields/Table.vue:247
+msgid "Move row"
+msgstr "Zeile verschieben"
+
+#: js/fields/Table.vue:279
+msgid "Row actions"
+msgstr "Zeilenaktionen"
+
+#: js/fields/Url.vue:31
+msgid "Not a valid URL"
+msgstr "Keine gültige URL"
+
+#: js/fields/Url.vue:41
+msgid "Invalid URL schema configuration"
+msgstr "Ungültige URL-Schemakonfiguration"
+
+#: js/routes.js:18
+#: js/views/Login.vue:139
+msgid "Login"
+msgstr "Anmelden"
+
+#: js/routes.js:61
+msgid "You do not have permission to access %{path}"
+msgstr "Sie haben keine Berechtigung zum Zugriff auf %{path}"
+
+#: js/strings.js:9
+msgctxt "cs"
+msgid "main"
+msgstr "Primär"
+
+#: js/strings.js:10
+msgctxt "cs"
+msgid "header"
+msgstr "Oben"
+
+#: js/strings.js:11
+msgctxt "cs"
+msgid "footer"
+msgstr "Unten"
+
+#: js/strings.js:12
+msgctxt "cs"
+msgid "sidebar"
+msgstr "Links"
+
+#: js/strings.js:13
+msgctxt "cs"
+msgid "aside"
+msgstr "Rechts"
+
+#: js/strings.js:16
+msgctxt "sg"
+msgid "basic"
+msgstr "Basis"
+
+#: js/strings.js:17
+msgctxt "sg"
+msgid "content"
+msgstr "Inhalt"
+
+#: js/strings.js:18
+msgctxt "sg"
+msgid "media"
+msgstr "Medien"
+
+#: js/strings.js:19
+msgctxt "sg"
+msgid "forms"
+msgstr "Formulare"
+
+#: js/strings.js:22
+msgctxt "as"
+msgid "type"
+msgstr "Typ"
+
+#: js/strings.js:23
+msgctxt "as"
+msgid "state"
+msgstr "Zustand"
+
+#: js/strings.js:26
+msgctxt "st"
+msgid "valid"
+msgstr "Gültig"
+
+#: js/strings.js:27
+msgctxt "st"
+msgid "changed"
+msgstr "Geändert"
+
+#: js/strings.js:28
+msgctxt "st"
+msgid "error"
+msgstr "Fehler"
+
+#: js/strings.js:31
+msgctxt "st"
+msgid "reference"
+msgstr "Referenz"
+
+#: js/strings.js:32
+msgctxt "st"
+msgid "heading"
+msgstr "Überschrift"
+
+#: js/strings.js:33
+msgctxt "st"
+msgid "text"
+msgstr "Text"
+
+#: js/strings.js:34
+msgctxt "st"
+msgid "image-text"
+msgstr "Bild-Text"
+
+#: js/strings.js:35
+msgctxt "st"
+msgid "slideshow"
+msgstr "Diashow"
+
+#: js/strings.js:36
+msgctxt "st"
+msgid "code"
+msgstr "Code"
+
+#: js/strings.js:37
+msgctxt "st"
+msgid "table"
+msgstr "Tabelle"
+
+#: js/strings.js:38
+msgctxt "st"
+msgid "html"
+msgstr "HTML"
+
+#: js/strings.js:39
+msgctxt "st"
+msgid "image"
+msgstr "Bild"
+
+#: js/strings.js:40
+msgctxt "st"
+msgid "video"
+msgstr "Video"
+
+#: js/strings.js:41
+msgctxt "st"
+msgid "audio"
+msgstr "Audio"
+
+#: js/strings.js:42
+msgctxt "st"
+msgid "file"
+msgstr "Datei"
+
+#: js/strings.js:43
+msgctxt "st"
+msgid "hero"
+msgstr "Aufmacher"
+
+#: js/strings.js:44
+msgctxt "st"
+msgid "cards"
+msgstr "Kacheln"
+
+#: js/strings.js:45
+msgctxt "st"
+msgid "blog"
+msgstr "Blog"
+
+#: js/strings.js:46
+msgctxt "st"
+msgid "article"
+msgstr "Blogartikel"
+
+#: js/strings.js:47
+msgctxt "st"
+msgid "contact"
+msgstr "Kontakt"
+
+#: js/strings.js:48
+msgctxt "st"
+msgid "meta-tags"
+msgstr "meta-tags"
+
+#: js/strings.js:49
+msgctxt "st"
+msgid "social-media"
+msgstr "Social-Media"
+
+#: js/strings.js:50
+msgctxt "st"
+msgid "canonical"
+msgstr "Kanonische URL"
+
+#: js/strings.js:51
+msgctxt "st"
+msgid "theme"
+msgstr "Thema"
+
+#: js/strings.js:52
+msgctxt "st"
+msgid "styles"
+msgstr "Stile"
+
+#: js/strings.js:53
+msgctxt "st"
+msgid "javascript"
+msgstr "javascript"
+
+#: js/strings.js:56
+msgctxt "fn"
+msgid "button"
+msgstr "Schaltfläche"
+
+#: js/strings.js:57
+msgctxt "fn"
+msgid "cards"
+msgstr "Kacheln"
+
+#: js/strings.js:58
+msgctxt "fn"
+msgid "description"
+msgstr "Beschreibung"
+
+#: js/strings.js:59
+msgctxt "fn"
+msgid "file"
+msgstr "Datei"
+
+#: js/strings.js:60
+msgctxt "fn"
+msgid "files"
+msgstr "Dateien"
+
+#: js/strings.js:61
+msgctxt "fn"
+msgid "header"
+msgstr "Kopfzeile"
+
+#: js/strings.js:62
+msgctxt "fn"
+msgid "keywords"
+msgstr "Schlüsselwörter"
+
+#: js/strings.js:63
+msgctxt "fn"
+msgid "language"
+msgstr "Sprache"
+
+#: js/strings.js:64
+msgctxt "fn"
+msgid "level"
+msgstr "Ebene"
+
+#: js/strings.js:65
+msgctxt "fn"
+msgid "limit"
+msgstr "Anzahl"
+
+#: js/strings.js:66
+msgctxt "fn"
+msgid "main"
+msgstr "Primär"
+
+#: js/strings.js:67
+msgctxt "fn"
+msgid "order"
+msgstr "Reihenfolge"
+
+#: js/strings.js:68
+msgctxt "fn"
+msgid "parent-page"
+msgstr "Übergeordnete Seite"
+
+#: js/strings.js:69
+msgctxt "fn"
+msgid "position"
+msgstr "Position"
+
+#: js/strings.js:70
+msgctxt "fn"
+msgid "text"
+msgstr "Text"
+
+#: js/strings.js:71
+msgctxt "fn"
+msgid "table"
+msgstr "Tabelle"
+
+#: js/strings.js:72
+msgctxt "fn"
+msgid "title"
+msgstr "Titel"
+
+#: js/strings.js:73
+msgctxt "fn"
+msgid "url"
+msgstr "URL"
+
+#: js/strings.js:75
+msgctxt "fn"
+msgid "image"
+msgstr "Bild"
+
+#: js/strings.js:76
+msgctxt "fn"
+msgid "images"
+msgstr "Bilder"
+
+#: js/strings.js:77
+msgctxt "fn"
+msgid "introduction"
+msgstr "Einführung"
+
+#: js/strings.js:78
+msgctxt "fn"
+msgid "load immediately"
+msgstr "sofort laden"
+
+#: js/strings.js:79
+msgctxt "fn"
+msgid "source code"
+msgstr "Quellcode"
+
+#: js/strings.js:82
+msgctxt "ai"
+msgid "Done"
+msgstr "Erledigt"
+
+#: js/strings.js:83
+msgctxt "ai"
+msgid "Already exists"
+msgstr "Bereits vorhanden"
+
+#: js/utils.js:45
+msgid "None"
+msgstr "Keine"
+
+#: js/views/ElementDetail.vue:131
+msgid "Error fetching element"
+msgstr "Fehler beim Holen des Elements"
+
+#: js/views/ElementDetail.vue:180
+msgid "Element published successfully"
+msgstr "Element erfolgreich veröffentlicht"
+
+#: js/views/ElementDetail.vue:184
+msgid "Element scheduled for publishing at %{date}"
+msgstr "Element zur Veröffentlichung vorgesehen am %{date}"
+
+#: js/views/ElementDetail.vue:194
+msgid "Error publishing element"
+msgstr "Fehler beim Veröffentlichen eines Elements"
+
+#: js/views/ElementDetail.vue:226
+#: js/views/FileDetail.vue:156
+#: js/views/PageDetail.vue:440
+msgid "There are invalid fields, please resolve the errors first"
+msgstr "Es gibt ungültige Felder, bitte beheben Sie zuerst die Fehler"
+
+#: js/views/ElementDetail.vue:273
+msgid "Element saved successfully"
+msgstr "Element erfolgreich gespeichert"
+
+#: js/views/ElementDetail.vue:279
+msgid "Error saving element"
+msgstr "Fehler beim Speichern des Elements"
+
+#: js/views/ElementDetail.vue:370
+msgid "Error fetching element versions"
+msgstr "Fehler beim Abrufen von Elementversionen"
+
+#: js/views/ElementDetail.vue:381
+#: js/views/ElementList.vue:118
+#: js/views/FileDetail.vue:285
+#: js/views/FileList.vue:117
+#: js/views/PageDetail.vue:703
+#: js/views/PageList.vue:266
+msgid "Menu"
+msgstr "Menü"
+
+#: js/views/ElementDetail.vue:385
+#: js/views/FileDetail.vue:289
+#: js/views/PageDetail.vue:707
+msgid "Back to list view"
+msgstr "Zurück zur Listenansicht"
+
+#: js/views/ElementDetail.vue:391
+#: js/views/ElementDetail.vue:490
+#: js/views/ElementDetail.vue:494
+msgid "Element"
+msgstr "Element"
+
+#: js/views/ElementDetail.vue:398
+#: js/views/FileDetail.vue:302
+#: js/views/PageDetail.vue:742
+msgid "View history"
+msgstr "Historie ansehen"
+
+#: js/views/ElementDetail.vue:421
+#: js/views/FileDetail.vue:325
+#: js/views/PageDetail.vue:764
+msgid "Schedule publishing"
+msgstr "Veröffentlichung planen"
+
+#: js/views/ElementDetail.vue:484
+#: js/views/ElementList.vue:136
+#: js/views/FileDetail.vue:384
+#: js/views/FileList.vue:135
+#: js/views/PageDetail.vue:825
+#: js/views/PageList.vue:284
+msgid "Toggle side menu"
+msgstr "Seitenmenü ain-/ausblenden"
+
+#: js/views/ElementDetail.vue:496
+#: js/views/FileDetail.vue:396
+msgid "Used by"
+msgstr "Benutzt von"
+
+#: js/views/ElementList.vue:93
+#: js/views/ElementList.vue:160
+#: js/views/ElementList.vue:174
+#: js/views/ElementList.vue:187
+#: js/views/FileList.vue:92
+#: js/views/FileList.vue:159
+#: js/views/FileList.vue:173
+#: js/views/FileList.vue:186
+#: js/views/PageList.vue:141
+#: js/views/PageList.vue:393
+#: js/views/PageList.vue:407
+#: js/views/PageList.vue:420
+#: js/views/PageList.vue:430
+#: js/views/PageList.vue:438
+msgid "All"
+msgstr "Alle"
+
+#: js/views/ElementList.vue:122
+#: js/views/FileList.vue:121
+#: js/views/PageList.vue:270
+msgid "Close navigation"
+msgstr "Navigation schließen"
+
+#: js/views/ElementList.vue:122
+#: js/views/FileList.vue:121
+#: js/views/PageList.vue:270
+msgid "Open navigation"
+msgstr "Navigation öffnen"
+
+#: js/views/ElementList.vue:158
+#: js/views/FileList.vue:157
+#: js/views/PageList.vue:391
+msgid "publish"
+msgstr "veröffentlichen"
+
+#: js/views/ElementList.vue:163
+#: js/views/FileList.vue:162
+#: js/views/PageList.vue:396
+msgid "Scheduled"
+msgstr "Geplante"
+
+#: js/views/ElementList.vue:167
+#: js/views/FileList.vue:166
+#: js/views/PageList.vue:400
+msgid "Drafts"
+msgstr "Entwürfe"
+
+#: js/views/ElementList.vue:172
+#: js/views/FileList.vue:171
+#: js/views/PageList.vue:405
+msgid "trashed"
+msgstr "Papierkorb"
+
+#: js/views/ElementList.vue:176
+#: js/views/FileList.vue:175
+#: js/views/PageList.vue:409
+msgid "Available only"
+msgstr "Nur verfügbare"
+
+#: js/views/ElementList.vue:180
+#: js/views/FileList.vue:179
+#: js/views/PageList.vue:413
+msgid "Only trashed"
+msgstr "Nur gelöschte"
+
+#: js/views/ElementList.vue:189
+#: js/views/FileList.vue:188
+#: js/views/PageList.vue:440
+msgid "Edited by me"
+msgstr "Von mir geändert"
+
+#: js/views/ElementList.vue:197
+#: js/views/FileList.vue:196
+#: js/views/PageList.vue:448
+msgid "languages"
+msgstr "Sprachen"
+
+#: js/views/FileDetail.vue:110
+msgid "File published successfully"
+msgstr "Datei erfolgreich veröffentlicht"
+
+#: js/views/FileDetail.vue:114
+msgid "File scheduled for publishing at %{date}"
+msgstr "Datei zur Veröffentlichung vorgesehen am %{date}"
+
+#: js/views/FileDetail.vue:211
+msgid "File saved successfully"
+msgstr "Datei erfolgreich gespeichert"
+
+#: js/views/FileDetail.vue:217
+msgid "Error saving file"
+msgstr "Fehler beim Speichern der Datei"
+
+#: js/views/FileDetail.vue:276
+msgid "Error fetching file versions"
+msgstr "Fehler beim Abrufen der Dateiversionen"
+
+#: js/views/FileDetail.vue:295
+#: js/views/FileDetail.vue:390
+#: js/views/FileDetail.vue:394
+msgid "File"
+msgstr "Datei"
+
+#: js/views/Login.vue:64
+msgid "Not a CMS editor"
+msgstr "Kein CMS Redakteur"
+
+#: js/views/Login.vue:83
+msgid "Access denied"
+msgstr "Zugriff verweigert"
+
+#: js/views/Login.vue:104
+msgid "E-Mail"
+msgstr "E-Mail"
+
+#: js/views/Login.vue:107
+msgid "Invalid e-mail address"
+msgstr "Ungültige E-Mail Adresse"
+
+#: js/views/Login.vue:117
+msgid "Password"
+msgstr "Passwort"
+
+#: js/views/Login.vue:125
+msgid "Hide password"
+msgstr "Passwort ausblenden"
+
+#: js/views/Login.vue:125
+msgid "Show password"
+msgstr "Passwort anzeigen"
+
+#: js/views/Login.vue:133
+msgid "Error"
+msgstr "Fehler"
+
+#: js/views/PageDetail.vue:391
+msgid "Page published successfully"
+msgstr "Seite erfolgreich veröffentlicht"
+
+#: js/views/PageDetail.vue:395
+msgid "Page scheduled for publishing at %{date}"
+msgstr "Seite zur Veröffentlichung vorgesehen am %{date}"
+
+#: js/views/PageDetail.vue:512
+msgid "Page saved successfully"
+msgstr "Seite erfolgreich gespeichert"
+
+#: js/views/PageDetail.vue:536
+msgid "No page schema for \"content\" found"
+msgstr "Kein Seitenschema für \"content\" gefunden"
+
+#: js/views/PageDetail.vue:677
+msgid "Error fetching page versions"
+msgstr "Fehler beim Abrufen von Seitenversionen"
+
+#: js/views/PageDetail.vue:713
+#: js/views/PageDetail.vue:831
+#: js/views/PageDetail.vue:849
+msgid "Page"
+msgstr "Seite"
+
+#: js/views/PageDetail.vue:721
+msgid "Translate page"
+msgstr "Seite übersetzen"
+
+#: js/views/PageDetail.vue:835
+msgid "Editor"
+msgstr "Editor"
+
+#: js/views/PageDetail.vue:842
+msgid "Content"
+msgstr "Inhalt"
+
+#: js/views/PageDetail.vue:852
+msgid "Metrics"
+msgstr "Metriken"
+
+#: js/views/PageList.vue:247
+msgid "Error synthesizing content"
+msgstr "Fehler bei der Synthese von Inhalten"
+
+#: js/views/PageList.vue:299
+msgid "Describe the page and content you want to create"
+msgstr "Beschreiben Sie die Seite und den Inhalt, den Sie erstellen möchten"
+
+#: js/views/PageList.vue:334
+msgid "Generating ..."
+msgstr "Generierung ..."
+
+#: js/views/PageList.vue:335
+msgid "Generate page based on prompt"
+msgstr "Seite nach Aufforderung generieren"
+
+#: js/views/PageList.vue:355
+msgid "AI can create a page and content based on your input and add it to the page tree"
+msgstr "KI kann eine Seite und Inhalte auf der Grundlage Ihrer Eingaben erstellen und zum Seitenbaum hinzufügen"
+
+#: js/views/PageList.vue:362
+msgid "Double click on the response in the input field to display full response"
+msgstr "Doppelklicken Sie auf die Antwort im Eingabefeld, um die vollständige Antwort anzuzeigen"
+
+#: js/views/PageList.vue:379
+msgid "view"
+msgstr "Ansicht"
+
+#: js/views/PageList.vue:381
+msgid "Tree"
+msgstr "Baum"
+
+#: js/views/PageList.vue:383
+msgid "List"
+msgstr "Liste"
+
+#: js/views/PageList.vue:418
+msgid "status"
+msgstr "Status"
+
+#: js/views/PageList.vue:422
+msgid "Hidden"
+msgstr "Versteckt"
+
+#: js/views/PageList.vue:428
+msgid "cache"
+msgstr "Cache"

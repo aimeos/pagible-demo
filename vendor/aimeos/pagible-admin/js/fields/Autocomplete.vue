@@ -1,0 +1,186 @@
+/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+
+<script>
+import gql from 'graphql-tag'
+import { debounce } from '../utils'
+
+export default {
+  props: {
+    modelValue: { type: [Object, String, Number, Boolean, null] },
+    config: { type: Object, default: () => {} },
+    assets: { type: Object, default: () => {} },
+    readonly: { type: Boolean, default: false },
+    context: { type: Object }
+  },
+
+  emits: ['update:modelValue', 'error'],
+
+  setup() {
+    return { debounce }
+  },
+
+  data() {
+    return {
+      list: this.config.options || [],
+      loading: false
+    }
+  },
+
+  created() {
+    this.graphql = this.debounce(this.graphql, 500)
+    this.rest = this.debounce(this.rest, 500)
+  },
+
+  computed: {
+    hasError() {
+      const val = this.modelValue ?? this.config.default ?? null
+      return !this.rules.every((rule) => rule(val) === true)
+    },
+
+    rules() {
+      return [(v) => !this.config.required || !!v || this.$gettext('Value is required')]
+    }
+  },
+
+  methods: {
+    get(item, keys) {
+      return keys.reduce((part, key) => {
+        return typeof part === 'object' && part !== null ? part[key] : part
+      }, item)
+    },
+
+    graphql(value) {
+      if (!this.config?.query) {
+        return
+      }
+
+      const query = this.config.query.replace(/_term_/g, value ? JSON.stringify(value) : '""')
+
+      this.loading = true
+      this.$apollo
+        .query({
+          query: gql`
+            ${query}
+          `
+        })
+        .then((result) => {
+          // parse the latest data if available
+          const list = this.toList(result.data).map((item) => {
+            return Object.assign({ ...item }, JSON.parse(item.latest?.data || '{}'))
+          })
+
+          this.list = this.items(list)
+          this.loading = false
+        })
+        .catch((error) => {
+          this.$log('Autocomplete::graphql(): Error fetching data', value, error)
+        })
+    },
+
+    items(data) {
+      const flabel = this.config['item-title'].split('/')
+      const fvalue = this.config['item-value'].split('/')
+
+      return (data || []).map((item) => {
+        if (typeof item === 'object' && item !== null) {
+          if (flabel) {
+            return { label: this.get(item, flabel), value: this.get(item, fvalue) }
+          } else {
+            return this.get(item, fvalue)
+          }
+        } else {
+          return item
+        }
+      })
+    },
+
+    rest(value) {
+      if (!this.config?.url) {
+        return
+      }
+
+      this.loading = true
+      fetch(this.config.url.replace(/_term_/g, value ? value : ''), {
+        mode: 'cors'
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw response
+          }
+          return response.json()
+        })
+        .then((result) => {
+          this.list = this.items(this.toList(result))
+          this.loading = false
+        })
+        .catch((error) => {
+          this.$log('Autocomplete::rest(): Error fetching data', value, error)
+        })
+    },
+
+    search(value) {
+      switch (this.config?.['api-type']) {
+        case 'GQL':
+          this.graphql(value)
+          break
+        case 'REST':
+          this.rest(value)
+          break
+      }
+    },
+
+    toList(result) {
+      if (this.config['list-key']) {
+        return this.config['list-key'].split('/').reduce((part, key) => {
+          return typeof part === 'object' && part !== null ? part[key] : part
+        }, result)
+      }
+
+      return result
+    }
+  },
+
+  watch: {
+    modelValue: {
+      immediate: true,
+      handler(val) {
+        this.$emit(
+          'error',
+          !this.rules.every((rule) => {
+            return rule(val ?? this.config.default ?? null) === true
+          })
+        )
+      }
+    }
+  }
+}
+</script>
+
+<template>
+  <v-autocomplete
+    :error="hasError"
+    :rules="rules"
+    :items="list"
+    :loading="loading"
+    :readonly="readonly"
+    :clearable="!readonly"
+    :no-data-text="
+      !loading
+        ? config['empty-text'] || $gettext('No data available')
+        : $gettext('Loading') + ' ...'
+    "
+    :placeholder="config.placeholder || ''"
+    :return-object="!!config['item-title']"
+    :multiple="config.multiple"
+    :chips="config.multiple"
+    :modelValue="modelValue ?? config.default ?? null"
+    @update:modelValue="$emit('update:modelValue', $event)"
+    @update:search="search($event)"
+    @update:menu="search('')"
+    density="comfortable"
+    hide-details="auto"
+    variant="outlined"
+    item-title="label"
+    item-value="value"
+  ></v-autocomplete>
+</template>

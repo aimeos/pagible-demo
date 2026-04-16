@@ -176,6 +176,26 @@ abstract class Base implements Provider
 
 
     /**
+     * Decodes the JSON from the response body.
+     *
+     * @param ResponseInterface $response HTTP response
+     * @return array<string, mixed> Decoded JSON data
+     * @throws \Aimeos\Prisma\Exceptions\PrismaException
+     */
+    protected function fromJson( ResponseInterface $response ) : array
+    {
+        $body = $response->getBody()->getContents();
+        $data = json_decode( $body, true );
+
+        if( !$data ) {
+            throw new \Aimeos\Prisma\Exceptions\PrismaException( 'Invalid JSON response: ' . $body );
+        }
+
+        return $data;
+    }
+
+
+    /**
      * Set a header for the HTTP client.
      *
      * @param string $name Header name
@@ -267,14 +287,14 @@ abstract class Base implements Provider
      * Sanitize the options by only allowing the specified values.
      *
      * @param array<string, mixed> $options Associative list of name/value pairs
-     * @param array<string, array<string>> $allowed Associative list of name/allowed values
+     * @param array<string, array<string|int|bool>|null> $allowed Associative list of name/allowed values, NULL for all
      * @return array<string, mixed> Sanitized list of name/value pairs
      */
     protected function sanitize( array $options, array $allowed ) : array
     {
         foreach( $allowed as $name => $values )
         {
-            if( isset( $options[$name] ) && !in_array( $options[$name], $values ) ) {
+            if( !is_null( $values ) && isset( $options[$name] ) && !in_array( $options[$name], $values ) ) {
                 unset( $options[$name] );
             }
         }
@@ -324,26 +344,6 @@ abstract class Base implements Provider
             case 503: throw new \Aimeos\Prisma\Exceptions\OverloadedException( $message );
             default: throw new \Aimeos\Prisma\Exceptions\PrismaException( $message );
         }
-    }
-
-
-    /**
-     * Decodes the JSON from the response body.
-     *
-     * @param ResponseInterface $response HTTP response
-     * @return array<string, mixed> Decoded JSON data
-     * @throws \Aimeos\Prisma\Exceptions\PrismaException
-     */
-    protected function fromJson( ResponseInterface $response ) : array
-    {
-        $body = $response->getBody()->getContents();
-        $data = json_decode( $body, true );
-
-        if( !$data ) {
-            throw new \Aimeos\Prisma\Exceptions\PrismaException( 'Invalid JSON response: ' . $body );
-        }
-
-        return $data;
     }
 
 

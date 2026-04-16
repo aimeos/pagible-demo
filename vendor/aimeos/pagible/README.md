@@ -53,8 +53,8 @@ Add a line in the "post-update-cmd" section of your `composer.json` file to upda
 
 ```json
 "post-update-cmd": [
-    "@php artisan vendor:publish --force --tag=admin",
-    "@php artisan vendor:publish --tag=public",
+    "@php artisan vendor:publish --force --tag=cms-admin",
+    "@php artisan vendor:publish --tag=cms-theme",
     "@php artisan migrate",
     ...
 ],
@@ -62,22 +62,66 @@ Add a line in the "post-update-cmd" section of your `composer.json` file to upda
 
 ### Authorization
 
+#### Using artisan command
+
 To allow existing users to edit CMS content or to create a new users if they don't exist yet, you can use the `cms:user` command (replace the e-mail address by the users one):
 
 ```bash
-php artisan cms:user editor@example.com
+php artisan cms:user -e editor@example.com
 ```
 
-To disallow users to edit CMS content, use:
+To remove user permissions for editing CMS content completely, use:
 
 ```bash
-php artisan cms:user --disable editor@example.com
+php artisan cms:user -d editor@example.com
+```
+
+List the current permissions of an user:
+
+```bash
+php artisan cms:user -l editor@example.com
+```
+
+To add specific permissions:
+
+```bash
+php artisan cms:user -a page:* -a *:view -a element:view editor@example.com
+```
+
+To remove specific permissions:
+
+```bash
+php artisan cms:user -r page:* -r *:view -r element:view editor@example.com
 ```
 
 The CMS admin backend is available at (replace "mydomain.tld" with your own one):
 
 ```
 http://mydomain.tld/cmsadmin
+```
+
+#### Use custom authorisation
+
+To use your own authorization, e.g. from an external service, add this code to the `boot()` method of your `\App\Providers\AppServiceProvider` in the `./app/Providers/AppServiceProvider.php` file:
+
+```php
+// top of file
+use \Illuminate\Contracts\Auth\Authenticatable;
+
+\Aimeos\Cms\Permission::$callback = function( string $action, ?Authenticatable $user ) : bool {
+    // check permissions
+    return user ? true : false;
+};
+
+\Aimeos\Cms\Permission::$addCallback = function( string $action, Authenticatable $user ) : Authenticatable {
+    // add permission for action to user
+    return $user;
+};
+
+\Aimeos\Cms\Permission::$delCallback = function( string $action, Authenticatable $user ) : Authenticatable {
+    // remove permission for action to user
+    return $user;
+};
 ```
 
 ### Configuration
@@ -201,14 +245,7 @@ Afterwards, tell PagibleAI CMS how the ID of the current tenant can be retrieved
 
 ### MCP API
 
-PagibleAI CMS offers tools within the Laravel MCP API that LLMs can use to interact with the CMS. To make them available, you have to add this line to your `./routes/ai.php` route file:
-
-```php
-Mcp::oauthRoutes();
-Mcp::web('/mcp/cms', \Aimeos\Cms\Mcp\CmsServer::class)->middleware('auth:api');
-```
-
-**Note:** You need to set up Laravel Passport for [MCP OAuth authentication](https://laravel.com/docs/master/mcp#authentication) too!
+PagibleAI CMS offers tools within the Laravel MCP API that LLMs can use to interact with the CMS. Please have a look into the [MCP.md](MCP.md) file for details how to set up the MCP API and Passport for authentication.
 
 ## Security
 

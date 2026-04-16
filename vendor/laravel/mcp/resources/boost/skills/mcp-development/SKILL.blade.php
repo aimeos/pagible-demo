@@ -1,6 +1,6 @@
 ---
 name: mcp-development
-description: "Develops MCP servers, tools, resources, and prompts. Activates when creating MCP tools, resources, or prompts; setting up AI integrations; debugging MCP connections; working with routes/ai.php; or when the user mentions MCP, Model Context Protocol, AI tools, AI server, or building tools for AI assistants."
+description: "Use this skill for Laravel MCP development only. Trigger when creating or editing MCP tools, resources, prompts, or servers in Laravel projects. Covers: artisan make:mcp-* generators, mcp:inspector, routes/ai.php, Tool/Resource/Prompt classes, schema validation, shouldRegister(), OAuth setup, URI templates, read-only attributes, and MCP debugging. Do not use for non-Laravel MCP projects or generic AI features without MCP."
 license: MIT
 metadata:
   author: laravel
@@ -9,14 +9,6 @@ metadata:
 /** @var \Laravel\Boost\Install\GuidelineAssist $assist */
 @endphp
 # MCP Development
-
-## When to Apply
-
-Activate this skill when:
-
-- Creating MCP tools, resources, or prompts
-- Setting up MCP server routes
-- Debugging MCP connection issues
 
 ## Documentation
 
@@ -96,3 +88,4 @@ class AppServer extends Server
 - Not using `search-docs` for the latest MCP documentation
 - Not registering MCP server routes in `routes/ai.php`
 - Do not register `ai.php` in `bootstrap.php`; it is registered automatically.
+- OAuth registration supports custom URI schemes (e.g., `cursor://`, `vscode://`) for native desktop clients via `mcp.custom_schemes` config
