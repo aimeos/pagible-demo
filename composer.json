@@ -8,7 +8,7 @@
     "require": {
         "php": "^8.2",
         "aimeos/laravel-analytics-matomo": "~1.0",
-        "aimeos/pagible": "~0.9",
+        "aimeos/pagible": "~0.10",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1"
     },
@@ -44,7 +44,7 @@
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
             "rm -rf public/vendor/cms/admin/",
-            "@php artisan vendor:publish --force --tag=public --tag=config --tag=admin",
+            "@php artisan vendor:publish --force --tag=cms-admin --tag=cms-config --tag=cms-graphql --tag=cms-theme",
             "cp local/stats.js public/vendor/cms/theme/",
             "@php artisan migrate --force"
         ],

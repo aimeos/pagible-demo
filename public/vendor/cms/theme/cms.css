@@ -156,7 +156,7 @@ header nav details summary::-webkit-details-marker {
 header nav details summary::after {
     display: block;
     float: right;
-    width: 1rem;
+    width: 1.5rem;
     height: calc(1rem * var(--pico-line-height, 1.5));
     transform: rotate(0) translateX(.2rem);
     background-image: var(--pico-icon-chevron);
@@ -172,13 +172,9 @@ header nav details[open] summary::after {
 }
 
 header nav details.dropdown > summary + ul.align {
+    width: auto;
     left: auto;
-    right: 0;
-}
-
-[dir="rtl"] header nav details.dropdown > summary + ul.align {
     right: auto;
-    left: 0;
 }
 
 header nav .brand {
@@ -231,7 +227,7 @@ header nav a {
         position: absolute;
         background-color: var(--pico-background-color);
         min-height: 100%;
-        z-index: 1000;
+        z-index: 100;
         width: 100%;
     }
 
@@ -337,11 +333,7 @@ dialog.search .results {
     padding: 1rem;
 }
 
-dialog.search .result-item {
-    padding: .5rem 0;
-}
-
-dialog.search .result-item a {
+dialog.search a.result-item {
     border-inline-start: 1px solid var(--pico-contrast-border);
     color: var(--pico-color);
     text-decoration: none;
@@ -349,28 +341,50 @@ dialog.search .result-item a {
     display: block;
     padding: 0.5rem;
     padding-inline-start: 1rem;
+    margin-bottom: 0.5rem;
 }
 
-dialog.search .result-item a[role="heading"] {
-    border-bottom: 1px solid var(--pico-contrast-border);
-    background-color: var(--pico-contrast-background);
-    padding-inline-start: 0.5rem;
-    font-weight: bold;
-}
-
-dialog.search .result-item a:hover {
+dialog.search a.result-item:hover {
     --pico-color: var(--pico-contrast);
     background-color: var(--pico-contrast-background);
     color: var(--pico-contrast);
 }
 
-dialog.search .result-item a[role="heading"]:hover {
-    background-color: var(--pico-contrast-hover-border);
+dialog.search .result-title {
+    border-bottom: 1px solid var(--pico-contrast-border);
+    display: block;
+    font-weight: bold;
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.25rem;
 }
 
-dialog.search .result-item a b {
+dialog.search .result-content {
+    display: block;
+}
+
+dialog.search .result-content b {
     background-color: var(--pico-contrast-background);
     padding: 0.1rem 0.25rem;
+}
+
+dialog.search .load-more {
+    background-color: var(--pico-contrast-background);
+    color: var(--pico-contrast);
+    border: 1px solid var(--pico-contrast-border);
+    cursor: pointer;
+    display: block;
+    font-size: 1rem;
+    margin: 1rem auto;
+    padding: 0.5rem 1.5rem;
+}
+
+dialog.search .load-more:hover {
+    background-color: var(--pico-contrast-hover-background);
+}
+
+dialog.search .load-more:disabled {
+    opacity: 0.5;
+    cursor: wait;
 }
 
 

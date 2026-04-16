@@ -3,11 +3,17 @@
  */
 
 
+document.querySelectorAll('link[rel="preload"][as="style"]').forEach(el => {
+    el.rel = 'stylesheet';
+});
+
+
 /**
  * Page search
  */
 function PagibleSearch() {
     let modal = null;
+    let nextPageUrl = null;
 
     return {
         debounce(fn, delay = 300) {
@@ -43,20 +49,11 @@ function PagibleSearch() {
         format(text, term) {
             const words = term
                 .split(" ")
-                .filter(v => v.length > 2)
-                .map(v => v.replace(/[.*+?^${}()|[\]\\]/g, ''));
+                .filter(v => v.length > 2);
 
             if (!words.length) {
                 return text;
             }
-
-            const regex = new RegExp(`(${words.join("|")})`, "i");
-            const match = text.match(regex);
-
-            const start = match?.index > 30 ? text.indexOf(' ', match.index - 30) : 0;
-            const end = text.indexOf(' ', Math.min(start + 110, text.length));
-
-            text = text.substring(Math.max(start, 0), end > 0 ? end : text.length);
 
             return text.replace(new RegExp(`(${words.join("|")})`, "gi"), '<b>$1</b>');
         },
@@ -78,7 +75,11 @@ function PagibleSearch() {
                 return response.json();
             }).then(result => {
                 const results = ev.target?.closest('article')?.querySelector('.results');
-                if (results) this.update(results, result, value);
+                if (results) {
+                    nextPageUrl = result.next_page_url;
+                    this.update(results, result.data, value);
+                    this.loadmore(results, value);
+                }
             }).catch(error => {
                 console.error('Error searching pages', error);
             });
@@ -88,7 +89,7 @@ function PagibleSearch() {
 
 
         select(ev) {
-            const result = ev.target?.closest('article')?.querySelector('.result-item a');
+            const result = ev.target?.closest('article')?.querySelector('a.result-item');
 
             if (result?.href) {
                 modal?.close();
@@ -99,50 +100,67 @@ function PagibleSearch() {
         },
 
 
-        update(results, data, value) {
+        update(results, data, value, append = false) {
             if (!results) return;
 
-            results.innerHTML = '';
+            if (!append) {
+                results.innerHTML = '';
+            } else {
+                results.querySelector('.load-more')?.remove();
+            }
 
-            const grouped = data.reduce((acc, item) => {
-                acc[item.title] = acc[item.title] || [];
-                acc[item.title].push(item);
-                return acc;
-            }, {});
+            for (const item of data) {
+                const container = document.createElement('a');
+                const title = document.createElement('span');
+                const content = document.createElement('span');
 
-            for (const name in grouped) {
-                const container = document.createElement('div');
-                const title = document.createElement('a');
-                const first = grouped[name][0];
-
-                title.role = 'heading';
-                title.textContent = name;
-                title.href = window.location.protocol + '//' + (first?.domain || window.location.host) + '/' + first?.path;
-                title.addEventListener('click', () => {
+                container.classList.add('result-item');
+                container.href = window.location.protocol + '//' + (item.domain || window.location.host) + '/' + item.path;
+                container.addEventListener('click', () => {
                     try {
-                        if (new URL(title.href).pathname === window.location.pathname) modal?.close();
+                        if (new URL(container.href).pathname === window.location.pathname) modal?.close();
                     } catch(e) {}
                 });
 
-                container.classList.add('result-item');
+                title.classList.add('result-title');
+                title.textContent = item.title;
                 container.appendChild(title);
 
-                for(const item of grouped[name]) {
-                    const content = document.createElement('a');
-
-                    content.href = window.location.protocol + '//' + (item.domain || window.location.host) + '/' + item.path;
-                    content.innerHTML = this.format(item.content, value);
-                    content.role = 'button';
-                    content.addEventListener('click', () => {
-                        try {
-                            if (new URL(content.href).pathname === window.location.pathname) modal?.close();
-                        } catch(e) {}
-                    });
-                    container.appendChild(content);
-                }
+                content.classList.add('result-content');
+                content.innerHTML = this.format(item.content, value);
+                container.appendChild(content);
 
                 results.appendChild(container);
             }
+        },
+
+
+        loadmore(results, value) {
+            if (!results || !nextPageUrl) return;
+
+            const btn = document.createElement('button');
+            btn.classList.add('load-more');
+            btn.textContent = 'Load more';
+            btn.addEventListener('click', () => {
+                btn.disabled = true;
+
+                fetch(nextPageUrl, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                }).then(response => {
+                    if (!response.ok) throw response;
+                    return response.json();
+                }).then(result => {
+                    nextPageUrl = result.next_page_url;
+                    this.update(results, result.data, value, true);
+                    this.loadmore(results, value);
+                }).catch(error => {
+                    btn.disabled = false;
+                    console.error('Error loading more results', error);
+                });
+            });
+
+            results.appendChild(btn);
         }
     };
 };
@@ -188,6 +206,7 @@ function PagibleModals(modal) {
         open(modal) {
             if (!modal) return;
 
+            this.init(modal);
             document.documentElement.classList.add(this.isOpenClass, this.openingClass);
 
             setTimeout(() => {
@@ -195,7 +214,6 @@ function PagibleModals(modal) {
                 this.visible = true;
             }, 300);
 
-            this.init(modal);
             modal.showModal();
         },
 
@@ -283,5 +301,28 @@ document.addEventListener('DOMContentLoaded', () => {
         sideopen?.classList?.toggle("show");
         sideclose?.classList?.toggle("show");
         sidebar?.classList.toggle("show");
+    });
+
+    document.querySelectorAll('header nav details.dropdown').forEach(el => {
+        el.addEventListener('toggle', () => {
+            const ul = el.querySelector('ul.align');
+
+            if (el.open && ul) {
+                ul.style.left = '';
+                ul.style.right = '';
+
+                requestAnimationFrame(() => {
+                    const rect = ul.getBoundingClientRect();
+
+                    if (rect.right > document.documentElement.clientWidth) {
+                        ul.style.right = '0';
+                    }
+
+                    if (rect.left < 0) {
+                        ul.style.left = '0';
+                    }
+                });
+            }
+        });
     });
 });

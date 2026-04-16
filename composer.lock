@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "fe67f0ddde75eca2c445eccda21674e9",
+    "content-hash": "d7b3a1a03367993bb891234f2b60115d",
     "packages": [
         {
             "name": "aimeos/laravel-analytics-bridge",
