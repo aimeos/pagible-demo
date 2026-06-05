@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "053b98e1498c3a6c24ad6fb187e42304",
+    "content-hash": "e0a3c70e952858db5862ce33308e6a48",
     "packages": [
         {
             "name": "aimeos/laravel-analytics-bridge",
@@ -156,16 +156,16 @@
         },
         {
             "name": "aimeos/pagible",
-            "version": "0.11.1",
+            "version": "0.11.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "c903f238f087b00cfe890403ec594a959ba7ffa7"
+                "reference": "9c445c9120c4614083482c46cf5f9a7906fffb51"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/c903f238f087b00cfe890403ec594a959ba7ffa7",
-                "reference": "c903f238f087b00cfe890403ec594a959ba7ffa7",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/9c445c9120c4614083482c46cf5f9a7906fffb51",
+                "reference": "9c445c9120c4614083482c46cf5f9a7906fffb51",
                 "shasum": ""
             },
             "require": {
@@ -218,9 +218,9 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible/issues",
-                "source": "https://github.com/aimeos/pagible/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible/tree/0.11"
             },
-            "time": "2026-06-05T17:36:39+00:00"
+            "time": "2026-06-05T22:21:58+00:00"
         },
         {
             "name": "aimeos/pagible-admin",
@@ -665,16 +665,16 @@
         },
         {
             "name": "aimeos/pagible-themes-glass",
-            "version": "0.11.1",
+            "version": "0.11.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-glass.git",
-                "reference": "23611d70118fe8a6cbb6441359a97350ba71d5a4"
+                "reference": "28dd732640502a22cab874ceee4eb4f42c73ba2e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-glass/zipball/23611d70118fe8a6cbb6441359a97350ba71d5a4",
-                "reference": "23611d70118fe8a6cbb6441359a97350ba71d5a4",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-glass/zipball/28dd732640502a22cab874ceee4eb4f42c73ba2e",
+                "reference": "28dd732640502a22cab874ceee4eb4f42c73ba2e",
                 "shasum": ""
             },
             "require": {
@@ -709,22 +709,22 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-themes-glass/issues",
-                "source": "https://github.com/aimeos/pagible-themes-glass/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-themes-glass/tree/0.11"
             },
-            "time": "2026-06-05T17:40:41+00:00"
+            "time": "2026-06-05T22:22:32+00:00"
         },
         {
             "name": "aimeos/pagible-themes-pagible",
-            "version": "0.11.1",
+            "version": "0.11.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-pagible.git",
-                "reference": "403562443566ac13c99d01b5fa1d38f93aac9f62"
+                "reference": "7d11ec2e2f1e6922c391dfa68274bc5584d3487a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/403562443566ac13c99d01b5fa1d38f93aac9f62",
-                "reference": "403562443566ac13c99d01b5fa1d38f93aac9f62",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/7d11ec2e2f1e6922c391dfa68274bc5584d3487a",
+                "reference": "7d11ec2e2f1e6922c391dfa68274bc5584d3487a",
                 "shasum": ""
             },
             "require": {
@@ -758,22 +758,22 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-themes-pagible/issues",
-                "source": "https://github.com/aimeos/pagible-themes-pagible/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-themes-pagible/tree/0.11"
             },
-            "time": "2026-06-05T17:40:38+00:00"
+            "time": "2026-06-05T22:22:33+00:00"
         },
         {
             "name": "aimeos/pagible-themes-paper",
-            "version": "0.11.1",
+            "version": "0.11.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-paper.git",
-                "reference": "4ade324b6e791178f5c21b5bf52cfa9fd2146e9f"
+                "reference": "0440d95a6ac63c5e36054c9cf4231281d534eea7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-paper/zipball/4ade324b6e791178f5c21b5bf52cfa9fd2146e9f",
-                "reference": "4ade324b6e791178f5c21b5bf52cfa9fd2146e9f",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-paper/zipball/0440d95a6ac63c5e36054c9cf4231281d534eea7",
+                "reference": "0440d95a6ac63c5e36054c9cf4231281d534eea7",
                 "shasum": ""
             },
             "require": {
@@ -807,22 +807,22 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-themes-paper/issues",
-                "source": "https://github.com/aimeos/pagible-themes-paper/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-themes-paper/tree/0.11"
             },
-            "time": "2026-06-05T17:40:37+00:00"
+            "time": "2026-06-05T22:22:35+00:00"
         },
         {
             "name": "aimeos/pagible-themes-premium",
-            "version": "0.11.1",
+            "version": "0.11.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-premium.git",
-                "reference": "5fb1e71ecc9c7562b3f3de4faf7a0269615f8f50"
+                "reference": "342a145cea96d9a50885e1fcc74c72fbde9a7de8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-premium/zipball/5fb1e71ecc9c7562b3f3de4faf7a0269615f8f50",
-                "reference": "5fb1e71ecc9c7562b3f3de4faf7a0269615f8f50",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-premium/zipball/342a145cea96d9a50885e1fcc74c72fbde9a7de8",
+                "reference": "342a145cea96d9a50885e1fcc74c72fbde9a7de8",
                 "shasum": ""
             },
             "require": {
@@ -856,9 +856,9 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-themes-premium/issues",
-                "source": "https://github.com/aimeos/pagible-themes-premium/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-themes-premium/tree/0.11"
             },
-            "time": "2026-06-05T17:40:36+00:00"
+            "time": "2026-06-05T22:22:31+00:00"
         },
         {
             "name": "aimeos/prisma",
@@ -12017,7 +12017,13 @@
     ],
     "aliases": [],
     "minimum-stability": "dev",
-    "stability-flags": {},
+    "stability-flags": {
+        "aimeos/pagible": 20,
+        "aimeos/pagible-themes-glass": 20,
+        "aimeos/pagible-themes-pagible": 20,
+        "aimeos/pagible-themes-paper": 20,
+        "aimeos/pagible-themes-premium": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
