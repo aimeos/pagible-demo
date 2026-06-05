@@ -123,7 +123,7 @@ return array(
     'App\\' => array($baseDir . '/app'),
     'Aimeos\\Prisma\\' => array($vendorDir . '/aimeos/prisma/src'),
     'Aimeos\\Nestedset\\' => array($vendorDir . '/aimeos/laravel-nestedset/src'),
-    'Aimeos\\Cms\\' => array($vendorDir . '/aimeos/pagible/src', $vendorDir . '/aimeos/pagible-theme/src', $vendorDir . '/aimeos/pagible-search/src', $vendorDir . '/aimeos/pagible-jsonapi/src', $vendorDir . '/aimeos/pagible-ai/src', $vendorDir . '/aimeos/pagible-admin/src', $vendorDir . '/aimeos/pagible-mcp/src', $vendorDir . '/aimeos/pagible-graphql/src', $vendorDir . '/aimeos/pagible-core/src'),
+    'Aimeos\\Cms\\' => array($vendorDir . '/aimeos/pagible-themes-premium/src', $vendorDir . '/aimeos/pagible-themes-paper/src', $vendorDir . '/aimeos/pagible-themes-pagible/src', $vendorDir . '/aimeos/pagible-themes-glass/src', $vendorDir . '/aimeos/pagible/src', $vendorDir . '/aimeos/pagible-search/src', $vendorDir . '/aimeos/pagible-jsonapi/src', $vendorDir . '/aimeos/pagible-ai/src', $vendorDir . '/aimeos/pagible-admin/src', $vendorDir . '/aimeos/pagible-mcp/src', $vendorDir . '/aimeos/pagible-theme/src', $vendorDir . '/aimeos/pagible-graphql/src', $vendorDir . '/aimeos/pagible-core/src'),
     'Aimeos\\AnalyticsBridge\\Drivers\\' => array($vendorDir . '/aimeos/laravel-analytics-matomo/src'),
     'Aimeos\\AnalyticsBridge\\' => array($vendorDir . '/aimeos/laravel-analytics-bridge/src'),
 );

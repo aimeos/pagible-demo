@@ -9,6 +9,10 @@
         "php": "^8.2",
         "aimeos/laravel-analytics-matomo": "~1.0",
         "aimeos/pagible": "~0.11",
+        "aimeos/pagible-themes-glass": "^0.11.1",
+        "aimeos/pagible-themes-pagible": "^0.11.1",
+        "aimeos/pagible-themes-paper": "^0.11.1",
+        "aimeos/pagible-themes-premium": "^0.11.1",
         "laravel/framework": "^12.0",
         "laravel/reverb": "^1.10",
         "laravel/tinker": "^2.10.1"
