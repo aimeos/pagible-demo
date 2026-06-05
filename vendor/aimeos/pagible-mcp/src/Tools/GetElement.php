@@ -32,7 +32,7 @@ class GetElement extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'element:view', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -42,22 +42,34 @@ class GetElement extends Tool
         ] );
 
         /** @var Element|null $element */
-        $element = Element::withTrashed()->find( $v['id'] );
+        $element = Element::withTrashed()->with( [
+            'latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'data', 'lang', 'editor', 'published', 'publish_at', 'created_at' )
+        ] )->find( $v['id'] );
 
         if( !$element ) {
             return Response::structured( ['error' => 'Element not found.'] );
         }
 
-        $data = $element->toArray();
+        $version = $element->latest;
+        $vdata = $version?->data;
+        $usedByPages = $element->bypages()->toBase()
+            ->select( 'cms_pages.id', 'cms_pages.name', 'cms_pages.path' )
+            ->cursor()->map( fn( $p ) => (array) $p )->all();
 
-        if( $latest = $element->latest ) {
-            $data['latest_version'] = array_merge(
-                (array) $latest->data,
-                ['published' => $latest->published],
-                ['publish_at' => $latest->publish_at],
-                ['editor' => $latest->editor],
-            );
-        }
+        $data = [
+            'id' => $element->id,
+            'type' => $element->type,
+            'deleted' => $element->trashed(),
+            'lang' => $version->lang ?? '',
+            'editor' => $version->editor ?? '',
+            'name' => $vdata->name ?? '',
+            'data' => $vdata->data ?? new \stdClass(),
+            'published' => $version->published ?? false,
+            'publish_at' => $version->publish_at ?? null,
+            'created_at' => $element->created_at?->format( 'Y-m-d H:i:s' ),
+            'updated_at' => $version?->created_at?->format( 'Y-m-d H:i:s' ),
+            'used_by_pages' => $usedByPages,
+        ];
 
         return Response::structured( $data );
     }

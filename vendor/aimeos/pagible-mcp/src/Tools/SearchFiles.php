@@ -33,7 +33,7 @@ class SearchFiles extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'file:view', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -46,30 +46,32 @@ class SearchFiles extends Tool
         ] );
 
         $search = File::search( mb_substr( trim( (string) ( $v['term'] ?? '' ) ), 0, 200 ) )
-            ->query( fn( $q ) => $q->with( 'latest' ) )
+            ->query( fn( $q ) => $q->select( 'cms_files.id', 'cms_files.created_at', 'cms_files.updated_at', 'cms_files.deleted_at', 'cms_files.latest_id' )
+            ->with( ['latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'data', 'lang', 'editor' )] ) )
             ->searchFields( 'draft' )
             ->take( 25 );
 
-        $result = Filter::files( $search, $v )->get()->map( function( $item ) {
+        $result = [];
+
+        foreach( Filter::files( $search, $v )->get() as $item )
+        {
             /** @var File $item */
-            $data = $item->latest->data ?? new \stdClass();
-            return [
+            $latest = $item->latest;
+            $data = $latest->data ?? new \stdClass();
+            $result[] = [
                 'id' => $item->id,
                 'name' => $data->name ?? null,
                 'mime' => $data->mime ?? null,
-                'lang' => $item->latest?->lang,
                 'path' => $data->path ?? null,
-                'previews' => $data->previews ?? null,
-                'description' => $data->description ?? null,
-                'transcription' => $data->transcription ?? null,
-                'editor' => $item->latest?->editor,
+                'lang' => $latest?->lang,
+                'editor' => $latest?->editor,
                 'deleted' => $item->trashed(),
                 'created_at' => $item->created_at?->format( 'Y-m-d H:i:s' ),
                 'updated_at' => $item->updated_at?->format( 'Y-m-d H:i:s' ),
             ];
-        } );
+        }
 
-        return Response::structured( ['files' => $result->all()] );
+        return Response::structured( ['files' => $result] );
     }
 
 

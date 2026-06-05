@@ -2,13 +2,9 @@
 
 <script>
 import gql from 'graphql-tag'
-import isEqual from 'fast-deep-equal'
 import Fields from './Fields.vue'
-import SchemaDialog from './SchemaDialog.vue'
+import { defineAsyncComponent, markRaw } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
-import { toString } from 'mdast-util-to-string'
-import { toMarkdown } from 'mdast-util-to-markdown'
-import { fromMarkdown } from 'mdast-util-from-markdown'
 import {
   useUserStore,
   useClipboardStore,
@@ -16,9 +12,8 @@ import {
   useSchemaStore,
   useSideStore
 } from '../stores'
-import { recording } from '../audio'
-import { transcribe } from '../ai'
-import { uid } from '../utils'
+import { changedState } from '../merge'
+import { debounce, frozenParse, itemTitle, uid } from '../utils'
 import {
   mdiMenuDown,
   mdiContentCopy,
@@ -38,9 +33,43 @@ import {
   mdiViewGridPlus,
   mdiHelpCircleOutline,
   mdiCheckBold,
+  mdiArrowRightCircle,
   mdiMicrophone,
   mdiMicrophoneOutline
 } from '@mdi/js'
+
+const SchemaDialog = defineAsyncComponent(() => import('./SchemaDialog.vue'))
+
+const REFINE_CONTENT = gql`
+  mutation ($prompt: String!, $content: JSON!, $type: String, $context: String, $lang: String, $pagetype: String) {
+    refine(prompt: $prompt, content: $content, type: $type, context: $context, lang: $lang, pagetype: $pagetype)
+  }
+`
+
+const ADD_ELEMENT = gql`
+  mutation ($input: ElementInput!, $files: [ID!]) {
+    addElement(input: $input, files: $files) {
+      id
+      type
+      lang
+      name
+      data
+      editor
+      updated_at
+      files {
+        id
+        lang
+        mime
+        name
+        path
+        previews
+        description
+        updated_at
+        editor
+      }
+    }
+  }
+`
 
 export default {
   components: {
@@ -52,6 +81,7 @@ export default {
   props: {
     item: { type: Object, required: true },
     assets: { type: Object, required: true },
+    changed: { type: Object, default: null },
     content: { type: Array, required: true },
     elements: { type: Object, required: true },
     section: { type: String, default: 'main' }
@@ -65,6 +95,7 @@ export default {
     audio: null,
     dictating: false,
     help: false,
+    lastError: false,
     refining: false,
     panel: [],
     menu: [],
@@ -89,6 +120,7 @@ export default {
       side,
       messages,
       schemas,
+      changedState,
       mdiMenuDown,
       mdiContentCopy,
       mdiContentCut,
@@ -107,17 +139,13 @@ export default {
       mdiViewGridPlus,
       mdiHelpCircleOutline,
       mdiCheckBold,
+      mdiArrowRightCircle,
       mdiMicrophone,
-      mdiMicrophoneOutline,
-      transcribe
+      mdiMicrophoneOutline
     }
   },
 
   computed: {
-    changed() {
-      return this.content.some((el) => el._changed)
-    },
-
     checkedCount() {
       return this.content.filter((el) => el._checked).length
     }
@@ -125,13 +153,12 @@ export default {
 
   methods: {
     add(item, idx) {
-      let entry = { id: uid(), group: this.section }
+      const entry = item.id
+        ? { id: uid(), group: this.section, type: 'reference', refid: item.id }
+        : { id: uid(), group: this.section, type: item.type, data: {} }
 
       if (item.id) {
         this.elements[item.id] = item
-        entry = Object.assign(entry, { type: 'reference', refid: item.id })
-      } else {
-        entry = Object.assign(entry, { type: item.type, data: {} })
       }
 
       if (idx !== null) {
@@ -173,14 +200,14 @@ export default {
       if (idx === undefined) {
         for (let i = this.content.length - 1; i >= 0; i--) {
           if (this.content[i]._checked) {
-            const entry = JSON.parse(JSON.stringify(this.content[i]))
+            const entry = structuredClone(this.content[i])
             entry._checked = false
             entry['id'] = null
             list.push(entry)
           }
         }
       } else {
-        const entry = JSON.parse(JSON.stringify(this.content[idx]))
+        const entry = structuredClone(this.content[idx])
         entry._checked = false
         entry['id'] = null
         list.push(entry)
@@ -206,16 +233,16 @@ export default {
       if (idx === undefined) {
         for (let i = this.content.length - 1; i >= 0; i--) {
           if (this.content[i]._checked) {
-            const entry = JSON.parse(JSON.stringify(this.content[i]))
-            this.content.splice(i, 1)
+            const [entry] = this.content.splice(i, 1)
             entry._checked = false
+            entry.id = null
             list.push(entry)
           }
         }
       } else {
-        const entry = JSON.parse(JSON.stringify(this.content[idx]))
-        this.content.splice(idx, 1)
+        const [entry] = this.content.splice(idx, 1)
         entry._checked = false
+        entry.id = null
         list.push(entry)
       }
 
@@ -225,11 +252,12 @@ export default {
 
     error(el, value) {
       el._error = value
-      this.$emit(
-        'error',
-        this.content.some((el) => el._error)
-      )
-      this.store()
+      const has = this.content.some((el) => el._error)
+      if (has !== this.lastError) {
+        this.lastError = has
+        this.$emit('error', has)
+      }
+      this.stored()
     },
 
     fields(type) {
@@ -316,7 +344,7 @@ export default {
 
     record() {
       if (!this.audio) {
-        return (this.audio = recording().start())
+        return (this.audio = markRaw(import('../audio').then((mod) => mod.recording().start())))
       }
 
       this.audio.then((rec) => {
@@ -324,7 +352,8 @@ export default {
         this.audio = null
 
         rec.stop()?.then((buffer) => {
-          this.transcribe(buffer)
+          import('../ai')
+            .then((mod) => mod.transcribe(buffer))
             .then((transcription) => {
               this.chat = transcription.asText()
             })
@@ -351,16 +380,14 @@ export default {
 
       this.$apollo
         .mutate({
-          mutation: gql`
-            mutation ($prompt: String!, $content: JSON!, $type: String, $context: String) {
-              refine(prompt: $prompt, content: $content, type: $type, context: $context)
-            }
-          `,
+          mutation: REFINE_CONTENT,
           variables: {
             prompt: prompt,
             content: JSON.stringify(this.content),
             type: 'content',
-            context: null
+            context: null,
+            lang: this.item.lang,
+            pagetype: this.item.type
           }
         })
         .then((result) => {
@@ -368,14 +395,16 @@ export default {
             throw result
           }
 
-          const map = Object.fromEntries(this.content.map((item) => [item.id, item]))
           const content = JSON.parse(result.data?.refine || '[]')
 
           if (content.length) {
+            const map = {}
+            for (const item of this.content) map[item.id] = item
+
             content.forEach((item) => {
               item.group = this.section
 
-              if (!isEqual(item, map[item.id] || {})) {
+              if (JSON.stringify(item) !== JSON.stringify(map[item.id] || {})) {
                 item._changed = true
               }
             })
@@ -384,6 +413,7 @@ export default {
           }
 
           this.refining = null
+          this.response = ''
           this.chat = ''
         })
         .catch((error) => {
@@ -416,10 +446,19 @@ export default {
         term = term.toLocaleLowerCase().trim()
 
         this.content.forEach((el) => {
-          const item = el.type === 'reference' ? this.elements[el.refid] || {} : el
-          el._hide = !JSON.stringify(Object.values(item?.data || {}))
-            .toLocaleLowerCase()
-            .includes(term)
+          const data = (el.type === 'reference' ? this.elements[el.refid] : el)?.data || {}
+          let found = false
+
+          for (const k in data) {
+            const v = data[k]
+
+            if (v && typeof v !== 'object' && typeof v !== 'boolean' && String(v).toLocaleLowerCase().includes(term)) {
+              found = true
+              break
+            }
+          }
+
+          el._hide = !found
         })
       }
     },
@@ -444,30 +483,7 @@ export default {
 
       this.$apollo
         .mutate({
-          mutation: gql`
-            mutation ($input: ElementInput!, $files: [ID!]) {
-              addElement(input: $input, files: $files) {
-                id
-                type
-                lang
-                name
-                data
-                editor
-                updated_at
-                files {
-                  id
-                  lang
-                  mime
-                  name
-                  path
-                  previews
-                  description
-                  updated_at
-                  editor
-                }
-              }
-            }
-          `,
+          mutation: ADD_ELEMENT,
           variables: {
             input: {
               type: entry.type,
@@ -489,12 +505,12 @@ export default {
           const element = result.data.addElement
 
           for (const file of element.files || []) {
-            file.previews = JSON.parse(file.previews || '{}')
+            file.previews = frozenParse(file.previews)
             this.assets[file.id] = file
           }
 
-          element.data = JSON.parse(element.data)
-          element.files = element.files.map((file) => file.id)
+          element.data = frozenParse(element.data)
+          element.files = Object.freeze(element.files.map((file) => file.id))
 
           this.elements[element.id] = element
           this.content[idx] = {
@@ -523,11 +539,17 @@ export default {
       )
     },
 
-    split(idx) {
+    async split(idx) {
       if (!this.content[idx]) {
         this.messages.add(this.$gettext('Not available for this content element'), 'error')
         return
       }
+
+      const [{ fromMarkdown }, { toString }, { toMarkdown }] = await Promise.all([
+        import('mdast-util-from-markdown'),
+        import('mdast-util-to-string'),
+        import('mdast-util-to-markdown')
+      ])
 
       const list = []
       const ast = fromMarkdown(this.content[idx].data?.text || '')
@@ -569,7 +591,6 @@ export default {
             break
           }
           default: {
-            // Convert unhandled node types back to raw Markdown
             list.push({
               id: uid(),
               type: 'text',
@@ -607,22 +628,11 @@ export default {
         }
       })
 
-      return (this.side.store = { type: types, state: state })
+      return (this.side.store = Object.freeze({ type: Object.freeze(types), state: Object.freeze(state) }))
     },
 
     title(el) {
-      return (
-        (
-          el.data?.title ||
-          el.data?.text ||
-          Object.values(el.data || {})
-            .map((v) => (v && typeof v !== 'object' && typeof v !== 'boolean' ? v : null))
-            .filter((v) => !!v)
-            .join(' - ')
-        ).substring(0, 100) ||
-        this.$pgettext('st', el.type) ||
-        ''
-      )
+      return itemTitle(el.data) || this.$pgettext('st', el.type) || ''
     },
 
     toggle() {
@@ -668,8 +678,29 @@ export default {
         el.id = uid()
       }
 
+      this.emitContent()
+    },
+
+    flush() {
       this.$emit('update:content', this.content)
     }
+  },
+
+  created() {
+    this.stored = debounce(() => this.store(), 200)
+    this.emitContent = debounce(() => this.$emit('update:content', this.content), 150)
+  },
+
+  beforeUnmount() {
+    if (this.audio) {
+      this.audio.then((rec) => rec?.stop?.()).catch(() => {})
+      this.audio = null
+    }
+
+    this.panel = null
+    this.menu = null
+    this.response = ''
+    this.chat = ''
   },
 
   watch: {
@@ -677,7 +708,13 @@ export default {
       immediate: true,
       handler() {
         this.checked = false
-        this.store()
+        this.stored?.()
+      }
+    },
+
+    panel(val) {
+      if (Array.isArray(val) && val.length > 3) {
+        this.panel = val.slice(-3)
       }
     }
   }
@@ -685,7 +722,7 @@ export default {
 </script>
 
 <template>
-  <div v-observe-visibility="store">
+  <div v-visible="store">
     <v-textarea
       v-if="user.can('page:refine')"
       v-model="chat"
@@ -801,122 +838,135 @@ export default {
         :modelValue="content"
         :forceFallback="true"
         fallbackTolerance="10"
+        handle=".item-handle"
         draggable=".content"
         group="content"
       >
         <v-expansion-panel
           v-for="(el, idx) in content"
-          :key="idx"
+          :key="el.id"
           v-show="shown(el)"
           class="content"
-          :class="{ changed: el._changed, error: el._error }"
+          :class="{
+            changed: el._changed,
+            error: el._error,
+            ...changedState(changed, el.id || el.refid)
+          }"
         >
           <v-expansion-panel-title>
+            <v-btn variant="text" class="item-handle" :aria-label="$gettext('Move element')" icon>
+              <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9,3H11V5H9V3M13,3H15V5H13V3M9,7H11V9H9V7M13,7H15V9H13V7M9,11H11V13H9V11M13,11H15V13H13V11M9,15H11V17H9V15M13,15H15V17H13V15M9,19H11V21H9V19M13,19H15V21H13V19Z" />
+              </svg>
+            </v-btn>
+
             <v-checkbox-btn
               v-if="user.can('page:save')"
               :model-value="el._checked"
               @click.stop="el._checked = !el._checked"
             />
 
-            <component
-              :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
-              :aria-label="$gettext('Actions')"
-              v-model="menu[idx]"
-              transition="scale-transition"
-              location="end center"
-              max-width="300"
-            >
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  :title="$gettext('Actions')"
-                  :icon="mdiDotsVertical"
-                  variant="text"
-                />
-              </template>
-
-              <v-card>
-                <v-toolbar density="compact">
-                  <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
+            <span class="btn-actions">
+              <component
+                :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+                :aria-label="$gettext('Actions')"
+                v-model="menu[idx]"
+                transition="scale-transition"
+                location="end center"
+                max-width="300"
+              >
+                <template #activator="{ props }">
                   <v-btn
-                    :icon="mdiClose"
-                    :aria-label="$gettext('Close')"
-                    @click="menu[idx] = false"
+                    v-bind="props"
+                    :title="$gettext('Actions')"
+                    :icon="mdiDotsVertical"
+                    variant="text"
                   />
-                </v-toolbar>
+                </template>
 
-                <v-list @click="menu[idx] = false">
-                  <v-list-item v-if="!el._error">
-                    <v-btn :prepend-icon="mdiContentCopy" variant="text" @click="copy(idx)">{{
-                      $gettext('Copy')
-                    }}</v-btn>
-                  </v-list-item>
-                  <v-list-item v-if="!el._error">
-                    <v-btn :prepend-icon="mdiContentCut" variant="text" @click="cut(idx)">{{
-                      $gettext('Cut')
-                    }}</v-btn>
-                  </v-list-item>
-                  <v-list-item>
-                    <v-btn :prepend-icon="mdiDelete" variant="text" @click="remove(idx)">{{
-                      $gettext('Delete')
-                    }}</v-btn>
-                  </v-list-item>
+                <v-card>
+                  <v-toolbar density="compact">
+                    <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
+                    <v-btn
+                      :icon="mdiClose"
+                      :aria-label="$gettext('Close')"
+                      @click="menu[idx] = false"
+                    />
+                  </v-toolbar>
 
-                  <v-divider></v-divider>
+                  <v-list @click="menu[idx] = false">
+                    <v-list-item v-if="!el._error">
+                      <v-btn :prepend-icon="mdiContentCopy" variant="text" @click="copy(idx)">{{
+                        $gettext('Copy')
+                      }}</v-btn>
+                    </v-list-item>
+                    <v-list-item v-if="!el._error">
+                      <v-btn :prepend-icon="mdiContentCut" variant="text" @click="cut(idx)">{{
+                        $gettext('Cut')
+                      }}</v-btn>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-btn :prepend-icon="mdiDelete" variant="text" @click="remove(idx)">{{
+                        $gettext('Delete')
+                      }}</v-btn>
+                    </v-list-item>
 
-                  <v-list-item v-if="menu[idx] && clipboard.get('page-content')">
-                    <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="paste(idx)">{{
-                      $gettext('Paste before')
-                    }}</v-btn>
-                  </v-list-item>
-                  <v-list-item v-if="menu[idx] && clipboard.get('page-content')">
-                    <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="paste(idx + 1)">{{
-                      $gettext('Paste after')
-                    }}</v-btn>
-                  </v-list-item>
-                  <v-list-item>
-                    <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="insert(idx)">{{
-                      $gettext('Insert before')
-                    }}</v-btn>
-                  </v-list-item>
-                  <v-list-item>
-                    <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="insert(idx + 1)">{{
-                      $gettext('Insert after')
-                    }}</v-btn>
-                  </v-list-item>
+                    <v-divider></v-divider>
 
-                  <v-divider></v-divider>
+                    <v-list-item v-if="menu[idx] && clipboard.get('page-content')">
+                      <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="paste(idx)">{{
+                        $gettext('Paste before')
+                      }}</v-btn>
+                    </v-list-item>
+                    <v-list-item v-if="menu[idx] && clipboard.get('page-content')">
+                      <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="paste(idx + 1)">{{
+                        $gettext('Paste after')
+                      }}</v-btn>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="insert(idx)">{{
+                        $gettext('Insert before')
+                      }}</v-btn>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="insert(idx + 1)">{{
+                        $gettext('Insert after')
+                      }}</v-btn>
+                    </v-list-item>
 
-                  <v-list-item
-                    v-if="!el._error && el.type !== 'reference' && user.can('element:add')"
-                  >
-                    <v-btn :prepend-icon="mdiLink" variant="text" @click="share(idx)">{{
-                      $gettext('Make shared')
-                    }}</v-btn>
-                  </v-list-item>
-                  <v-list-item v-if="el.type === 'reference'">
-                    <v-btn :prepend-icon="mdiLinkOff" variant="text" @click="unshare(idx)">{{
-                      $gettext('Merge copy')
-                    }}</v-btn>
-                  </v-list-item>
-                  <v-list-item v-if="el.type !== 'reference'">
-                    <v-btn :prepend-icon="mdiSwapHorizontal" variant="text" @click="change(idx)">{{
-                      $gettext('Change to')
-                    }}</v-btn>
-                  </v-list-item>
-                  <v-list-item v-if="el.type === 'text'">
-                    <v-btn :prepend-icon="mdiSetSplit" variant="text" @click="split(idx)">{{
-                      $gettext('Split')
-                    }}</v-btn>
-                  </v-list-item>
-                  <v-list-item v-if="el._checked && checkedCount > 1">
-                    <v-btn :prepend-icon="mdiSetMerge" variant="text" @click="merge()">{{
-                      $gettext('Merge')
-                    }}</v-btn>
-                  </v-list-item>
-                </v-list>
-              </v-card>
-            </component>
+                    <v-divider></v-divider>
+
+                    <v-list-item
+                      v-if="!el._error && el.type !== 'reference' && user.can('element:add')"
+                    >
+                      <v-btn :prepend-icon="mdiLink" variant="text" @click="share(idx)">{{
+                        $gettext('Make shared')
+                      }}</v-btn>
+                    </v-list-item>
+                    <v-list-item v-if="el.type === 'reference'">
+                      <v-btn :prepend-icon="mdiLinkOff" variant="text" @click="unshare(idx)">{{
+                        $gettext('Merge copy')
+                      }}</v-btn>
+                    </v-list-item>
+                    <v-list-item v-if="el.type !== 'reference'">
+                      <v-btn :prepend-icon="mdiSwapHorizontal" variant="text" @click="change(idx)">{{
+                        $gettext('Change to')
+                      }}</v-btn>
+                    </v-list-item>
+                    <v-list-item v-if="el.type === 'text'">
+                      <v-btn :prepend-icon="mdiSetSplit" variant="text" @click="split(idx)">{{
+                        $gettext('Split')
+                      }}</v-btn>
+                    </v-list-item>
+                    <v-list-item v-if="el._checked && checkedCount > 1">
+                      <v-btn :prepend-icon="mdiSetMerge" variant="text" @click="merge()">{{
+                        $gettext('Merge')
+                      }}</v-btn>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </component>
+            </span>
 
             <v-icon
               v-if="el.type === 'reference'"
@@ -930,7 +980,7 @@ export default {
             </div>
             <div class="element-type">{{ $pgettext('st', el.type) }}</div>
           </v-expansion-panel-title>
-          <v-expansion-panel-text eager>
+          <v-expansion-panel-text>
             <Fields
               v-if="el.type === 'reference'"
               :data="elements[el.refid]?.data || {}"
@@ -960,6 +1010,7 @@ export default {
         @click="openSchemas"
         :title="$gettext('Add element')"
         :icon="mdiViewGridPlus"
+        class="btn-add"
         color="primary"
         variant="flat"
       />
@@ -1009,6 +1060,18 @@ export default {
   border-inline-start: 3px solid rgb(var(--v-theme-warning));
 }
 
+.v-expansion-panel.merged {
+  border-inline-start: 3px solid rgb(var(--v-theme-info));
+}
+
+.v-expansion-panel.conflict {
+  border-inline-start: 3px solid rgb(var(--v-theme-error));
+}
+
+.v-expansion-panel.conflict .v-expansion-panel-title {
+  color: rgb(var(--v-theme-error));
+}
+
 .v-expansion-panel.error .v-expansion-panel-title {
   color: rgb(var(--v-theme-error));
 }
@@ -1017,10 +1080,8 @@ export default {
   flex: none;
 }
 
-.element-type {
-  max-height: 48px;
-  max-width: 5rem;
-  text-align: end;
+.item-handle {
+  cursor: move;
 }
 
 .icon-shared {

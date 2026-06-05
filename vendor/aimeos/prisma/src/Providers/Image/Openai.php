@@ -18,7 +18,7 @@ class Openai extends Base implements Describe, Imagine, Inpaint
     public function describe( Image $image, ?string $lang = null, array $options = [] ) : TextResponse
     {
         $response = $this->client()->post( 'v1/responses', ['json' => [
-            'model' => $this->modelName( 'gpt-5' ),
+            'model' => $this->modelName( 'gpt-5.5' ),
             'input' => [[
                 'role' => 'user',
                 'content' => [[
@@ -33,14 +33,23 @@ class Openai extends Base implements Describe, Imagine, Inpaint
 
         $this->validate( $response );
 
+        /** @var array<string, mixed> $result */
         $result = $this->fromJson( $response );
+        /** @var array<string|null> $texts */
         $texts = [];
 
-        foreach( $result['output'] ?? [] as $data )
+        /** @var array<int, array<string, mixed>> $output */
+        $output = $result['output'] ?? [];
+
+        foreach( $output as $data )
         {
-            foreach( $data['content'] ?? [] as $content )
+            /** @var array<int, array<string, mixed>> $contentItems */
+            $contentItems = $data['content'] ?? [];
+
+            foreach( $contentItems as $content )
             {
                 if( $text = $content['text'] ?? null ) {
+                    /** @var string $text */
                     $texts[] = $text;
                 }
             }
@@ -53,10 +62,14 @@ class Openai extends Base implements Describe, Imagine, Inpaint
         $meta = $result;
         unset( $meta['output'], $meta['usage'] );
 
+        /** @var array<string, mixed> $usage */
+        $usage = $result['usage'] ?? [];
+        $used = $usage['total_tokens'] ?? null;
+
         return TextResponse::fromTexts( $texts )
             ->withUsage(
-                $result['usage']['total_tokens'] ?? null,
-                $result['usage'] ?? [],
+                is_numeric( $used ) ? (float) $used : null,
+                $usage,
             )
             ->withMeta( $meta );
     }
@@ -72,7 +85,7 @@ class Openai extends Base implements Describe, Imagine, Inpaint
 
     public function inpaint( Image $image, Image $mask, string $prompt, array $options = [] ) : FileResponse
     {
-        $params = $this->params( $prompt, $options, 'dall-e-2' );
+        $params = $this->params( $prompt, $options, 'gpt-image-1' );
         $request = $this->request( $params, ['image' => $image, 'mask' => $this->mask( $mask )] );
         $response = $this->client()->post( 'v1/images/edits', ['multipart' => $request] );
 
@@ -115,7 +128,6 @@ class Openai extends Base implements Describe, Imagine, Inpaint
 
         $png = stream_get_contents( $stream );
 
-        imagedestroy( $mask );
         fclose( $stream );
 
         return Image::fromBinary( $png, 'image/png' );
@@ -132,8 +144,8 @@ class Openai extends Base implements Describe, Imagine, Inpaint
      */
     protected function params( string $prompt, array $options, ?string $model = null ) : array
     {
-        $model = $this->modelName( $model ?? 'dall-e-3' );
-        $data = ['model' => $model, 'prompt' => $prompt, 'response_format' => 'b64_json'];
+        $model = $this->modelName( $model ?? 'gpt-image-1' );
+        $data = ['model' => $model, 'prompt' => $prompt];
 
         $names = match( $model ) {
             'gpt-image-1' => ['background', 'moderation', 'output_compression', 'output_format'],
@@ -187,13 +199,23 @@ class Openai extends Base implements Describe, Imagine, Inpaint
     {
         $this->validate( $response );
 
+        /** @var array<string, mixed> $result */
         $result = $this->fromJson( $response );
         $files = [];
 
-        foreach( $result['data'] ?? [] as $item )
+        /** @var array<int, array<string, mixed>> $dataItems */
+        $dataItems = $result['data'] ?? [];
+
+        foreach( $dataItems as $item )
         {
             if( !empty( $item['b64_json'] ) ) {
-                $files[] = Image::fromBase64( $item['b64_json'] );
+                /** @var string $b64 */
+                $b64 = $item['b64_json'];
+                $files[] = Image::fromBase64( $b64 );
+            } elseif( !empty( $item['url'] ) ) {
+                /** @var string $url */
+                $url = $item['url'];
+                $files[] = Image::fromUrl( $url );
             }
         }
 
@@ -204,10 +226,14 @@ class Openai extends Base implements Describe, Imagine, Inpaint
         $meta = $result;
         unset( $meta['data'], $meta['usage'] );
 
+        /** @var array<string, mixed> $usage */
+        $usage = $result['usage'] ?? [];
+        $used = $usage['total_tokens'] ?? null;
+
         return FileResponse::fromFiles( $files )
             ->withUsage(
-                $result['usage']['total_tokens'] ?? null,
-                $result['usage'] ?? [],
+                is_numeric( $used ) ? (float) $used : null,
+                $usage,
             )
             ->withMeta( $meta );
     }

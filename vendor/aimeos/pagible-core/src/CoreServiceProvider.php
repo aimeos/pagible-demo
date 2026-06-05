@@ -3,6 +3,8 @@
 namespace Aimeos\Cms;
 
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider as Provider;
 
@@ -17,11 +19,12 @@ class CoreServiceProvider extends Provider
         $this->loadMigrationsFrom( $basedir . '/database/migrations' );
         $this->publishes( [
             $basedir . '/config/cms.php' => config_path( 'cms.php' ),
-            $basedir . '/config/cms/schemas.php' => config_path( 'cms/schemas.php' ),
         ], 'cms-config' );
 
+        $this->broadcast();
         $this->rateLimiter();
         $this->userCasts();
+        $this->schedule();
         $this->console();
         $this->scout();
     }
@@ -31,15 +34,28 @@ class CoreServiceProvider extends Provider
         $cfgdir = dirname( __DIR__ ) . '/config';
         $this->mergeConfigFrom( $cfgdir . '/cms.php', 'cms' );
 
-        // Load schemas from the published config/cms/schemas.php if present, else the package default.
-        $path = config_path( 'cms/schemas.php' );
-        $this->mergeConfigFrom( file_exists( $path ) ? $path : $cfgdir . '/cms/schemas.php', 'cms.schemas' );
-
         $this->app->scoped( \Aimeos\Cms\Tenancy::class, function() {
             $callback = \Aimeos\Cms\Tenancy::$callback;
             return new \Aimeos\Cms\Tenancy( $callback ? $callback() : '' );
         } );
     }
+
+    protected function broadcast() : void
+    {
+        if( !config( 'cms.broadcast' ) ) {
+            return;
+        }
+
+        Broadcast::routes( ['middleware' => ['web', 'auth']] );
+
+        foreach( ['page', 'element', 'file'] as $type )
+        {
+            Broadcast::channel( "cms.{$type}.{id}", fn( $user ) =>
+                Permission::can( "{$type}:view", $user )
+            );
+        }
+    }
+
 
     protected function console() : void
     {
@@ -96,6 +112,19 @@ class CoreServiceProvider extends Provider
                     $model->setAttribute( 'cmsperms', $model->getAttributes()['cmsperms'] );
                 }
             } );
+        } );
+    }
+
+
+    protected function schedule() : void
+    {
+        $this->app->afterResolving( Schedule::class, function( Schedule $schedule ) {
+            $schedule->command( 'cms:publish' )->everyThirtyMinutes();
+            $schedule->command( 'model:prune', ['--model' => [
+                \Aimeos\Cms\Models\Element::class,
+                \Aimeos\Cms\Models\File::class,
+                \Aimeos\Cms\Models\Page::class,
+            ]] )->daily();
         } );
     }
 

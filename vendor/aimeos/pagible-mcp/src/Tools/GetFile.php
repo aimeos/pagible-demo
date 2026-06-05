@@ -32,7 +32,7 @@ class GetFile extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'file:view', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -42,39 +42,41 @@ class GetFile extends Tool
         ] );
 
         /** @var File|null $file */
-        $file = File::withTrashed()->find( $v['id'] );
+        $file = File::withTrashed()->with( [
+            'latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'data', 'lang', 'editor', 'published', 'publish_at', 'created_at' )
+        ] )->find( $v['id'] );
 
         if( !$file ) {
             return Response::structured( ['error' => 'File not found.'] );
         }
 
+        $version = $file->latest;
+        $vdata = $version?->data;
+        $usedByElements = $file->byelements()->toBase()
+            ->select( 'cms_elements.id', 'cms_elements.type', 'cms_elements.name' )
+            ->cursor()->map( fn( $e ) => (array) $e )->all();
+        $usedByPages = $file->bypages()->toBase()
+            ->select( 'cms_pages.id', 'cms_pages.name', 'cms_pages.path' )
+            ->cursor()->map( fn( $p ) => (array) $p )->all();
+
         $data = [
             'id' => $file->id,
-            'name' => $file->name,
-            'mime' => $file->mime,
-            'lang' => $file->lang,
-            'path' => $file->path,
-            'previews' => $file->previews,
-            'description' => $file->description,
-            'transcription' => $file->transcription,
             'deleted' => $file->trashed(),
+            'lang' => $version->lang ?? '',
+            'editor' => $version->editor ?? '',
+            'name' => $vdata->name ?? '',
+            'mime' => $vdata->mime ?? '',
+            'path' => $vdata->path ?? '',
+            'previews' => $vdata->previews ?? [],
+            'description' => $vdata->description ?? new \stdClass(),
+            'transcription' => $vdata->transcription ?? new \stdClass(),
+            'published' => $version->published ?? false,
+            'publish_at' => $version->publish_at ?? null,
             'created_at' => $file->created_at?->format( 'Y-m-d H:i:s' ),
-            'updated_at' => $file->updated_at?->format( 'Y-m-d H:i:s' ),
+            'updated_at' => $version?->created_at?->format( 'Y-m-d H:i:s' ),
+            'used_by_elements' => $usedByElements,
+            'used_by_pages' => $usedByPages,
         ];
-
-        // Include pages and elements that reference this file
-        /** @phpstan-ignore argument.type */
-        $data['used_by_pages'] = $file->bypages->map( fn( \Aimeos\Cms\Models\Page $p ) => [
-            'id' => $p->id,
-            'name' => $p->name,
-            'path' => $p->path,
-        ] )->all();
-
-        $data['used_by_elements'] = $file->byelements->map( fn( \Aimeos\Cms\Models\Element $e ) => [
-            'id' => $e->id,
-            'type' => $e->type,
-            'name' => $e->name,
-        ] )->all();
 
         return Response::structured( $data );
     }

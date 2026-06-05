@@ -18,6 +18,7 @@ use Aimeos\Cms\Models\Element;
 use Aimeos\Cms\Models\File;
 use Aimeos\Cms\Models\Page;
 use Aimeos\Cms\Utils;
+use Aimeos\Nestedset\NestedSet;
 
 
 class BenchmarkMcp extends Command
@@ -79,7 +80,7 @@ class BenchmarkMcp extends Command
 
             $count = Page::where( 'tag', '!=', 'root' )->count();
             $page = Page::where( 'tag', '!=', 'root' )
-                ->orderBy( '_lft' )->skip( (int) floor( $count / 2 ) )->firstOrFail();
+                ->orderBy( NestedSet::LFT )->skip( (int) floor( $count / 2 ) )->firstOrFail();
 
             $trashedPage = Page::onlyTrashed()->firstOrFail();
 
@@ -123,7 +124,7 @@ class BenchmarkMcp extends Command
             $file->forceFill( ['latest_id' => $unpubFileVersion->id] )->saveQuietly();
             $file->setRelation( 'latest', $unpubFileVersion );
 
-            Http::fake( ['*' => Http::response( 'benchmark', 200 )] );
+            Http::fake( fn() => Http::response( 'benchmark', 200 ) );
 
             $this->header();
 

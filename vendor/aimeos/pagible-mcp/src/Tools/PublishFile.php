@@ -32,7 +32,7 @@ class PublishFile extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'file:publish', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -86,6 +86,7 @@ class PublishFile extends Tool
     {
         return [
             'id' => $schema->array()
+                ->items( $schema->string() )
                 ->description('An array of up to 50 file UUIDs to publish.')
                 ->required(),
             'at' => $schema->string()

@@ -31,7 +31,7 @@ class RestoreFile extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'file:keep', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -41,7 +41,7 @@ class RestoreFile extends Tool
         ] );
 
         /** @var File|null $file */
-        $file = File::withTrashed()->find( $v['id'] );
+        $file = File::withTrashed()->select( 'id', 'deleted_at' )->find( $v['id'] );
 
         if( !$file ) {
             return Response::structured( ['error' => 'File not found.'] );

@@ -33,6 +33,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Real-time broadcasting
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, the CMS will broadcast save events via Laravel Reverb so
+    | other editors see changes immediately. Requires laravel/reverb and
+    | laravel-echo in the host application.
+    |
+    */
+    'broadcast' => env( 'CMS_BROADCAST', false ),
+
+    /*
+    |--------------------------------------------------------------------------
     | Database connection
     |--------------------------------------------------------------------------
     |
@@ -128,33 +140,4 @@ return [
     */
     'versions' => env( 'CMS_VERSIONS', 10 ),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Page related configuration
-    |--------------------------------------------------------------------------
-    |
-    | Define the page types and their configuration. Each type can have a
-    | set of sections that can be used to organize the content. The sections
-    | can be used to define the layout of the page.
-    |
-    */
-
-    'config' => [
-        'themes' => [
-            'cms' => [
-                'types' => [
-                    'page' => [
-                        'sections' => [
-                            'main',
-                            'footer',
-                        ],
-                    ],
-                    'docs' => [
-                    ],
-                    'blog' => [
-                    ],
-                ],
-            ],
-        ]
-    ],
 ];

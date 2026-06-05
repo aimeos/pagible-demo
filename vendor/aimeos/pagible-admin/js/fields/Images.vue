@@ -12,14 +12,30 @@ import {
   mdiUpload
 } from '@mdi/js'
 import { VueDraggable } from 'vue-draggable-plus'
-import { useAppStore, useUserStore, useViewStack } from '../stores'
-import { url, srcset } from '../utils'
-import FileAiDialog from '../components/FileAiDialog.vue'
-import FileUrlDialog from '../components/FileUrlDialog.vue'
-import FileDialog from '../components/FileDialog.vue'
+import { useAppStore, useUserStore, useMessageStore, useViewStack } from '../stores'
+import { frozenParse, IMAGE_MIME_FILTER, url, srcset } from '../utils'
+import { defineAsyncComponent } from 'vue'
 import FileDetail from '../views/FileDetail.vue'
 
+const FileAiDialog = defineAsyncComponent(() => import('../components/FileAiDialog.vue'))
+const FileUrlDialog = defineAsyncComponent(() => import('../components/FileUrlDialog.vue'))
+const FileDialog = defineAsyncComponent(() => import('../components/FileDialog.vue'))
+
+const ADD_FILE = gql`
+  mutation ($file: Upload!) {
+    addFile(file: $file) {
+      id
+      mime
+      name
+      path
+      previews
+    }
+  }
+`
+
 export default {
+  inheritAttrs: false,
+
   components: {
     FileDetail, // eslint-disable-line vue/no-unused-components -- used programmatically via openView()
     FileDialog,
@@ -40,15 +56,18 @@ export default {
 
   setup() {
     const viewStack = useViewStack()
+    const messages = useMessageStore()
     const user = useUserStore()
     const app = useAppStore()
 
     return {
       app,
+      messages,
       user,
       viewStack,
       url,
       srcset,
+      IMAGE_MIME_FILTER,
       mdiDotsVertical,
       mdiPencil,
       mdiTrashCan,
@@ -85,12 +104,13 @@ export default {
     }
   },
 
-  unmounted() {
+  beforeUnmount() {
     this.images.forEach((item) => {
       if (item.path?.startsWith('blob:')) {
         URL.revokeObjectURL(item.path)
       }
     })
+    this.images = []
   },
 
   methods: {
@@ -106,7 +126,7 @@ export default {
         return
       }
 
-      Array.from(files).forEach((file) => {
+      for (const file of files) {
         const path = URL.createObjectURL(file)
         const idx = this.images.length
 
@@ -114,17 +134,7 @@ export default {
 
         const promise = this.$apollo
           .mutate({
-            mutation: gql`
-              mutation ($file: Upload!) {
-                addFile(file: $file) {
-                  id
-                  mime
-                  name
-                  path
-                  previews
-                }
-              }
-            `,
+            mutation: ADD_FILE,
             variables: {
               file: file
             },
@@ -138,7 +148,7 @@ export default {
             }
 
             const data = response.data?.addFile || {}
-            data.previews = JSON.parse(data.previews) || {}
+            data.previews = frozenParse(data.previews)
             delete data.__typename
 
             return new Promise((resolve, reject) => {
@@ -157,11 +167,11 @@ export default {
               this.$gettext(`Error adding file %{path}`, { path: file.name }) + ':\n' + error,
               'error'
             )
-            this.$log(`Images::addFile(): Error adding file`, ev, error)
+            this.$log(`Images::addFile(): Error adding file`, file, error)
           })
 
         promises.push(promise)
-      })
+      }
 
       Promise.all(promises).then(() => {
         this.$emit(
@@ -190,7 +200,7 @@ export default {
     },
 
     open(item) {
-      this.viewStack.openView(FileDetail, { item: item })
+      this.viewStack.openView(FileDetail, { item: item, stacked: true })
     },
 
     remove(idx) {
@@ -270,7 +280,7 @@ export default {
       <v-img
         v-if="item.path"
         :srcset="srcset(item.previews)"
-        :src="url(item.path)"
+        :src="url(Object.values(item.previews)[0] ?? item.path)"
         :alt="description(item)"
         draggable="false"
       />
@@ -307,12 +317,14 @@ export default {
           @click="vfiles = true"
           :title="$gettext('Add files')"
           :icon="mdiButtonCursor"
+          class="btn-add"
           variant="text"
         />
         <v-btn
           @click="vurls = true"
           :title="$gettext('Add files from URLs')"
           :icon="mdiLinkVariantPlus"
+          class="btn-add-urls"
           variant="text"
         />
       </div>
@@ -322,9 +334,10 @@ export default {
           @click="vcreate = true"
           :title="$gettext('Create file')"
           :icon="mdiCreation"
+          class="btn-create"
           variant="text"
         />
-        <v-btn :title="$gettext('Add files')" :icon="mdiUpload" variant="text"
+        <v-btn :title="$gettext('Add files')" :icon="mdiUpload" class="btn-upload" variant="text"
           ><v-file-input
             v-model="selected"
             @update:modelValue="add($event)"
@@ -339,7 +352,7 @@ export default {
   </VueDraggable>
 
   <Teleport to="body">
-    <FileDialog v-model="vfiles" @add="select($event)" :filter="{ mime: ['image/gif', 'image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'] }" grid />
+    <FileDialog v-model="vfiles" @add="select($event)" :filter="IMAGE_MIME_FILTER" grid />
   </Teleport>
 
   <Teleport to="body">

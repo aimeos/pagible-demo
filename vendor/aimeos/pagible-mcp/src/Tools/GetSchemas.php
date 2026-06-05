@@ -7,6 +7,7 @@
 
 namespace Aimeos\Cms\Tools;
 
+use Aimeos\Cms\JsonSchema;
 use Aimeos\Cms\Permission;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Laravel\Mcp\Server\Attributes\Description;
@@ -28,35 +29,11 @@ class GetSchemas extends Tool
      */
     public function handle(): \Laravel\Mcp\ResponseFactory
     {
-        $result = [];
-
-        foreach( ['content', 'meta', 'config'] as $section )
-        {
-            foreach( config( "cms.schemas.{$section}", [] ) as $type => $schema )
-            {
-                $fields = [];
-
-                foreach( $schema['fields'] ?? [] as $name => $field )
-                {
-                    $fields[$name] = [
-                        'type' => $field['type'] ?? 'string',
-                        'label' => $field['label'] ?? $name,
-                        'required' => $field['required'] ?? false,
-                    ];
-
-                    if( !empty( $field['options'] ) ) {
-                        $fields[$name]['options'] = array_column( $field['options'], 'value' );
-                    }
-                }
-
-                $result[$section][$type] = [
-                    'group' => $schema['group'] ?? 'basic',
-                    'fields' => $fields,
-                ];
-            }
-        }
-
-        return Response::structured( $result );
+        return Response::structured( [
+            'content' => JsonSchema::build( 'content' ),
+            'meta' => JsonSchema::build( 'meta' ),
+            'config' => JsonSchema::build( 'config' ),
+        ] );
     }
 
 

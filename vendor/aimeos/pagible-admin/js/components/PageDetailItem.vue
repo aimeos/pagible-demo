@@ -1,15 +1,14 @@
 /** @license LGPL, https://opensource.org/license/lgpl-3-0 */
 
 <script>
-import PageDetailItemMeta from './PageDetailItemMeta.vue'
 import PageDetailItemProps from './PageDetailItemProps.vue'
-import PageDetailItemConfig from './PageDetailItemConfig.vue'
+import PageDetailItemSection from './PageDetailItemSection.vue'
+import { hasTrue } from '../utils'
 
 export default {
   components: {
-    PageDetailItemMeta,
     PageDetailItemProps,
-    PageDetailItemConfig
+    PageDetailItemSection
   },
 
   props: {
@@ -28,7 +27,7 @@ export default {
   methods: {
     error(what, value) {
       this.errors[what] = value
-      this.$emit('error', Object.values(this.errors).includes(true))
+      this.$emit('error', hasTrue(this.errors))
     },
 
     reset() {
@@ -46,7 +45,7 @@ export default {
     },
 
     validate() {
-      const promises = Object.values(this.$refs).map((ref) => ref.validate())
+      const promises = Object.values(this.$refs).filter(ref => ref).map((ref) => ref.validate())
 
       return Promise.all(promises).then((results) => {
         return results.every((result) => result)
@@ -95,8 +94,9 @@ export default {
         </v-window-item>
 
         <v-window-item value="meta">
-          <PageDetailItemMeta
+          <PageDetailItemSection
             ref="meta"
+            section="meta"
             :item="item"
             :assets="assets"
             @change="update('meta')"
@@ -105,8 +105,10 @@ export default {
         </v-window-item>
 
         <v-window-item value="config">
-          <PageDetailItemConfig
+          <PageDetailItemSection
             ref="config"
+            section="config"
+            permission="page:config"
             :item="item"
             :assets="assets"
             @change="update('config')"

@@ -15,13 +15,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [core, admin, ai, graphql, import, search, jsonapi, mcp, theme]
+        include:
+          - { package: ai, repo: pagible-ai }
+          - { package: admin, repo: pagible-admin }
+          - { package: backup, repo: pagible-backup }
+          - { package: cashier, repo: pagible-cashier }
+          - { package: core, repo: pagible-core }
+          - { package: graphql, repo: pagible-graphql }
+          - { package: import, repo: pagible-import }
+          - { package: jsonapi, repo: pagible-jsonapi }
+          - { package: mcp, repo: pagible-mcp }
+          - { package: search, repo: pagible-search }
+          - { package: theme, repo: pagible-theme }
+          - { package: themes/glass, repo: pagible-themes-glass }
+          - { package: themes/pagible, repo: pagible-themes-pagible }
+          - { package: themes/paper, repo: pagible-themes-paper }
+          - { package: themes/premium, repo: pagible-themes-premium }
     steps:
       - uses: actions/checkout@v5
 
       - name: Seed empty repo
         run: |
-          REPO="https://${GITHUB_TOKEN}@github.com/aimeos/pagible-${{ matrix.package }}.git"
+          REPO="https://${GITHUB_TOKEN}@github.com/aimeos/${{ matrix.repo }}.git"
           DIR=$(mktemp -d)
           git clone -- "$REPO" "$DIR" 2>&1 || true
           cd "$DIR"
@@ -41,7 +56,7 @@ jobs:
           branch: ${{ github.ref_name }}
           package_directory: ${{ matrix.package }}
           repository_organization: 'aimeos'
-          repository_name: 'pagible-${{ matrix.package }}'
+          repository_name: ${{ matrix.repo }}
           user_name: 'aimeos'
           user_email: 'aimeos@aimeos.org'
 
@@ -53,6 +68,6 @@ jobs:
           tag: ${{ github.ref_name }}
           package_directory: ${{ matrix.package }}
           repository_organization: 'aimeos'
-          repository_name: 'pagible-${{ matrix.package }}'
+          repository_name: ${{ matrix.repo }}
           user_name: 'aimeos'
           user_email: 'aimeos@aimeos.org'

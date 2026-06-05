@@ -7,6 +7,7 @@
 
 namespace Aimeos\Cms\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +31,11 @@ use Aimeos\Cms\DB;
  */
 abstract class Base extends Model
 {
+    use HasUuids;
+
+    private static ?bool $isSqlsrv = null;
+
+
     /**
      * Create a new Eloquent Collection without automatic relationship autoloading.
      *
@@ -91,6 +97,7 @@ abstract class Base extends Model
         $query->where( "{$table}.latest_id", '=', function( $sub ) use ( $table, $driver, $wheres ) {
             $sub->select( 'cms_versions.id' )
                 ->from( 'cms_versions' )
+                ->whereColumn( 'cms_versions.id', $table . '.latest_id' )
                 ->where( 'cms_versions.versionable_type', static::class )
                 ->where( 'cms_versions.tenant_id', \Aimeos\Cms\Tenancy::value() );
 
@@ -111,7 +118,8 @@ abstract class Base extends Model
      */
     public function getIdAttribute( $value )
     {
-        return $this->getConnection()->getDriverName() === 'sqlsrv' && $value ? strtoupper( $value ) : $value;
+        self::$isSqlsrv ??= $this->getConnection()->getDriverName() === 'sqlsrv';
+        return self::$isSqlsrv && $value ? strtoupper( $value ) : $value;
     }
 
 
@@ -123,7 +131,8 @@ abstract class Base extends Model
     public function newUniqueId()
     {
         // workaround for SQL Server and Lighthouse when UUIDs are mixed case
-        return (string) ( $this->getConnection()->getDriverName() === 'sqlsrv' ? strtoupper( Str::uuid7() ) : Str::uuid7() );
+        self::$isSqlsrv ??= $this->getConnection()->getDriverName() === 'sqlsrv';
+        return (string) ( self::$isSqlsrv ? strtoupper( Str::uuid7() ) : Str::uuid7() );
     }
 
 

@@ -24,27 +24,51 @@ if( !function_exists( 'cms' ) )
         $parts = explode( '.', $prop );
         $first = array_shift( $parts );
 
-        if( $item instanceof \Illuminate\Support\Collection ) {
+        if( $item instanceof \Illuminate\Support\Collection )
+        {
             $val = $item->get( $first );
         }
-        else if( \Aimeos\Cms\Permission::can( 'page:view', \Illuminate\Support\Facades\Auth::user() ) ) {
-            $val = @$item->latest?->data?->{$first} // @phpstan-ignore-line property.notFound
-                ?? @$item->latest?->aux?->{$first} // @phpstan-ignore-line property.notFound
-                ?? @$item->latest?->{$first} // @phpstan-ignore-line property.notFound
-                ?? @$item->{$first};
+        else if( \Aimeos\Cms\Permission::can( 'page:view', \Illuminate\Support\Facades\Auth::user() ) )
+        {
+            $val = $item->latest?->data->{$first}
+                ?? $item->latest?->aux->{$first}
+                ?? $item->latest->{$first}
+                ?? $item->{$first}
+                ?? null;
         }
-        else {
-            $val = @$item->{$first};
+        else
+        {
+            $val = $item->{$first} ?? null;
         }
 
         foreach( $parts as $part )
         {
-            if( is_object( $val ) && ( $val = @$val->{$part} ) === null ) {
+            if( is_object( $val ) && ( $val = $val->{$part} ?? null ) === null ) {
                 return $default;
             }
         }
 
         return $val ?? $default;
+    }
+}
+
+
+if( !function_exists( 'cmsasset' ) )
+{
+    /**
+     * Generate an asset URL with a version query parameter based on the file's last modification time for cache busting.
+     *
+     * @param string|null $path The path to the asset file
+     * @param bool $version Whether to append a version query parameter based on the file's last modification time for cache busting
+     * @return string The asset URL with a version query parameter, or an empty string if the path is null
+     */
+    function cmsasset( ?string $path, bool $version = true ) : string
+    {
+        if( $path ) {
+            return asset( $path ) . ( $version && file_exists( public_path( $path ) ) ? '?v=' . filemtime( public_path( $path ) ) : '' );
+        }
+
+        return '';
     }
 }
 
@@ -76,13 +100,12 @@ if( !function_exists( 'cmsdata' ) )
     function cmsdata( \Aimeos\Cms\Models\Page $page, object $item ) : array
     {
         if( $item instanceof \Aimeos\Cms\Models\Element ) {
-            $item = (object) $item->toArray();
+            $item = (object) ['id' => cms($item, 'id'), 'type' => cms($item, 'type'), 'name' => cms($item, 'name'), 'data' => cms($item, 'data')];
         }
 
         $data = ['files' => cms($page, 'files')];
 
-        /** @phpstan-ignore property.notFound */
-        if( $action = @$item->data?->action ) {
+        if( $action = $item->data->action ?? null ) {
             $data['action'] = app()->call( $action, ['page' => $page, 'item' => $item] );
         }
 
@@ -107,6 +130,24 @@ if( !function_exists( 'cmsfile' ) )
 }
 
 
+if( !function_exists( 'cmsjson' ) )
+{
+    /**
+     * Encode a value as JSON for safe output within a <script> block (e.g. JSON-LD).
+     *
+     * Unlike Js::from() the result is valid JSON (double quoted), and JSON_HEX_TAG
+     * prevents a value containing "</script>" from breaking out of the script element.
+     *
+     * @param mixed $value The value to encode
+     * @return string The JSON encoded value, safe for embedding in a <script> block
+     */
+    function cmsjson( mixed $value ) : string
+    {
+        return (string) json_encode( $value, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+    }
+}
+
+
 if( !function_exists( 'cmsref' ) )
 {
     /**
@@ -119,8 +160,7 @@ if( !function_exists( 'cmsref' ) )
      */
     function cmsref( \Aimeos\Cms\Models\Page $page, object $item ) : object
     {
-        // @phpstan-ignore-next-line property.notFound
-        if(@$item->type === 'reference' && ($refid = @$item->refid) && ($element = cms(cms($page, 'elements'), $refid))) {
+        if(($item->type ?? null) === 'reference' && ($refid = $item->refid ?? null) && ($element = cms(cms($page, 'elements'), $refid))) {
             return (object) $element;
         }
 
@@ -140,10 +180,10 @@ if( !function_exists( 'cmsroute' ) )
     function cmsroute( \Aimeos\Cms\Models\Page $page ) : string
     {
         if( \Aimeos\Cms\Permission::can( 'page:view', \Illuminate\Support\Facades\Auth::user() ) ) {
-            return @$page->latest?->data?->to ?: route( 'cms.page', ['path' => @$page->latest?->data?->path ?? @$page->path] );
+            return $page->latest?->data->to ?? null ?: route( 'cms.page', ['path' => $page->latest?->data->path ?? $page->path] );
         }
 
-        return @$page->to ?: route( 'cms.page', ['path' => @$page->path] );
+        return $page->to ?: route( 'cms.page', ['path' => $page->path] );
     }
 }
 
@@ -169,6 +209,29 @@ if( !function_exists( 'cmssrcset' ) )
 }
 
 
+if( !function_exists( 'cmstheme' ) )
+{
+    /**
+     * Generate an asset URL for a theme file, falling back to the base theme if the file doesn't exist.
+     *
+     * @param \Aimeos\Cms\Models\Page $page The CMS page to resolve the theme from
+     * @param string $file The filename (e.g. "hero.css", "slideshow.js")
+     * @param bool $version Whether to append a version query parameter based on the file's last modification time for cache busting
+     * @return string The asset URL for the file
+     */
+    function cmstheme( \Aimeos\Cms\Models\Page $page, string $file, bool $version = true ) : string
+    {
+        $themedir = 'vendor/cms/' . ( cms( $page, 'theme' ) ?: 'theme' );
+
+        if( file_exists( public_path( $themedir . '/' . $file ) ) ) {
+            return cmsasset( $themedir . '/' . $file, $version );
+        }
+
+        return cmsasset( 'vendor/cms/theme/' . $file, $version );
+    }
+}
+
+
 if( !function_exists( 'cmsurl' ) )
 {
     /**
@@ -183,7 +246,7 @@ if( !function_exists( 'cmsurl' ) )
             return '';
         }
 
-        if( \Illuminate\Support\Str::startsWith( $path, ['data:', 'http:', 'https:'] ) ) {
+        if( str_starts_with( $path, 'data:' ) || str_starts_with( $path, 'http' ) ) {
             return $path;
         }
 
@@ -203,10 +266,12 @@ if( !function_exists( 'cmsviews' ) )
      */
     function cmsviews( \Aimeos\Cms\Models\Page $page, object $item ) : array
     {
-        return isset( $item->type ) ? [
-            $item->type,
-            (cms($page, 'theme') ?: 'cms') . '::' . $item->type,
-            'cms::invalid'
-        ] : ['cms::invalid'];
+        if( !isset( $item->type ) ) {
+            return ['cms::invalid'];
+        }
+
+        $type = str_contains( $item->type, '::' ) ? $item->type : 'cms::' . $item->type;
+
+        return [$type, 'cms::invalid'];
     }
 }

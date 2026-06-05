@@ -24,19 +24,28 @@ class Blog
      */
     public function __invoke( Request $request, Page $page, object $item ): \Illuminate\Pagination\LengthAwarePaginator
     {
-        /** @phpstan-ignore property.notFound */
-        $sort = @$item->data?->order ?: '-id';
+        $sort = $item->data->order ?? '-id';
         $order = $sort[0] === '-' ? substr( $sort, 1 ) : $sort;
         $dir = $sort[0] === '-' ? 'desc' : 'asc';
 
-        $builder = Page::where( 'type', 'blog' )->orderBy( $order, $dir );
+        $editor = \Aimeos\Cms\Permission::can( 'page:view', $request->user() );
 
-        /** @phpstan-ignore property.notFound */
-        if( $pid = @$item->data?->{'parent-page'}?->value ) {
+        $with = [
+            'files' => fn( $q ) => $q->select( 'cms_files.id', 'name', 'mime', 'path', 'previews' ),
+        ];
+
+        if( $editor ) {
+            $with['latest'] = fn( $q ) => $q->select( 'id', 'versionable_id', 'aux' );
+            $with['latest.files'] = fn( $q ) => $q->select( 'cms_files.id', 'name', 'mime', 'path', 'previews' );
+        }
+
+        $builder = Page::where( 'type', 'blog' )->with( $with )->orderBy( $order, $dir );
+
+        if( $pid = $item->data->{'parent-page'}->value ?? null ) {
             $builder->where( 'parent_id', $pid );
         }
 
-        if( \Aimeos\Cms\Permission::can( 'page:view', $request->user() ) ) {
+        if( $editor ) {
             $builder->whereLatest( ['status' => 1] );
         } else {
             $builder->where( 'status', 1 );
@@ -44,9 +53,13 @@ class Blog
 
         $attr = ['id', 'lang', 'path', 'name', 'title', 'to', 'domain', 'content', 'created_at'];
 
-        /** @phpstan-ignore property.notFound */
-        return $builder->paginate( @$item->data?->limit ?: 10, $attr, 'p' )
+        return $builder->paginate( $item->data->limit ?? 10, $attr, 'p' )
             ->through( function( $item ) {
+                if( $item->relationLoaded( 'latest' ) && $version = $item->latest ) {
+                    $item->content = $version->aux->content ?? $item->content;
+                    $item->setRelation( 'files', $version->files ?? $item->files );
+                }
+
                 $item->content = (object) collect( (array) $item->content )->filter( fn( $item ) => $item->type === 'article' )->all();
                 $item->setRelation( 'files', Utils::files( $item ) );
                 return $item;

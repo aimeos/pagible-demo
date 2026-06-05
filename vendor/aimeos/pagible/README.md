@@ -1,45 +1,123 @@
 # PagibleAI CMS - Simple as Wordpress, the power of Contentful!
 
-The easy, flexible and scalable API-first PagibleAI CMS package:
+The easy, flexible and scalable API-first PagibleAI CMS package for Laravel.
 
-* AI generates/enhances drafts and images for you
-* Manage structured content like in Contentful
-* Define new content elements in seconds
-* Assign shared content to multiple pages
-* Save, publish and revert drafts
-* Extremly fast JSON frontend API
-* Versatile GraphQL admin API
-* Multi-language support
-* Multi-domain routing
-* Multi-tenancy capable
-* Supports soft-deletes
-* Fully Open Source
-* Scales from single page with SQLite to millions of pages with DB clusters
+## Table of Contents
 
-It can be installed into any existing Laravel application.
-
-## Table of contents
-
-* [Installation](#installation)
-* [Authorization](#authorization)
+* [About](#about)
+* [Features](#features)
+* [Tech Stack](#tech-stack)
+* [Architecture](#architecture)
+* [Project Structure](#project-structure)
+* [Getting Started](#getting-started)
 * [Configuration](#configuration)
-* [Clean up](#clean-up)
+* [Maintenance](#maintenance)
 * [Multi-domain](#multi-domain)
 * [Multi-tenancy](#multi-tenancy)
 * [MCP API](#mcp-api)
 * [Security](#security)
+* [Contributing](#contributing)
+* [What's Next](#whats-next)
+* [License](#license)
+* [Acknowledgements](#acknowledgements)
+* [Links](#links)
 
-## Installation
+## About
 
-You need a working Laravel installation. If you don't have one, you can create it using:
+PagibleAI CMS is an API-first content management system that can be installed into any existing Laravel application. It combines the ease of use of WordPress with the structured content management capabilities of Contentful, powered by AI for content generation, image manipulation, and translation.
+
+Whether you need a simple blog or a multi-tenant, multi-domain CMS serving millions of pages, PagibleAI scales to your needs — from a single SQLite-backed page to database clusters.
+
+## Features
+
+* **Structured Content** - Manage structured content like in Contentful
+* **AI-Powered** - AI generates/enhances drafts and images
+* **Hierarchical Pages** - Hierarchical page tree with drag & drop
+* **Shared Content** - Assign shared content to multiple pages
+* **Versioning** - Save, publish, schedule and revert drafts
+* **Audit Trail** - Full version history and audit trail
+* **Extensible Elements** - Define new content elements in seconds
+* **JSON API** - Extremely fast JSON frontend API
+* **GraphQL API** - Versatile GraphQL admin API
+* **Multi-language** - Multi-language support
+* **Multi-domain** - Multi-domain routing
+* **Multi-tenancy** - Multi-tenancy capable
+* **Importers** - Importer for WordPress, etc.
+* **MCP API** - 30+ tools for LLM-driven content management
+* **Full-text Search** - Across SQLite, MySQL, PostgreSQL and SQL Server
+* **Scalable** - From single page with SQLite to millions of pages with DB clusters
+* **Open Source** - Fully open source
+
+## Tech Stack
+
+| Technology | Purpose |
+|---|---|
+| **PHP 8.1+** | Backend language |
+| **Laravel 11.x / 12.x / 13.x** | Web framework |
+| **Vue.js 3** | Admin panel frontend |
+| **Vuetify** | Admin UI component library |
+| **Lighthouse** | GraphQL API |
+| **Prism / Prisma PHP** | AI/LLM integration |
+| **Vite** | Frontend build tool |
+
+## Architecture
+
+PagibleAI CMS is a modular monorepo split into 10 sub-packages. Each package handles a specific concern and can be used independently:
+
+* **Core** provides the data models (Page, Element, File, Version), multi-tenancy, permissions, and migrations
+* **Admin** delivers the Vue.js-based admin panel with drag & drop page management
+* **GraphQL** exposes the admin API via Lighthouse for content editing
+* **JSON:API** provides a read-only frontend API for content delivery
+* **AI** integrates LLM providers through Prism/Prisma PHP for content generation, image manipulation, and translation
+* **Search** implements a custom Laravel Scout engine supporting FTS5 (SQLite), MATCH/AGAINST (MySQL), tsvector (PostgreSQL), and CONTAINSTABLE (SQL Server)
+* **MCP** offers 30+ tools for LLM-driven content management
+* **Backup** provides per-tenant backup and restore with media files, integrity verification, and cross-tenant support
+* **Import** provides importers from external CMS platforms (WordPress, etc.)
+* **Theme** handles frontend rendering with Blade templates
+* **Themes** contains high-quality frontend themes
+
+Pages are organized as a nested set tree (using `_lft`/`_rgt` columns). All content changes are tracked as immutable version snapshots — editors see the latest draft while the public sees the published version. Caching is per-page with configurable duration.
+
+## Project Structure
+
+```
+pagible/
+├── src/          Meta-package (install orchestrator + serve command)
+├── core/         Models, permissions, tenancy, utilities, migrations
+├── admin/        Vue.js admin panel (Vuetify + Vite)
+├── ai/           AI features (Prism / Prisma PHP)
+├── graphql/      GraphQL API (Lighthouse)
+├── backup/       Backup and restore
+├── import/       CMS importers (WordPress, etc.)
+├── search/       Full-text search (Laravel Scout)
+├── jsonapi/      Read-only JSON:API
+├── mcp/          MCP server (30+ tools)
+├── theme/        Frontend rendering (Blade templates)
+├── themes/       Frontend themes (CSS)
+├── tests/        Shared test infrastructure
+├── config/       Configuration files
+└── phpunit.xml   Aggregated test runner
+```
+
+## Getting Started
+
+### Prerequisites
+
+* PHP 8.2 or higher
+* Composer
+* Node.js & npm (for admin panel development)
+* A working Laravel 11.x, 12.x, or 13.x installation
+
+### Installation
+
+If you don't have an existing Laravel application, create one first:
 
 ```bash
 composer create-project laravel/laravel pagible
 cd pagible
 ```
 
-The application will be available in the `./pagible` sub-directory.
-Then, run this command within your Laravel application directory:
+Then install PagibleAI CMS:
 
 ```bash
 composer req aimeos/pagible
@@ -53,7 +131,7 @@ Add a line in the "post-update-cmd" section of your `composer.json` file to upda
 
 ```json
 "post-update-cmd": [
-    "@php artisan vendor:publish --force --tag=cms-admin",
+    "@php artisan vendor:publish --force --tag=cms-admin --tag=cms-graphql",
     "@php artisan vendor:publish --tag=cms-theme",
     "@php artisan migrate",
     ...
@@ -62,37 +140,13 @@ Add a line in the "post-update-cmd" section of your `composer.json` file to upda
 
 ### Authorization
 
-#### Using artisan command
-
-To allow existing users to edit CMS content or to create a new users if they don't exist yet, you can use the `cms:user` command (replace the e-mail address by the users one):
+To allow users to edit CMS content or to create a new users if they don't exist yet, you can use the `cms:user` command (replace the e-mail address by the users one):
 
 ```bash
 php artisan cms:user -e editor@example.com
 ```
 
-To remove user permissions for editing CMS content completely, use:
-
-```bash
-php artisan cms:user -d editor@example.com
-```
-
-List the current permissions of an user:
-
-```bash
-php artisan cms:user -l editor@example.com
-```
-
-To add specific permissions:
-
-```bash
-php artisan cms:user -a page:* -a *:view -a element:view editor@example.com
-```
-
-To remove specific permissions:
-
-```bash
-php artisan cms:user -r page:* -r *:view -r element:view editor@example.com
-```
+This adds admin privileges for the specified user. For more information regarding authorization and permissions, please have a look into the [authorization and permission](https://pagible.com/authorization-and-permissions) page.
 
 The CMS admin backend is available at (replace "mydomain.tld" with your own one):
 
@@ -100,54 +154,7 @@ The CMS admin backend is available at (replace "mydomain.tld" with your own one)
 http://mydomain.tld/cmsadmin
 ```
 
-#### Use custom authorisation
-
-To use your own authorization, e.g. from an external service, add this code to the `boot()` method of your `\App\Providers\AppServiceProvider` in the `./app/Providers/AppServiceProvider.php` file:
-
-```php
-// top of file
-use \Illuminate\Contracts\Auth\Authenticatable;
-
-\Aimeos\Cms\Permission::$callback = function( string $action, ?Authenticatable $user ) : bool {
-    // check permissions
-    return user ? true : false;
-};
-
-\Aimeos\Cms\Permission::$addCallback = function( string $action, Authenticatable $user ) : Authenticatable {
-    // add permission for action to user
-    return $user;
-};
-
-\Aimeos\Cms\Permission::$delCallback = function( string $action, Authenticatable $user ) : Authenticatable {
-    // remove permission for action to user
-    return $user;
-};
-```
-
-### Configuration
-
-#### Captcha protection
-
-To protect forms like the contact form against misuse and spam, you can add the
-[HCaptcha service](https://www.hcaptcha.com/). Sign up at their web site and
-[create an account](https://dashboard.hcaptcha.com/signup).
-
-In the HCaptcha dashboard, go to the [Sites](https://dashboard.hcaptcha.com/sites)
-page and add an entry for your web site. When you click on the newly generated entry,
-the **sitekey** is shown on top. Add this to your `.env` file as:
-
-```
-HCAPTCHA_SITEKEY="..."
-```
-
-In the [account settings](https://dashboard.hcaptcha.com/settings/secrets), you will
-find the **secret** that is required too in your `.env` file as:
-
-```
-HCAPTCHA_SECRET="..."
-```
-
-#### AI support
+## Configuration
 
 To generate texts/images from prompts, analyze image/video/audio content, or execute actions based
 on your prompts, you have to configure one or more of the AI service providers supported by the
@@ -171,8 +178,8 @@ CMS_AI_TRANSLATE_API_KEY="${DEEPL_API_KEY}"
 # CMS_AI_TRANSLATE_URL="https://api.deepl.com/"
 
 # Analyze content and generate text/images
+CMS_AI_REFINE_API_KEY="${OPENAI_API_KEY}"
 CMS_AI_WRITE_API_KEY="${GEMINI_API_KEY}"
-CMS_AI_REFINE_API_KEY="${GEMINI_API_KEY}"
 CMS_AI_DESCRIBE_API_KEY="${GEMINI_API_KEY}"
 CMS_AI_IMAGINE_API_KEY="${GEMINI_API_KEY}"
 CMS_AI_INPAINT_API_KEY="${GEMINI_API_KEY}"
@@ -188,7 +195,7 @@ CMS_AI_UPSCALE_API_KEY="${CLIPDROP_API_KEY}"
 CMS_AI_TRANSCRIBE_API_KEY="${OPENAI_API_KEY}"
 ```
 
-For best results and all features, you need Google, OpenAI, Clipdrop, and DeepL at the moment and they are also configured by default. If you want to use a different provider or model, you can to configure them in your `.env` file too. Please have a look into the [./config/cms.php](https://github.com/aimeos/pagible/blob/master/config/cms.php) for the used environment variables.
+For best results and all features, you need Google, OpenAI, Clipdrop, and DeepL at the moment and they are also configured by default. If you want to use a different provider or model, you can to configure them in your `.env` file too. Please have a look into the [./config/cms/ai.php](https://github.com/aimeos/pagible/blob/master/config/cms.php) for the used environment variables.
 
 **Note:** You can also configure the base URLs for each provider using the `url` key in each provider configuration, e.g.:
 
@@ -201,15 +208,15 @@ For best results and all features, you need Google, OpenAI, Clipdrop, and DeepL 
     ],
 ```
 
-### Publishing
+**Note:** To protect forms like the contact form against misuse and spam, you can configure [HCaptcha](https://pagible.com/configure-hcaptcha).
+
+## Maintenance
 
 For scheduled publishing, you need to add this line to the `routes/console.php` class:
 
 ```php
 \Illuminate\Support\Facades\Schedule::command('cms:publish')->daily();
 ```
-
-### Clean up
 
 To clean up soft-deleted pages, elements and files regularly, add these lines to the `routes/console.php` class:
 
@@ -223,33 +230,64 @@ To clean up soft-deleted pages, elements and files regularly, add these lines to
 ])->daily();
 ```
 
-You can configure the timeframe after soft-deleted items will be removed permantently by setting the [CMS_PURGE](https://github.com/aimeos/pagible/blob/master/config/cms.php) option in your `.env` file. It's value must be the number of days after the items will be removed permanently or FALSE if the soft-deleted items shouldn't be removed at all.
-
-### Multi-domain
+## Multi-domain
 
 Using multiple page trees with different domains is possible by adding `CMS_MULTIDOMAIN=true` to your `.env` file.
 
-### Multi-tenancy
+## Multi-tenancy
 
 PagibleAI CMS supports single database multi-tenancy using existing Laravel tenancy packages or code implemented by your own.
 
-The [Tenancy for Laravel](https://tenancyforlaravel.com/) package is most often used. How to set up the package is described in the [tenancy quickstart](https://tenancyforlaravel.com/docs/v3/quickstart) and take a look into the [single database tenancy](https://tenancyforlaravel.com/docs/v3/single-database-tenancy) article too.
+The [Tenancy for Laravel](https://tenancyforlaravel.com/) package is most often used. How to set up the package is described in the [Multi-tenancy SaaS Setup](/multi-tenancy-saas-setup) article.
 
-Afterwards, tell PagibleAI CMS how the ID of the current tenant can be retrieved. Add this code to the `boot()` method of your `\App\Providers\AppServiceProvider` in the `./app/Providers/AppServiceProvider.php` file:
+## MCP API
 
-```php
-\Aimeos\Cms\Tenancy::$callback = function() {
-    return tenancy()->initialized ? tenant()->getTenantKey() : '';
-};
-```
-
-### MCP API
-
-PagibleAI CMS offers tools within the Laravel MCP API that LLMs can use to interact with the CMS. Please have a look into the [MCP.md](MCP.md) file for details how to set up the MCP API and Passport for authentication.
+PagibleAI CMS offers tools within the Laravel MCP API that LLMs can use to interact with the CMS. Please have a look at the [PagibleAI MCP documentation](https://pagible.com/configure-mcp) page for details how to set up the MCP API and Passport for authentication.
 
 ## Security
 
 If you find a security related issue, please contact `security at aimeos.org`.
 
+* All user-generated content is sanitized with HTMLPurifier
+* Content Security Policy (CSP) headers are enforced
+* Forms are protected with HCaptcha
+* All API endpoints are rate-limited
+* URL validation on all user-submitted links
+
+## Contributing
+
+Contributions are welcome! Here's how you can help:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Make your changes
+4. Run the tests: `vendor/bin/phpunit`
+5. Run static analysis: `vendor/bin/phpstan analyze`
+6. Commit your changes (`git commit -m 'Add your feature'`)
+7. Push to your branch (`git push origin feature/your-feature`)
+8. Open a Pull Request
+
+Please make sure all tests pass and PHPStan reports no new errors before submitting.
+
+## What's Next
+
+* Extend admin panels and sub-panels by extensions
+* Additional CMS importers (Drupal, Joomla, Statamic, TYPO3)
+* Observability & Audit Trail
+* User and group restrictions
+* Webhook & Event System
+* More themes
+
+## License
+
+PagibleAI CMS is licensed under the [LGPL-3.0 license](LICENSE).
+
+## Acknowledgements
+
 Special thanks to:
 - Lwin Min Oo
+
+## Links
+
+* Website: [pagible.com](https://pagible.com)
+* GitHub: [github.com/aimeos/pagible](https://github.com/aimeos/pagible)

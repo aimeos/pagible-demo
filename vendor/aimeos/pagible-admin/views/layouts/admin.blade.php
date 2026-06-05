@@ -32,9 +32,15 @@
       data-urlfile="{{ \Illuminate\Support\Facades\Storage::disk( config( 'cms.disk', 'public' ) )->url( '' ) }}"
       data-theme="{{ json_encode( config( 'cms.admin.colors', [] ) ) }}"
       data-locales="{{ json_encode( config( 'cms.locales', ['en'] ) ) }}"
-      data-config="{{ json_encode( config( 'cms.config', new \stdClass() ) ) }}"
-      data-schemas="{{ json_encode( config( 'cms.schemas', new \stdClass() ) ) }}"
       data-multidomain="{{ (int) config('cms.multidomain', false) }}"
+      @if(config('cms.broadcast'))
+        data-reverb="{{ json_encode([
+            'key' => config('reverb.apps.apps.0.key', ''),
+            'host' => config('reverb.apps.apps.0.options.host', config('reverb.servers.reverb.host', '127.0.0.1')),
+            'port' => config('reverb.apps.apps.0.options.port', config('reverb.servers.reverb.port', 8080)),
+            'scheme' => config('reverb.apps.apps.0.options.scheme', 'http'),
+        ]) }}"
+      @endif
     ></div>
   </body>
 </html>

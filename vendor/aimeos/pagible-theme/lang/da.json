@@ -1,11 +1,26 @@
 {
-    "More about": "Mere om",
+    "Download file": "Download fil",
+    "Get Started": "Kom godt i gang",
+    "Skip to main content": "Spring til hovedindhold",
+    "Search website": "Søg på hjemmeside",
+    "Close": "Luk",
+    "Main navigation": "Hovednavigation",
+    "Open sidebar": "Åbn sidepanelet",
+    "Close sidebar": "Luk sidepanelet",
+    "Close navigation": "Luk navigation",
+    "Search": "Søg efter",
+    "Open navigation": "Åben navigation",
+    "Breadcrumb navigation": "Breadcrumb-navigation",
+    "Name": "Navn",
     "Your name": "Dit navn",
+    "E-Mail": "E-mail",
     "Your e-mail address": "Din e-mail-adresse",
+    "Message": "Besked",
     "Your message": "Din besked",
     "Send message": "Send en besked",
     "Message will be sent": "Beskeden vil blive sendt",
     "Successfully sent": "Sendt med succes",
     "Error sending e-mail": "Fejl ved afsendelse af e-mail",
-    "Download file": "Download fil"
+    "Unknown product": "Ukendt produkt",
+    "Unknown payment provider": "Ukendt betalingsudbyder"
 }

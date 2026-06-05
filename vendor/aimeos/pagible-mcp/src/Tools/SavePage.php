@@ -32,7 +32,7 @@ class SavePage extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'page:save', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -41,6 +41,7 @@ class SavePage extends Tool
             'title' => 'string|max:100',
             'lang' => 'string|max:5',
             'content' => 'array',
+            'content.*.id' => 'string|max:10',
             'content.*.type' => 'required|string|max:50',
             'content.*.group' => 'string|max:50',
             'content.*.data' => 'required|array',
@@ -59,12 +60,13 @@ class SavePage extends Tool
             'files.*' => 'string|max:36',
             'elements' => 'array',
             'elements.*' => 'string|max:36',
+            'latestId' => 'string|max:36',
         ], [
             'id.required' => 'You must specify the ID of the page to save.',
         ] );
 
         if( isset( $v['content'] ) ) {
-            $v['content'] = Validation::content( $v['content'] );
+            $v['content'] = Validation::content( $v['content'], $v['type'] ?? null );
         }
 
         if( isset( $v['title'] ) && !isset( $v['path'] ) ) {
@@ -72,20 +74,20 @@ class SavePage extends Tool
         }
 
         if( isset( $v['meta'] ) ) {
-            $v['meta'] = Validation::structured( $v['meta'], 'meta', new \stdClass() );
+            $v['meta'] = Validation::structured( $v['meta'], 'meta', new \stdClass(), $v['type'] ?? null );
         }
 
         if( isset( $v['config'] ) ) {
-            $v['config'] = Validation::structured( $v['config'], 'config', new \stdClass() );
+            $v['config'] = Validation::structured( $v['config'], 'config', new \stdClass(), $v['type'] ?? null );
         }
 
-        $input = array_diff_key( $v, array_flip( ['id', 'files', 'elements'] ) );
+        $input = array_diff_key( $v, array_flip( ['id', 'files', 'elements', 'latestId'] ) );
 
         try {
             $page = Resource::savePage(
                 $v['id'], $input, $request->user(),
-                Utils::editor( $request->user() ),
-                $v['files'] ?? [], $v['elements'] ?? [],
+                $v['files'] ?? null, $v['elements'] ?? null,
+                $v['latestId'] ?? null,
             );
         } catch( ModelNotFoundException $e ) {
             return Response::structured( ['error' => 'Page not found.'] );
@@ -101,6 +103,7 @@ class SavePage extends Tool
             'content' => $aux['content'] ?? [],
             'status' => $page->status,
             'cache' => $page->cache,
+            'changed' => $page->changed,
             'created_at' => (string) $page->created_at,
             'updated_at' => (string) $page->updated_at,
             'url' => route( 'cms.page', ['path' => $data['path'] ?? ''] ),
@@ -127,6 +130,8 @@ class SavePage extends Tool
                 ->description( 'ISO language code for the version, e.g., "en" or "de".' ),
             'content' => $schema->array()
                 ->items( $schema->object( [
+                    'id' => $schema->string()
+                        ->description( 'Existing element ID to preserve. Omit to auto-generate a new ID.' ),
                     'type' => $schema->string()
                         ->description( 'Content element type. Use get-schemas for available types.' )
                         ->required(),
@@ -165,6 +170,8 @@ class SavePage extends Tool
             'elements' => $schema->array()
                 ->items( $schema->string() )
                 ->description( 'Array of shared element UUIDs to attach to the version.' ),
+            'latestId' => $schema->string()
+                ->description( 'Version ID the caller last retrieved. Enables conflict detection and three-way merge when another editor has saved in the meantime.' ),
         ];
     }
 

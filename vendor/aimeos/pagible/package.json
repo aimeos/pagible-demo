@@ -1,0 +1,15 @@
+{
+    "private": true,
+    "scripts": {
+        "coverage:install": "npx playwright install chromium",
+        "coverage:default": "npx playwright test --config tests/coverage.config.mjs",
+        "coverage:glass": "THEME=glass npx playwright test --config tests/coverage.config.mjs",
+        "coverage:pagible": "THEME=pagible npx playwright test --config tests/coverage.config.mjs",
+        "coverage:paper": "THEME=paper npx playwright test --config tests/coverage.config.mjs",
+        "coverage:premium": "THEME=premium npx playwright test --config tests/coverage.config.mjs",
+        "coverage:all": "npx playwright test --config tests/coverage.config.mjs && for t in themes/*/; do THEME=$(basename \"$t\") npx playwright test --config tests/coverage.config.mjs; done"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.50"
+    }
+}

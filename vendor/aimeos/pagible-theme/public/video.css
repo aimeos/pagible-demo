@@ -1,0 +1,11 @@
+/**
+ * @license MIT, https://opensource.org/license/MIT
+ */
+
+.video video {
+    max-width: 100%;
+    display: block;
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: calc(var(--pico-border-radius) * 2);
+    box-shadow: var(--pico-box-shadow);
+}

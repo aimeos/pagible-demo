@@ -31,7 +31,7 @@ class DropFile extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'file:drop', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -40,16 +40,13 @@ class DropFile extends Tool
             'id.required' => 'You must specify the ID of the file to delete.',
         ] );
 
-        /** @var File|null $file */
-        $file = File::withTrashed()->find( $v['id'] );
+        $items = Resource::drop( File::class, [$v['id']], Utils::editor( $request->user() ) );
 
-        if( !$file ) {
+        if( $items->isEmpty() ) {
             return Response::structured( ['error' => 'File not found.'] );
         }
 
-        $items = Resource::drop( File::class, [$v['id']], Utils::editor( $request->user() ) );
-
-        return Response::structured( $items->firstOrFail()->toArray() );
+        return Response::structured( $items->first()->toArray() );
     }
 
 

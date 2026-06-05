@@ -2,30 +2,40 @@
 
 namespace Aimeos\Prisma\Providers;
 
+use Aimeos\Prisma\Concerns\CallsTools;
+use Aimeos\Prisma\Concerns\OpenaiApi;
 use Aimeos\Prisma\Exceptions\PrismaException;
-use Aimeos\Prisma\Providers\Base;
-use Psr\Http\Message\ResponseInterface;
 
 
 class Groq extends Base
 {
+    use CallsTools;
+    use OpenaiApi;
+
     public function __construct( array $config )
     {
         if( !isset( $config['api_key'] ) ) {
-            throw new PrismaException( sprintf( 'No API key' ) );
+            throw new PrismaException( 'No API key' );
         }
 
-        $this->header( 'authorization', 'Bearer ' . $config['api_key'] );
-        $this->baseUrl( $config['url'] ?? 'https://api.groq.com' );
+        $this->header( 'authorization', 'Bearer ' . $this->cfg( $config, 'api_key' ) );
+        $this->baseUrl( $this->cfg( $config, 'url', 'https://api.groq.com' ) );
     }
 
 
-    protected function validate( ResponseInterface $response ) : void
+    /**
+     * Maps the tool choice to the values supported by Groq.
+     *
+     * Groq supports "auto" and "required" but not "none", which is omitted.
+     *
+     * @return string|null Mapped tool_choice value or null to omit
+     */
+    protected function toolChoiceParam() : ?string
     {
-        if( $response->getStatusCode() !== 200 )
-        {
-            $error = @$this->fromJson( $response )['error']['message'] ?: $response->getReasonPhrase();
-            $this->throw( $response->getStatusCode(), $error );
-        }
+        return match( $this->toolChoice() ) {
+            self::AUTO => 'auto',
+            self::REQ => 'required',
+            default => null,
+        };
     }
 }

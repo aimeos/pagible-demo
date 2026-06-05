@@ -32,7 +32,7 @@ class PublishPage extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'page:publish', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -47,7 +47,7 @@ class PublishPage extends Tool
 
         $ids = (array) $v['id'];
         $editor = Utils::editor( $request->user() );
-        $items = Resource::publish( Page::class, $ids, $editor, $v['at'] ?? null, ['latest.files', 'latest.elements'] );
+        $items = Resource::publish( Page::class, $ids, $editor, $v['at'] ?? null );
 
         $published = [];
         $skipped = [];
@@ -86,6 +86,7 @@ class PublishPage extends Tool
     {
         return [
             'id' => $schema->array()
+                ->items( $schema->string() )
                 ->description('An array of up to 50 page UUIDs to publish.')
                 ->required(),
             'at' => $schema->string()

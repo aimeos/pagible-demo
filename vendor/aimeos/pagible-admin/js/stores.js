@@ -5,17 +5,69 @@
 import gql from 'graphql-tag'
 import { markRaw } from 'vue'
 import { defineStore } from 'pinia'
-import { apolloClient } from './graphql'
+import { apolloClient, clearUploadLink } from './graphql'
 import {
   urladmin,
   urlproxy,
   urlpage,
   urlfile,
   multidomain,
-  locales as appLocales,
-  config as appConfig,
-  schemas as appSchemas
+  locales as appLocales
 } from './config'
+
+const FETCH_ME = gql`
+  query {
+    me {
+      permission
+      settings
+      email
+      name
+      token
+    }
+  }
+`
+
+const LOGIN = gql`
+  mutation ($email: String!, $password: String!) {
+    cmsLogin(email: $email, password: $password) {
+      permission
+      settings
+      email
+      name
+      token
+    }
+  }
+`
+
+const LOGOUT = gql`
+  mutation {
+    cmsLogout {
+      email
+      name
+    }
+  }
+`
+
+const SAVE_SETTINGS = gql`
+  mutation ($settings: JSON!) {
+    cmsUser(settings: $settings) {
+      settings
+    }
+  }
+`
+
+const FETCH_SCHEMAS = gql`
+  query {
+    schemas {
+      name
+      label
+      types
+      content
+      meta
+      config
+    }
+  }
+`
 
 export const useAppStore = defineStore('app', {
   state: () => ({
@@ -59,16 +111,7 @@ export const useUserStore = defineStore('user', {
 
       await apolloClient
         .query({
-          query: gql`
-            query {
-              me {
-                permission
-                settings
-                email
-                name
-              }
-            }
-          `
+          query: FETCH_ME
         })
         .then((response) => {
           if (response.errors) {
@@ -78,6 +121,11 @@ export const useUserStore = defineStore('user', {
           this.me = response.data.me
             ? { ...response.data.me, permission: JSON.parse(response.data.me.permission || '{}'), settings: JSON.parse(response.data.me.settings || '{}') }
             : false
+
+          if (this.me?.token) {
+            const app = useAppStore()
+            app.urlproxy = urlproxy.replace('url=', 'token=' + encodeURIComponent(this.me.token) + '&url=')
+          }
         })
         .catch((error) => {
           console.error('Failed to fetch user data', error)
@@ -90,16 +138,7 @@ export const useUserStore = defineStore('user', {
     login(email, password) {
       return apolloClient
         .mutate({
-          mutation: gql`
-            mutation ($email: String!, $password: String!) {
-              cmsLogin(email: $email, password: $password) {
-                permission
-                settings
-                email
-                name
-              }
-            }
-          `,
+          mutation: LOGIN,
           variables: {
             email: email,
             password: password
@@ -115,8 +154,14 @@ export const useUserStore = defineStore('user', {
           if (this.me?.permission) {
             this.me.permission = JSON.parse(this.me.permission)
           }
+
           if (this.me?.settings) {
             this.me.settings = JSON.parse(this.me.settings)
+          }
+
+          if (this.me?.token) {
+            const app = useAppStore()
+            app.urlproxy = urlproxy.replace('url=', 'token=' + encodeURIComponent(this.me.token) + '&url=')
           }
 
           return this.me
@@ -133,14 +178,7 @@ export const useUserStore = defineStore('user', {
 
       return apolloClient
         .mutate({
-          mutation: gql`
-            mutation {
-              cmsLogout {
-                email
-                name
-              }
-            }
-          `
+          mutation: LOGOUT
         })
         .then((response) => {
           if (response.errors) {
@@ -149,8 +187,16 @@ export const useUserStore = defineStore('user', {
 
           return response.data.cmsLogout || false
         })
-        .finally(() => {
+        .finally(async () => {
           this.me = null
+
+          useClipboardStore().$reset()
+          useSideStore().$reset()
+          clearUploadLink()
+
+          const { disconnect } = await import('./echo')
+          disconnect()
+
           return apolloClient.clearStore()
         })
     },
@@ -173,6 +219,7 @@ export const useUserStore = defineStore('user', {
       if (!this.me.settings) {
         this.me.settings = {}
       }
+
       if (!this.me.settings[panel]) {
         this.me.settings[panel] = {}
       }
@@ -193,13 +240,7 @@ export const useUserStore = defineStore('user', {
 
       apolloClient
         .mutate({
-          mutation: gql`
-            mutation ($settings: JSON!) {
-              cmsUser(settings: $settings) {
-                settings
-              }
-            }
-          `,
+          mutation: SAVE_SETTINGS,
           variables: {
             settings: JSON.stringify(this.me.settings)
           }
@@ -221,6 +262,10 @@ export const useClipboardStore = defineStore('clipboard', {
   state: () => ({}),
 
   actions: {
+    clear() {
+      this.$reset()
+    },
+
     get(key, defval = null) {
       return this[key] ?? defval
     },
@@ -230,28 +275,19 @@ export const useClipboardStore = defineStore('clipboard', {
         return
       }
 
+      if (typeof value === 'object' && value !== null) {
+        const json = JSON.stringify(value)
+        if (json && json.length > 256 * 1024) {
+          console.warn('Clipboard entry too large, skipping')
+          return
+        }
+      }
+
       this[key] = value
     }
   }
 })
 
-export const useConfigStore = defineStore('config', {
-  state: () => appConfig,
-
-  actions: {
-    get(key, defval = null) {
-      if (typeof key !== 'string') {
-        return defval
-      }
-
-      const val = key.split('.').reduce((part, key) => {
-        return typeof part === 'object' && part !== null ? part[key] : part
-      }, this)
-
-      return typeof val === 'undefined' ? defval : val
-    }
-  }
-})
 
 export const useDrawerStore = defineStore('drawer', {
   state: () => ({
@@ -266,195 +302,10 @@ export const useDrawerStore = defineStore('drawer', {
   }
 })
 
+import languages from './languages'
+
 export const useLanguageStore = defineStore('language', {
   state: () => ({
-    translations: {
-      aa: 'Afar',
-      ab: 'Аҧсуа',
-      af: 'Afrikaans',
-      ak: 'Akana',
-      am: 'አማርኛ',
-      an: 'Aragonés',
-      ar: 'العربية',
-      as: 'অসমীয়া',
-      av: 'Авар',
-      ay: 'Aymar',
-      az: 'Azərbaycanca',
-      ba: 'Башҡорт',
-      be: 'Беларуская',
-      bg: 'Български',
-      bh: 'भोजपुरी',
-      bi: 'Bislama',
-      bm: 'Bamanankan',
-      bn: 'বাংলা',
-      bo: 'བོད་ཡིག',
-      br: 'Brezhoneg',
-      bs: 'Bosanski',
-      ca: 'Català',
-      ce: 'Нохчийн',
-      ch: 'Chamoru',
-      co: 'Corsu',
-      cr: 'Nehiyaw',
-      cs: 'Česky',
-      cu: 'словѣньскъ',
-      cv: 'Чăваш',
-      cy: 'Cymraeg',
-      da: 'Dansk',
-      de: 'Deutsch',
-      dv: 'ދިވެހިބަސް',
-      dz: 'རྫོང་ཁ',
-      ee: 'Ɛʋɛ',
-      el: 'Ελληνικά',
-      en: 'English',
-      eo: 'Esperanto',
-      es: 'Español',
-      et: 'Eesti',
-      eu: 'Euskara',
-      fa: 'فارسی',
-      ff: 'Fulfulde',
-      fi: 'Suomi',
-      fj: 'Na Vosa Vakaviti',
-      fo: 'Føroyskt',
-      fr: 'Français',
-      fy: 'Frysk',
-      ga: 'Gaeilge',
-      gd: 'Gàidhlig',
-      gl: 'Galego',
-      gn: "Avañe'ẽ",
-      gu: 'ગુજરાતી',
-      gv: 'Gaelg',
-      ha: 'هَوُسَ',
-      he: 'עברית',
-      hi: 'हिन्दी',
-      ho: 'Hiri Motu',
-      hr: 'Hrvatski',
-      ht: 'Krèyol ayisyen',
-      hu: 'Magyar',
-      hy: 'Հայերեն',
-      hz: 'Otsiherero',
-      ia: 'Interlingua',
-      id: 'Bahasa Indonesia',
-      ie: 'Interlingue',
-      ig: 'Igbo',
-      ii: 'ꆇꉙ',
-      ik: 'Iñupiak',
-      io: 'Ido',
-      is: 'Íslenska',
-      it: 'Italiano',
-      iu: 'ᐃᓄᒃᑎᑐᑦ',
-      ja: '日本語',
-      jv: 'Basa Jawa',
-      ka: 'ქართული',
-      kg: 'KiKongo',
-      ki: 'Gĩkũyũ',
-      kj: 'Kuanyama',
-      kk: 'Қазақша',
-      kl: 'Kalaallisut',
-      km: 'ភាសាខ្មែរ',
-      kn: 'ಕನ್ನಡ',
-      ko: '한국어',
-      kr: 'Kanuri',
-      ks: 'कॉशुर',
-      ku: 'Kurdî',
-      kv: 'Коми',
-      kw: 'Kernewek',
-      ky: 'Kırgızca',
-      la: 'Latina',
-      lb: 'Lëtzebuergesch',
-      lg: 'Luganda',
-      li: 'Limburgs',
-      ln: 'Lingála',
-      lo: 'ລາວ',
-      lt: 'Lietuvių',
-      lv: 'Latviešu',
-      mg: 'Malagasy',
-      mh: 'Kajin Majel',
-      mi: 'Māori',
-      mk: 'Македонски',
-      ml: 'മലയാളം',
-      mn: 'Монгол',
-      mo: 'Moldovenească',
-      mr: 'मराठी',
-      ms: 'Bahasa Melayu',
-      mt: 'bil-Malti',
-      my: 'Myanmasa',
-      na: 'Dorerin Naoero',
-      nd: 'Sindebele',
-      ne: 'नेपाली',
-      ng: 'Oshiwambo',
-      nl: 'Nederlands',
-      nn: 'Norsk (nynorsk)',
-      no: 'Norsk',
-      nr: 'isiNdebele',
-      nv: 'Diné bizaad',
-      ny: 'Chi-Chewa',
-      oc: 'Occitan',
-      oj: 'ᐊᓂᔑᓈᐯᒧᐎᓐ',
-      om: 'Oromoo',
-      or: 'ଓଡ଼ିଆ',
-      os: 'Иронау',
-      pa: 'ਪੰਜਾਬੀ',
-      pi: 'Pāli',
-      pl: 'Polski',
-      ps: 'پښتو',
-      pt: 'Português',
-      qu: 'Runa Simi',
-      rm: 'Rumantsch',
-      rn: 'Kirundi',
-      ro: 'Română',
-      ru: 'Русский',
-      rw: 'Kinyarwandi',
-      sa: 'संस्कृतम्',
-      sc: 'Sardu',
-      sd: 'सिंधी',
-      se: 'Davvisámegiella',
-      sg: 'Sängö',
-      sh: 'Srpskohrvatski',
-      si: 'සිංහල',
-      sk: 'Slovenčina',
-      sl: 'Slovenščina',
-      sm: 'Gagana Samoa',
-      sn: 'chiShona',
-      so: 'Soomaaliga',
-      sq: 'shqip',
-      sr: 'Српски',
-      ss: 'SiSwati',
-      st: 'Sesotho',
-      su: 'Basa Sunda',
-      sv: 'Svenska',
-      sw: 'Kiswahili',
-      ta: 'தமிழ்',
-      te: 'తెలుగు',
-      tet: 'Tetun',
-      tg: 'Тоҷикӣ',
-      th: 'ไทย',
-      ti: 'ትግርኛ',
-      tk: 'Туркмен',
-      tl: 'Tagalog',
-      tn: 'Setswana',
-      to: 'Lea Faka-Tonga',
-      tr: 'Türkçe',
-      ts: 'Xitsonga',
-      tt: 'Tatarça',
-      tw: 'Twi',
-      ty: "Reo Mā'ohi",
-      ug: 'Uyƣurqə',
-      uk: 'Українська',
-      ur: 'اردو',
-      uz: 'Ўзбек',
-      ve: 'Tshivenḓa',
-      vi: 'Tiếng Việt',
-      vo: 'Volapük',
-      wa: 'Walon',
-      wo: 'Wollof',
-      xh: 'isiXhosa',
-      yi: 'ייִדיש',
-      yo: 'Yorùbá',
-      za: 'Cuengh',
-      zg: 'ⵜⴰⵎⴰⵣⵉⵖⵜ',
-      zh: '中文',
-      zu: 'isiZulu'
-    },
     available: appLocales
   }),
 
@@ -464,7 +315,7 @@ export const useLanguageStore = defineStore('language', {
     },
 
     translate(key) {
-      return this.translations[key] ?? this.translations[key?.substring(0, 2)] ?? key
+      return languages[key] ?? languages[key?.substring(0, 2)] ?? key
     }
   }
 })
@@ -483,6 +334,7 @@ export const useMessageStore = defineStore('message', {
         console.warn('Message queue overflow, dropping message:', msg)
         return
       }
+
       this.queue.push({
         text: msg,
         color: type,
@@ -494,10 +346,49 @@ export const useMessageStore = defineStore('message', {
 })
 
 /**
- * Available element schemas
+ * Available element schemas fetched from GraphQL
  */
+let _loading = null
+
 export const useSchemaStore = defineStore('schema', {
-  state: () => appSchemas
+  state: () => ({ themes: {}, content: {}, meta: {}, config: {} }),
+  actions: {
+    load() {
+      if (_loading) return _loading instanceof Promise ? _loading : Promise.resolve()
+
+      _loading = apolloClient.query({
+        query: FETCH_SCHEMAS
+      }).then((result) => {
+        const content = {}, meta = {}, config = {}
+        const parse = (v) => typeof v === 'string' ? JSON.parse(v) : v || {}
+        const list = (result.data?.schemas || []).map(t => markRaw({
+          ...t,
+          types: parse(t.types),
+          content: parse(t.content),
+          meta: parse(t.meta),
+          config: parse(t.config)
+        }))
+
+        for (const theme of list) {
+          for (const key in theme.content) content[key] = markRaw(theme.content[key])
+          for (const key in theme.meta) meta[key] = markRaw(theme.meta[key])
+          for (const key in theme.config) config[key] = markRaw(theme.config[key])
+        }
+
+        this.themes = Object.freeze(Object.fromEntries(list.map(t => [t.name, t])))
+        this.content = Object.freeze(content)
+        this.meta = Object.freeze(meta)
+        this.config = Object.freeze(config)
+
+        _loading = true
+      }).catch((err) => {
+        _loading = null
+        throw err
+      }).then(() => _loading)
+
+      return _loading
+    }
+  }
 })
 
 /**
@@ -545,26 +436,154 @@ export const useSideStore = defineStore('side', {
   }
 })
 
+export const useDirtyStore = defineStore('dirty', {
+  state: () => ({
+    dirty: false,
+    pendingResolve: null,
+    saveFn: null,
+    show: false
+  }),
+
+  actions: {
+    cancel() {
+      this.show = false
+      this.resolve(false)
+    },
+
+    confirm(action) {
+      return new Promise((resolve) => {
+        this.pendingResolve = resolve
+        this.show = true
+        this._action = action
+      })
+    },
+
+    async discard() {
+      await this.finalize()
+    },
+
+    async finalize() {
+      this.dirty = false
+      this.show = false
+
+      const action = this._action
+      this._action = null
+
+      if (action) await action()
+
+      this.resolve(true)
+    },
+
+    register(saveFn) {
+      this.saveFn = saveFn
+      this.dirty = false
+    },
+
+    resolve(value) {
+      const fn = this.pendingResolve
+      this.pendingResolve = null
+      this._action = null
+
+      if (fn) fn(value)
+    },
+
+    async saveAndLeave() {
+      if (this.saveFn) {
+        const result = await this.saveFn(true)
+        if (result === false) return
+      }
+
+      await this.finalize()
+    },
+
+    set(value) {
+      if (value !== this.dirty) {
+        this.dirty = value
+      }
+    },
+
+    unregister() {
+      this.dirty = false
+      this.saveFn = null
+      this.resolve(false)
+    }
+  }
+})
+
+/**
+ * Notifies the kept-alive list/tree views about items saved or published in
+ * detail views, so they patch the matching node in place from the passed item
+ * without reloading and without re-fetching from the server.
+ *
+ * Changes are kept as a stack per type because stacked detail views (e.g.
+ * page -> file -> page -> element) can save several items of different types
+ * before any underlying list re-renders. Each list reads pending items via
+ * get() and removes the ones it has patched via patched().
+ */
+export const useChangeStore = defineStore('change', {
+  state: () => ({
+    changed: {}
+  }),
+
+  actions: {
+    get(type) {
+      return this.changed[type] || []
+    },
+
+    notify(type, item) {
+      if (!type || !item?.id) return
+
+      const list = this.get(type).filter((entry) => entry.id !== item.id)
+
+      list.push(markRaw(item))
+      this.changed = { ...this.changed, [type]: list }
+    },
+
+    patched(type, ids) {
+      const list = this.changed[type]
+
+      if (!list?.length || !ids?.length) return
+
+      this.changed = { ...this.changed, [type]: list.filter((entry) => !ids.includes(entry.id)) }
+    }
+  }
+})
+
 export const useViewStack = defineStore('viewStack', {
   state: () => ({
     stack: []
   }),
 
   actions: {
+    async closeView() {
+      const dirtyStore = useDirtyStore()
+
+      if (dirtyStore.dirty) {
+        await dirtyStore.confirm(() => {
+          dirtyStore.unregister()
+          this.stack.pop()
+        })
+        return
+      }
+
+      dirtyStore.unregister()
+      this.stack.pop()
+    },
+
     openView(component, props = {}) {
       if (!component) {
         console.error('Component is not defined')
         return
       }
 
+      if (this.stack.length >= 3) {
+        this.stack.splice(0, this.stack.length - 2)
+      }
+
       this.stack.push({
         component: markRaw(component),
-        props: props || {}
+        props: markRaw(props || {})
       })
-    },
-
-    closeView() {
-      this.stack.pop()
     }
   }
 })

@@ -1,4 +1,4 @@
-import PageDetailItemMeta from '../../../js/components/PageDetailItemMeta.vue'
+import PageDetailItemSection from '../../../js/components/PageDetailItemSection.vue'
 import { useUserStore, useSchemaStore } from '../../../js/stores'
 
 const stubs = {
@@ -34,9 +34,10 @@ function setupSchemaPlugin() {
 }
 
 function mountMeta(props = {}, perms = {}) {
-  return cy.mount(PageDetailItemMeta, {
+  return cy.mount(PageDetailItemSection, {
     props: {
       item: { ...item, meta: { ...item.meta } },
+      section: 'meta',
       assets: {},
       ...props,
     },
@@ -50,7 +51,7 @@ function mountMeta(props = {}, perms = {}) {
   })
 }
 
-describe('PageDetailItemMeta', () => {
+describe('PageDetailItemSection (meta)', () => {
   beforeEach(() => {
     cy.on('uncaught:exception', () => false)
   })
@@ -72,18 +73,18 @@ describe('PageDetailItemMeta', () => {
 
   it('shows add button with page:save permission', () => {
     mountMeta({}, { 'page:save': true })
-    cy.get('button[title="Add element"]').should('exist')
+    cy.get('button.btn-add').should('exist')
   })
 
   it('hides add button without page:save permission', () => {
     mountMeta()
-    cy.get('button[title="Add element"]').should('not.exist')
+    cy.get('button.btn-add').should('not.exist')
   })
 
   it('shows remove button with page:save permission', () => {
     mountMeta({}, { 'page:save': true })
     cy.get('.v-expansion-panel').first().click()
-    cy.get('.v-expansion-panel-title button').should('exist')
+    cy.get('button.btn-remove').should('exist')
   })
 
   it('renders Fields stub inside expansion panel', () => {

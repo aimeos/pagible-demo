@@ -3,140 +3,257 @@
 <script>
 import gql from 'graphql-tag'
 import AsideMeta from '../components/AsideMeta.vue'
-import HistoryDialog from '../components/HistoryDialog.vue'
+import DetailAppBar from '../components/DetailAppBar.vue'
 import FileDetailRefs from '../components/FileDetailRefs.vue'
 import FileDetailItem from '../components/FileDetailItem.vue'
-import { useUserStore, useDrawerStore, useMessageStore, useViewStack } from '../stores'
-import {
-  mdiKeyboardBackspace,
-  mdiHistory,
-  mdiDatabaseArrowDown,
-  mdiChevronRight,
-  mdiChevronLeft
-} from '@mdi/js'
+import { useDirtyStore, useSideStore, useUserStore, useMessageStore, useViewStack, useChangeStore } from '../stores'
+import { applyResult, hasUnresolved } from '../merge'
+import { publishDate, publishItem } from '../publish'
+import { defineAsyncComponent, markRaw } from 'vue'
+import { setupEcho, cleanEcho } from '../echo'
+import { frozenParse } from '../utils'
+
+const ChangesDialog = defineAsyncComponent(() => import('../components/ChangesDialog.vue'))
+const HistoryDialog = defineAsyncComponent(() => import('../components/HistoryDialog.vue'))
+
+const FETCH_FILE = gql`
+  query ($id: ID!) {
+    file(id: $id) {
+      id
+      latest {
+        id
+        published
+        data
+        editor
+        created_at
+      }
+    }
+  }
+`
+
+const SAVE_FILE = gql`
+  mutation ($id: ID!, $input: FileInput!, $file: Upload, $latestId: ID) {
+    saveFile(id: $id, input: $input, file: $file, latestId: $latestId) {
+      id
+      latest {
+        id
+        data
+        published
+        publish_at
+        editor
+        created_at
+      }
+      changed
+    }
+  }
+`
+
+const FETCH_FILE_VERSIONS = gql`
+  query ($id: ID!) {
+    file(id: $id) {
+      id
+      versions {
+        id
+        published
+        publish_at
+        data
+        editor
+        created_at
+      }
+    }
+  }
+`
 
 export default {
   components: {
     AsideMeta,
+    ChangesDialog,
+    DetailAppBar,
     HistoryDialog,
     FileDetailItem,
     FileDetailRefs
   },
 
   props: {
-    item: { type: Object, required: true }
+    item: { type: Object, required: true },
+    stacked: { type: Boolean, default: false }
   },
 
   data: () => ({
+    destroyed: false,
+    echoCleanup: null,
+    echoPromise: null,
     file: null,
     error: false,
-    changed: false,
+    changed: null,
+    loading: true,
+    dirty: false,
     publishAt: null,
+    publishTime: null,
     publishing: false,
-    pubmenu: false,
     saving: false,
+    vchanged: false,
     vhistory: false,
     tab: 'file'
   }),
 
   setup() {
-    const viewStack = useViewStack()
+    const dirtyStore = useDirtyStore()
     const messages = useMessageStore()
-    const drawer = useDrawerStore()
+    const side = useSideStore()
     const user = useUserStore()
+    const viewStack = useViewStack()
+    const changes = useChangeStore()
 
     return {
+      dirtyStore,
+      side,
       user,
-      drawer,
       messages,
       viewStack,
-      mdiKeyboardBackspace,
-      mdiHistory,
-      mdiDatabaseArrowDown,
-      mdiChevronRight,
-      mdiChevronLeft
+      changes
     }
   },
 
+  computed: {
+    hasConflict() {
+      return hasUnresolved(this.changed)
+    },
+
+    historyCurrent() {
+      const item = this.item
+      return markRaw({
+        data: Object.freeze({
+          lang: item.lang,
+          name: item.name,
+          mime: item.mime,
+          path: item.path,
+          previews: item.previews,
+          description: item.description,
+          transcription: item.transcription
+        }),
+        files: this.media(item)
+      })
+    }
+  },
+
+  created() {
+    this.dirtyStore.register(() => this.save(true))
+
+    if (!this.item?.id || !this.user.can('file:view')) {
+      this.loading = false
+      return
+    }
+
+    this.$apollo
+      .query({
+        query: FETCH_FILE,
+        fetchPolicy: 'no-cache',
+        variables: {
+          id: this.item.id
+        }
+      })
+      .then((result) => {
+        if (this.destroyed) return
+
+        if (result.errors || !result.data.file) {
+          throw result
+        }
+
+        if (!result.data.file.latest) {
+          throw new Error('No version data available')
+        }
+
+        const latest = result.data.file.latest
+
+        this.reset()
+        Object.assign(this.item, JSON.parse(latest?.data || '{}'))
+        this.item.latestId = latest?.id
+        this.item.published = latest?.published
+        this.item.updated_at = latest?.created_at
+        this.item.editor = latest?.editor
+
+        setupEcho(this, 'file', this.item.id, (event) => {
+          if (!this.dirty && this.user.can('file:view') && event.editor !== this.user.me?.email) {
+            this.item.latestId = event.versionId
+            Object.assign(this.item, event.data)
+          }
+        })
+
+        this.loading = false
+      })
+      .catch((error) => {
+        this.loading = false
+        this.messages.add(this.$gettext('Error fetching file') + ':\n' + error, 'error')
+        this.$log(`FileDetail::created(): Error fetching file`, error)
+      })
+  },
+
+  beforeUnmount() {
+    this.destroyed = true
+    this.dirtyStore.unregister()
+    cleanEcho(this)
+    this.changed = null
+    this.file = null
+    this.side.$reset()
+  },
+
   methods: {
+    apply(changes) {
+      Object.assign(this.item, changes)
+      this.dirty = true
+      this.vhistory = false
+    },
+
     errorUpdated(event) {
       this.error = event
     },
 
     fileUpdated(event) {
       this.file = event
-      this.changed = true
+      this.dirty = true
     },
 
     itemUpdated() {
       this.$emit('update:item', this.item)
-      this.changed = true
+      this.dirty = true
     },
 
-    publish(at = null) {
-      if (!this.user.can('file:publish')) {
-        this.messages.add(this.$gettext('Permission denied'), 'error')
-        return
+    loadVersions() {
+      return this.versions(this.item.id)
+    },
+
+    media(data) {
+      if (!data?.path) {
+        return {}
       }
 
-      this.publishing = true
-
-      this.save(true).then((valid) => {
-        if (!valid) {
-          return
-        }
-
-        this.$apollo
-          .mutate({
-            mutation: gql`
-              mutation ($id: [ID!]!, $at: DateTime) {
-                pubFile(id: $id, at: $at) {
-                  id
-                }
-              }
-            `,
-            variables: {
-              id: [this.item.id],
-              at: at?.toISOString()?.substring(0, 19)?.replace('T', ' ')
-            }
-          })
-          .then((response) => {
-            if (response.errors) {
-              throw response.errors
-            }
-
-            if (!at) {
-              this.item.published = true
-              this.messages.add(this.$gettext('File published successfully'), 'success')
-            } else {
-              this.item.publish_at = at
-              this.messages.add(
-                this.$gettext('File scheduled for publishing at %{date}', {
-                  date: at.toLocaleDateString()
-                }),
-                'info'
-              )
-            }
-
-            this.viewStack.closeView()
-          })
-          .catch((error) => {
-            this.messages.add(this.$gettext('Error publishing file') + ':\n' + error, 'error')
-            this.$log(`FileDetail::publish(): Error publishing file`, at, error)
-          })
-          .finally(() => {
-            this.publishing = false
-          })
+      return Object.freeze({
+        [data.path]: Object.freeze({
+          id: data.path,
+          name: data.name,
+          mime: data.mime,
+          path: data.path,
+          previews: data.previews || {}
+        })
       })
     },
 
+    publish(at = null) {
+      publishItem(this, 'file', {
+        success: this.$gettext('File published successfully'),
+        scheduled: (d) => this.$gettext('File scheduled for publishing at %{date}', { date: d.toLocaleDateString() }),
+        error: this.$gettext('Error publishing file')
+      }, at)
+    },
+
     published() {
-      this.publish(this.publishAt)
-      this.pubmenu = false
+      this.publish(publishDate(this.publishAt, this.publishTime))
     },
 
     reset() {
-      this.changed = false
+      this.dirty = false
+      this.changed = null
       this.error = false
     },
 
@@ -159,7 +276,7 @@ export default {
         return Promise.resolve(false)
       }
 
-      if (!this.changed) {
+      if (!this.dirty) {
         return Promise.resolve(true)
       }
 
@@ -167,18 +284,7 @@ export default {
 
       return this.$apollo
         .mutate({
-          mutation: gql`
-            mutation ($id: ID!, $input: FileInput!, $file: Upload) {
-              saveFile(id: $id, input: $input, file: $file) {
-                id
-                latest {
-                  id
-                  data
-                  created_at
-                }
-              }
-            }
-          `,
+          mutation: SAVE_FILE,
           variables: {
             id: this.item.id,
             input: {
@@ -189,7 +295,8 @@ export default {
               name: this.item.name,
               lang: this.item.lang
             },
-            file: this.file
+            file: this.file,
+            latestId: this.item.latestId
           },
           context: {
             hasUpload: true
@@ -200,16 +307,20 @@ export default {
             throw result.errors
           }
 
-          const latest = result.data?.saveFile?.latest
+          const file = result.data?.saveFile
+          const latest = file?.latest
+          const changed = file?.changed ? markRaw(JSON.parse(file.changed)) : null
 
           Object.assign(this.item, JSON.parse(latest?.data || '{}'))
           this.item.updated_at = latest?.created_at
-          this.item.published = false
-          this.reset()
+          this.item.latestId = latest?.id
 
-          if (!quiet) {
-            this.messages.add(this.$gettext('File saved successfully'), 'success')
-          }
+          applyResult(this, changed, this.$gettext('File saved successfully'), quiet)
+
+          this.item.published = latest?.published ?? false
+          this.item.publish_at = latest?.publish_at ?? null
+          this.item.editor = latest?.editor ?? this.item.editor
+          this.changes.notify('file', this.item)
 
           return true
         })
@@ -225,7 +336,7 @@ export default {
     use(version) {
       Object.assign(this.item, version.data)
       this.vhistory = false
-      this.changed = true
+      this.dirty = true
     },
 
     versions(id) {
@@ -240,21 +351,8 @@ export default {
 
       return this.$apollo
         .query({
-          query: gql`
-            query ($id: ID!) {
-              file(id: $id) {
-                id
-                versions {
-                  id
-                  published
-                  publish_at
-                  data
-                  editor
-                  created_at
-                }
-              }
-            }
-          `,
+          query: FETCH_FILE_VERSIONS,
+          fetchPolicy: 'no-cache',
           variables: {
             id: id
           }
@@ -267,9 +365,10 @@ export default {
           const keys = ['previews', 'description', 'transcription']
 
           return (result.data.file.versions || []).map((v) => {
-            const item = { ...v, data: JSON.parse(v.data || '{}') }
-            keys.forEach((key) => (item[key] ??= {}))
-            return item
+            const item = { ...v, data: frozenParse(v.data) }
+            keys.forEach((key) => (item[key] = Object.freeze(item[key] ?? {})))
+            item.files = this.media(item.data)
+            return Object.freeze(item)
           })
         })
         .catch((error) => {
@@ -277,120 +376,44 @@ export default {
           this.$log(`FileDetail::versions(): Error fetching file versions`, id, error)
         })
     }
+  },
+
+  watch: {
+    dirty(value) {
+      this.dirtyStore.set(value)
+    }
   }
 }
 </script>
 
 <template>
-  <v-app-bar :elevation="0" density="compact" role="sectionheader" :aria-label="$gettext('Menu')">
-    <template v-slot:prepend>
-      <v-btn
-        @click="viewStack.closeView()"
-        :title="$gettext('Back to list view')"
-        :icon="mdiKeyboardBackspace"
-      />
-    </template>
-
-    <v-app-bar-title>
-      <h1 class="app-title">{{ $gettext('File') }}: {{ item.name }}</h1>
-    </v-app-bar-title>
-
-    <template v-slot:append>
-      <v-btn
-        @click="vhistory = true"
-        :class="{ hidden: item.published && !changed && !item.latest }"
-        :title="$gettext('View history')"
-        :icon="mdiHistory"
-        class="no-rtl"
-      />
-
-      <v-btn
-        @click="save()"
-        :loading="saving"
-        :title="$gettext('Save')"
-        :class="{ error: error }"
-        class="menu-save"
-        :disabled="!changed || error || !user.can('file:save')"
-        :variant="!changed || error || !user.can('file:save') ? 'plain' : 'flat'"
-        :color="!changed || error || !user.can('file:save') ? '' : 'blue-darken-1'"
-        :icon="mdiDatabaseArrowDown"
-      />
-
-      <v-menu v-model="pubmenu" :close-on-content-click="false">
-        <template #activator="{ props }">
-          <v-btn
-            v-bind="props"
-            icon
-            :loading="publishing"
-            :title="$gettext('Schedule publishing')"
-            :class="{ error: error }"
-            class="menu-publish"
-            :disabled="(item.published && !changed) || error || !user.can('file:publish')"
-            :variant="
-              (item.published && !changed) || error || !user.can('file:publish') ? 'plain' : 'flat'
-            "
-            :color="
-              (item.published && !changed) || error || !user.can('file:publish')
-                ? ''
-                : 'blue-darken-2'
-            "
-          >
-            <v-icon>
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-                <path d="M2,1V3H16V1H2 M2,10H6V19H12V10H16L9,3L2,10Z" />
-                <path
-                  d="M16.7 11.4C16.7 11.4 16.61 11.4 16.7 11.4C13.19 11.49 10.4 14.28 10.4 17.7C10.4 21.21 13.19 24 16.7 24S23 21.21 23 17.7 20.21 11.4 16.7 11.4M16.7 22.2C14.18 22.2 12.2 20.22 12.2 17.7S14.18 13.2 16.7 13.2 21.2 15.18 21.2 17.7 19.22 22.2 16.7 22.2M15.6 13.1V17.6L18.84 19.58L19.56 18.5L16.95 16.97V13.1H15.6Z"
-                />
-              </svg>
-            </v-icon>
-          </v-btn>
-        </template>
-        <div class="menu-content">
-          <v-date-picker v-model="publishAt" hide-header show-adjacent-months />
-          <v-btn
-            @click="published"
-            :disabled="!publishAt || error"
-            :color="publishAt ? 'primary' : ''"
-            variant="text"
-            >{{ $gettext('Publish') }}</v-btn
-          >
-        </div>
-      </v-menu>
-
-      <v-btn
-        icon
-        @click="publish()"
-        :loading="publishing"
-        :title="$gettext('Publish')"
-        :class="{ error: error }"
-        class="menu-publish"
-        :disabled="(item.published && !changed) || error || !user.can('file:publish')"
-        :variant="
-          (item.published && !changed) || error || !user.can('file:publish') ? 'plain' : 'flat'
-        "
-        :color="
-          (item.published && !changed) || error || !user.can('file:publish') ? '' : 'blue-darken-2'
-        "
-      >
-        <v-icon>
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-            <path d="M5,2V4H19V2H5 M5,12H9V21H15V12H19L12,5L5,12Z" />
-          </svg>
-        </v-icon>
-      </v-btn>
-
-      <v-btn
-        @click.stop="drawer.toggle('aside')"
-        :title="$gettext('Toggle side menu')"
-        :icon="drawer.aside ? mdiChevronRight : mdiChevronLeft"
-      />
-    </template>
-  </v-app-bar>
+  <DetailAppBar
+    type="file"
+    :label="$gettext('File')"
+    :name="item.name"
+    :stacked="stacked"
+    :dirty="dirty"
+    :error="error"
+    :conflict="hasConflict"
+    :changed="changed"
+    :published="item.published"
+    :has-latest="!!item.latestId"
+    :saving="saving"
+    :publishing="publishing"
+    v-model:publish-at="publishAt"
+    v-model:publish-time="publishTime"
+    @save="save()"
+    @publish="publish()"
+    @schedule="published"
+    @history="vhistory = true"
+    @changes="vchanged = true"
+  />
 
   <v-main class="file-details" :aria-label="$gettext('File')">
-    <v-form @submit.prevent>
+    <v-progress-linear v-if="loading" indeterminate color="primary" />
+    <v-form v-else @submit.prevent>
       <v-tabs fixed-tabs v-model="tab">
-        <v-tab value="file" :class="{ changed: changed, error: error }">{{
+        <v-tab value="file" :class="{ changed: dirty, error: error }">{{
           $gettext('File')
         }}</v-tab>
         <v-tab value="refs">{{ $gettext('Used by') }}</v-tab>
@@ -419,26 +442,15 @@ export default {
     <HistoryDialog
       v-model="vhistory"
       :readonly="!user.can('file:save')"
-      :current="{
-        data: {
-          lang: item.lang,
-          name: item.name,
-          mime: item.mime,
-          path: item.path,
-          previews: item.previews,
-          description: item.description,
-          transcription: item.transcription
-        }
-      }"
-      :load="() => versions(item.id)"
+      :current="historyCurrent"
+      :load="loadVersions"
       @revert="revertVersion"
+      @apply="apply"
       @use="use($event)"
+    />
+    <ChangesDialog v-model="vchanged" :changed="changed"
+      :targets="{ data: item }"
+      @resolve="dirty = true"
     />
   </Teleport>
 </template>
-
-<style scoped>
-.v-toolbar-title {
-  margin-inline-start: 0;
-}
-</style>

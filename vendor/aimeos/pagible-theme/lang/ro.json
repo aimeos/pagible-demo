@@ -1,11 +1,26 @@
 {
-    "More about": "Mai multe despre",
+    "Download file": "Descărcați fișierul",
+    "Get Started": "Începeți",
+    "Skip to main content": "Salt la conținutul principal",
+    "Search website": "Site de căutare",
+    "Close": "Închidere",
+    "Main navigation": "Navigare principală",
+    "Open sidebar": "Deschideți bara laterală",
+    "Close sidebar": "Închideți bara laterală",
+    "Close navigation": "Închideți navigarea",
+    "Search": "Căutare",
+    "Open navigation": "Deschideți navigarea",
+    "Breadcrumb navigation": "Navigare Breadcrumb",
+    "Name": "Nume și prenume",
     "Your name": "Numele dvs.",
+    "E-Mail": "E-mail",
     "Your e-mail address": "Adresa dvs. de e-mail",
+    "Message": "Mesaj",
     "Your message": "Mesajul dvs.",
     "Send message": "Trimite mesaj",
     "Message will be sent": "Mesajul va fi trimis",
     "Successfully sent": "Trimis cu succes",
     "Error sending e-mail": "Eroare la trimiterea e-mailului",
-    "Download file": "Desc\u0103rca\u021bi fi\u0219ierul"
+    "Unknown product": "Produs necunoscut",
+    "Unknown payment provider": "Prestator de plată necunoscut"
 }

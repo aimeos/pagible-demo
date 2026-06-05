@@ -23,23 +23,29 @@ import {
   mdiAccount,
   mdiHelpCircleOutline,
   mdiCheckBold,
+  mdiArrowRightCircle,
   mdiMicrophone,
   mdiMicrophoneOutline
 } from '@mdi/js'
+import { markRaw } from 'vue'
 import User from '../components/User.vue'
-import PageDetail from '../views//PageDetail.vue'
 import AsideList from '../components/AsideList.vue'
 import Navigation from '../components/Navigation.vue'
 import PageListItems from '../components/PageListItems.vue'
-import { useUserStore, useDrawerStore, useMessageStore, useViewStack } from '../stores'
-import { recording } from '../audio'
-import { locales } from '../utils'
-import { transcribe } from '../ai'
+import { useUserStore, useDrawerStore, useMessageStore } from '../stores'
+import { languageFilter } from '../utils'
+
+const SYNTHESIZE = gql`
+  mutation ($prompt: String!) {
+    synthesize(prompt: $prompt)
+  }
+`
 
 export default {
+  name: 'PageList',
+
   components: {
     PageListItems,
-    PageDetail, // eslint-disable-line vue/no-unused-components -- used programmatically via openView()
     Navigation,
     AsideList,
     User
@@ -74,12 +80,12 @@ export default {
       deep: true,
       handler(val) {
         this.user.saveData('page', 'filter', val)
+        this.response = ''
       }
     }
   },
 
   setup() {
-    const viewStack = useViewStack()
     const messages = useMessageStore()
     const drawer = useDrawerStore()
     const user = useUserStore()
@@ -88,7 +94,6 @@ export default {
       user,
       drawer,
       messages,
-      viewStack,
       mdiPlaylistCheck,
       mdiTranslate,
       mdiClose,
@@ -109,10 +114,10 @@ export default {
       mdiAccount,
       mdiHelpCircleOutline,
       mdiCheckBold,
+      mdiArrowRightCircle,
       mdiMicrophone,
       mdiMicrophoneOutline,
-      locales,
-      transcribe
+      languageFilter
     }
   },
 
@@ -121,6 +126,69 @@ export default {
   },
 
   computed: {
+    asideContent() {
+      return [
+        {
+          key: 'view',
+          title: this.$gettext('view'),
+          items: [
+            { title: this.$gettext('Tree'), icon: mdiFileTree, value: { view: 'tree' } },
+            { title: this.$gettext('List'), icon: mdiFormatListBulletedSquare, value: { view: 'list' } }
+          ]
+        },
+        {
+          key: 'publish',
+          title: this.$gettext('publish'),
+          items: [
+            { title: this.$gettext('All'), icon: mdiPlaylistCheck, value: { publish: null } },
+            { title: this.$gettext('Published'), icon: mdiPublish, value: { publish: 'PUBLISHED' } },
+            { title: this.$gettext('Scheduled'), icon: mdiClockOutline, value: { publish: 'SCHEDULED' } },
+            { title: this.$gettext('Drafts'), icon: mdiPencil, value: { publish: 'DRAFT' } }
+          ]
+        },
+        {
+          key: 'trashed',
+          title: this.$gettext('trashed'),
+          items: [
+            { title: this.$gettext('All'), icon: mdiPlaylistCheck, value: { trashed: 'WITH' } },
+            { title: this.$gettext('Available only'), icon: mdiDeleteOff, value: { trashed: 'WITHOUT' } },
+            { title: this.$gettext('Only trashed'), icon: mdiDelete, value: { trashed: 'ONLY' } }
+          ]
+        },
+        {
+          key: 'status',
+          title: this.$gettext('status'),
+          items: [
+            { title: this.$gettext('All'), icon: mdiPlaylistCheck, value: { status: null } },
+            { title: this.$gettext('Enabled'), icon: mdiEye, value: { status: 1 } },
+            { title: this.$gettext('Hidden'), icon: mdiEyeOffOutline, value: { status: 2 } },
+            { title: this.$gettext('Disabled'), icon: mdiEyeOff, value: { status: 0 } }
+          ]
+        },
+        {
+          key: 'cache',
+          title: this.$gettext('cache'),
+          items: [
+            { title: this.$gettext('All'), icon: mdiPlaylistCheck, value: { cache: null } },
+            { title: this.$gettext('No cache'), icon: mdiClockAlertOutline, value: { cache: 0 } }
+          ]
+        },
+        {
+          key: 'editor',
+          title: this.$gettext('editor'),
+          items: [
+            { title: this.$gettext('All'), icon: mdiPlaylistCheck, value: { editor: null } },
+            { title: this.$gettext('Edited by me'), icon: mdiAccount, value: { editor: this.user.me?.email } }
+          ]
+        },
+        {
+          key: 'lang',
+          title: this.$gettext('languages'),
+          items: languageFilter(mdiPlaylistCheck, mdiTranslate)
+        }
+      ]
+    },
+
     message() {
       if (!this.response) {
         return this.chat
@@ -135,33 +203,13 @@ export default {
   },
 
   methods: {
-    languages() {
-      const list = [
-        {
-          title: this.$gettext('All'),
-          icon: mdiPlaylistCheck,
-          value: { lang: null }
-        }
-      ]
-
-      for (const entry of this.locales()) {
-        list.push({
-          title: entry.title,
-          icon: mdiTranslate,
-          value: { lang: entry.value }
-        })
-      }
-
-      return list
-    },
-
     open(item) {
-      this.viewStack.openView(PageDetail, { item: item })
+      this.$router.push({ name: 'page:detail', params: { id: item.id } })
     },
 
     record() {
       if (!this.audio) {
-        return (this.audio = recording().start())
+        return (this.audio = markRaw(import('../audio').then((mod) => mod.recording().start())))
       }
 
       this.audio.then((rec) => {
@@ -169,7 +217,8 @@ export default {
         this.audio = null
 
         rec.stop()?.then((buffer) => {
-          this.transcribe(buffer)
+          import('../ai')
+            .then((mod) => mod.transcribe(buffer))
             .then((transcription) => {
               this.chat = transcription.asText()
             })
@@ -207,11 +256,7 @@ export default {
 
       this.$apollo
         .mutate({
-          mutation: gql`
-            mutation ($prompt: String!) {
-              synthesize(prompt: $prompt)
-            }
-          `,
+          mutation: SYNTHESIZE,
           variables: {
             prompt: prompt
           }
@@ -222,6 +267,7 @@ export default {
           }
 
           this.response = result.data?.synthesize || ''
+          this.shortmsg = true
           this.chat = this.message
 
           const filter = {
@@ -283,6 +329,7 @@ export default {
         @click="drawer.toggle('aside')"
         :title="$gettext('Toggle side menu')"
         :icon="drawer.aside ? mdiChevronRight : mdiChevronLeft"
+        class="btn-sidemenu"
       />
     </template>
   </v-app-bar>
@@ -373,82 +420,7 @@ export default {
   <AsideList
     v-model:filter="filter"
     :defaults="defaults"
-    :content="[
-      {
-        key: 'view',
-        title: $gettext('view'),
-        items: [
-          { title: $gettext('Tree'), icon: mdiFileTree, value: { view: 'tree' } },
-          {
-            title: $gettext('List'),
-            icon: mdiFormatListBulletedSquare,
-            value: { view: 'list' }
-          }
-        ]
-      },
-      {
-        key: 'publish',
-        title: $gettext('publish'),
-        items: [
-          { title: $gettext('All'), icon: mdiPlaylistCheck, value: { publish: null } },
-          { title: $gettext('Published'), icon: mdiPublish, value: { publish: 'PUBLISHED' } },
-          {
-            title: $gettext('Scheduled'),
-            icon: mdiClockOutline,
-            value: { publish: 'SCHEDULED' }
-          },
-          { title: $gettext('Drafts'), icon: mdiPencil, value: { publish: 'DRAFT' } }
-        ]
-      },
-      {
-        key: 'trashed',
-        title: $gettext('trashed'),
-        items: [
-          { title: $gettext('All'), icon: mdiPlaylistCheck, value: { trashed: 'WITH' } },
-          {
-            title: $gettext('Available only'),
-            icon: mdiDeleteOff,
-            value: { trashed: 'WITHOUT' }
-          },
-          { title: $gettext('Only trashed'), icon: mdiDelete, value: { trashed: 'ONLY' } }
-        ]
-      },
-      {
-        key: 'status',
-        title: $gettext('status'),
-        items: [
-          { title: $gettext('All'), icon: mdiPlaylistCheck, value: { status: null } },
-          { title: $gettext('Enabled'), icon: mdiEye, value: { status: 1 } },
-          { title: $gettext('Hidden'), icon: mdiEyeOffOutline, value: { status: 2 } },
-          { title: $gettext('Disabled'), icon: mdiEyeOff, value: { status: 0 } }
-        ]
-      },
-      {
-        key: 'cache',
-        title: $gettext('cache'),
-        items: [
-          { title: $gettext('All'), icon: mdiPlaylistCheck, value: { cache: null } },
-          { title: $gettext('No cache'), icon: mdiClockAlertOutline, value: { cache: 0 } }
-        ]
-      },
-      {
-        key: 'editor',
-        title: $gettext('editor'),
-        items: [
-          { title: $gettext('All'), icon: mdiPlaylistCheck, value: { editor: null } },
-          {
-            title: $gettext('Edited by me'),
-            icon: mdiAccount,
-            value: { editor: this.user.me?.email }
-          }
-        ]
-      },
-      {
-        key: 'lang',
-        title: $gettext('languages'),
-        items: languages()
-      }
-    ]"
+    :content="asideContent"
   />
 </template>
 

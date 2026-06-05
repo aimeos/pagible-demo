@@ -8,28 +8,27 @@
 	"prefer-stable": true,
 	"minimum-stability": "dev",
 	"require": {
-		"aimeos/pagible-core": "0.10.*",
-		"aimeos/pagible-admin": "0.10.*",
-		"aimeos/pagible-ai": "0.10.*",
-		"aimeos/pagible-graphql": "0.10.*",
-		"aimeos/pagible-import": "0.10.*",
-		"aimeos/pagible-search": "0.10.*",
-		"aimeos/pagible-jsonapi": "0.10.*",
-		"aimeos/pagible-mcp": "0.10.*",
-		"aimeos/pagible-theme": "0.10.*"
+		"aimeos/pagible-core": "0.11.*",
+		"aimeos/pagible-admin": "0.11.*",
+		"aimeos/pagible-ai": "0.11.*",
+		"aimeos/pagible-graphql": "0.11.*",
+		"aimeos/pagible-search": "0.11.*",
+		"aimeos/pagible-jsonapi": "0.11.*",
+		"aimeos/pagible-mcp": "0.11.*",
+		"aimeos/pagible-theme": "0.11.*"
 	},
 	"require-dev": {
 		"orchestra/testbench": "^9.0||^10.0||^11.0",
 		"laravel-json-api/testing": "^3.1",
 		"larastan/larastan": "^3.9",
-		"om/potrans": "^1.0.1"
+		"om/potrans": "^1.0.1",
+		"kkomelin/laravel-translatable-string-exporter": "^1.26"
 	},
 	"repositories": [
 		{"type": "path", "url": "core"},
 		{"type": "path", "url": "admin"},
 		{"type": "path", "url": "ai"},
 		{"type": "path", "url": "graphql"},
-		{"type": "path", "url": "import"},
 		{"type": "path", "url": "search"},
 		{"type": "path", "url": "jsonapi"},
 		{"type": "path", "url": "mcp"},
@@ -37,22 +36,33 @@
 	],
 	"autoload": {
 		"psr-4": {
-			"Aimeos\\Cms\\": "src/"
+			"Aimeos\\Cms\\": ["src/"]
 		}
 	},
 	"autoload-dev": {
 		"psr-4": {
+			"Aimeos\\Cms\\": [
+				"backup/src/",
+				"cashier/src/",
+				"import/src/",
+				"themes/glass/src/",
+				"themes/pagible/src/",
+				"themes/paper/src/",
+				"themes/premium/src/"
+			],
 			"Tests\\": [
 				"tests/",
 				"core/tests/",
 				"admin/tests/",
 				"ai/tests/",
+				"cashier/tests/",
 				"graphql/tests/",
 				"import/tests/",
 				"jsonapi/tests/",
 				"mcp/tests/",
 				"search/tests/",
-				"theme/tests/"
+				"theme/tests/",
+				"backup/tests/"
 			]
 		},
 		"classmap": [
@@ -64,6 +74,7 @@
 			"@php vendor/bin/testbench package:discover --ansi"
 		],
 		"translate": [
+			"@php bin/translate ar bg cs da de el en es et fi fr he hu id it ja lt lv nb nl pl pt-br pt ro ru sk sl sv tr uk vi zh",
 			"npm run gettext:extract --prefix admin",
 			"mv admin/i18n/no.po admin/i18n/nb.po",
 			"for POFILE in `ls admin/i18n/*.po`; do msgattrib --no-obsolete -o $POFILE $POFILE; done",
@@ -73,6 +84,10 @@
 		],
 		"build": [
 			"npm run build --prefix admin"
+		],
+		"coverage": [
+			"npx playwright install chromium",
+			"npm run coverage:all"
 		]
 	},
 	"config": {

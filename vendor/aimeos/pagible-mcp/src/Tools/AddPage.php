@@ -23,23 +23,16 @@ use Laravel\Mcp\Request;
 
 #[Name('add-page')]
 #[Title('Create a new page within the page tree')]
-#[Description('Creates a new page in the page tree. Requires lang (ISO code like "en"), name (max 50 chars), title (max 100 chars), content (array of {type, data} objects — use get-schemas for types), and meta with meta-tags description for SEO. Optional: config, to, tag, theme, type, domain, path, status (0/1/2), cache (minutes), related_id, parent_id, ref, files, elements. Returns the created page as JSON.')]
+#[Description('Creates a new page in the page tree. Requires lang (ISO code like "en"), name (max 50 chars), title (max 100 chars), content (array of {type, data} objects — use get-schemas for types), and meta with meta-tags description for SEO. Optional: config, to, tag, theme, type, domain, path, cache (minutes), related_id, parent_id, ref, files, elements. Returns the created page as JSON.')]
 class AddPage extends Tool
 {
-    private int $numcalls = 0;
-
-
     /**
      * Handle the tool request.
      */
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'page:add', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
-        }
-
-        if( $this->numcalls > 0 ) {
-            return Response::structured( ['error' => 'Only one page can be created at a time.'] );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -47,6 +40,7 @@ class AddPage extends Tool
             'name' => 'required|string|max:50',
             'title' => 'required|string|max:100',
             'content' => 'required|array',
+            'content.*.id' => 'string|max:10',
             'content.*.type' => 'required|string|max:50',
             'content.*.group' => 'string|max:50',
             'content.*.data' => 'required|array',
@@ -60,7 +54,6 @@ class AddPage extends Tool
             'type' => 'string|max:50',
             'domain' => 'string|max:255',
             'path' => 'string|max:255',
-            'status' => 'integer|in:0,1,2',
             'cache' => 'integer|min:0',
             'related_id' => 'string|max:36',
             'parent_id' => 'string|max:36',
@@ -79,32 +72,37 @@ class AddPage extends Tool
             'meta.meta-tags.description.required' => 'You must provide a meta description in meta.meta-tags.description for SEO. It should be 150-160 characters.',
         ] );
 
-        if( isset( $v['content'] ) ) {
-            $v['content'] = Validation::content( $v['content'] );
-        }
-
         $pid = $v['parent_id'] ?? null;
 
         /** @var Page|null $parent */
-        $parent = $pid ? Page::withTrashed()->with( 'latest' )->find( $pid ) : null;
+        $parent = $pid
+            ? Page::withTrashed()
+                ->select( 'id', 'latest_id', 'lang' )
+                ->with( ['latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'data' )] )
+                ->find( $pid )
+            : null;
 
         $v['path'] = $v['path'] ?? Utils::slugify( $v['title'] );
         $v['domain'] = $v['domain'] ?? $parent?->latest?->data->domain ?? '';
         $v['theme'] = $v['theme'] ?? $parent?->latest?->data->theme ?? '';
         $v['type'] = $v['type'] ?? $parent?->latest?->data->type ?? '';
         $v['lang'] = $v['lang'] ?? $parent?->lang ?: '';
+
+        if( isset( $v['content'] ) ) {
+            $v['content'] = Validation::content( $v['content'], $v['type'] );
+        }
         $v['related_id'] = $v['related_id'] ?? null;
-        $v['status'] = $v['status'] ?? 0;
         $v['cache'] = $v['cache'] ?? 5;
         $v['tag'] = $v['tag'] ?? '';
         $v['to'] = $v['to'] ?? '';
+        $v['status'] = 0;
 
         if( isset( $v['meta'] ) ) {
-            $v['meta'] = Validation::structured( $v['meta'], 'meta', new \stdClass() );
+            $v['meta'] = Validation::structured( $v['meta'], 'meta', new \stdClass(), $v['type'] );
         }
 
         if( isset( $v['config'] ) ) {
-            $v['config'] = Validation::structured( $v['config'], 'config', new \stdClass() );
+            $v['config'] = Validation::structured( $v['config'], 'config', new \stdClass(), $v['type'] );
         }
 
         $input = array_diff_key( $v, array_flip( ['parent_id', 'ref', 'files', 'elements'] ) );
@@ -112,14 +110,12 @@ class AddPage extends Tool
         $page = Resource::addPage(
             $input,
             $request->user(),
-            Utils::editor( $request->user() ),
             $v['files'] ?? [],
             $v['elements'] ?? [],
             $v['ref'] ?? null,
             $pid,
         );
 
-        $this->numcalls++;
         return Response::structured( $page->toArray() );
     }
 
@@ -143,11 +139,14 @@ class AddPage extends Tool
                 ->required(),
             'content' => $schema->array()
                 ->items( $schema->object( [
+                    'id' => $schema->string()
+                        ->description( 'Optional element ID. Auto-generated if omitted.' ),
                     'type' => $schema->string()
                         ->description( 'Content element type. Use get-schemas for available types.' )
                         ->required(),
                     'group' => $schema->string()
-                        ->description( 'Layout section, e.g., "main", "footer". Use "main" if unsure.' ),
+                        ->description( 'Layout section, e.g., "main", "footer". Use "main" if unsure.' )
+                        ->required(),
                     'data' => $schema->object()
                         ->description( 'Field values for this element. Use get-schemas for available fields per type.' )
                         ->required(),

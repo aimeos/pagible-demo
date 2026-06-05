@@ -23,11 +23,20 @@ const vuetifyLabs = readdirSync('node_modules/vuetify/lib/labs', { withFileTypes
 export default defineConfig({
   plugins: [
     vue(),
-    vuetify({ styles: { configFile: 'js/styles/settings.scss' } })
+    vuetify({ styles: { configFile: 'js/styles/settings.scss' } }),
+    {
+      name: 'exclude-ckeditor-umd',
+      generateBundle(_, bundle) {
+        for(const key in bundle) {
+          if(key.includes('.umd-')) delete bundle[key]
+        }
+      }
+    },
   ],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./js', import.meta.url))
+      '@': fileURLToPath(new URL('./js', import.meta.url)),
+      'ckeditor5/translations': fileURLToPath(new URL('./node_modules/ckeditor5/dist/translations', import.meta.url)),
     },
     dedupe: ['pinia', 'vue']
   },
@@ -43,6 +52,20 @@ export default defineConfig({
   },
   build: {
     manifest: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          ckeditor: ['ckeditor5', '@ckeditor/ckeditor5-vue'],
+          charts: ['chart.js', 'vue-chartjs'],
+          cropper: ['cropperjs'],
+          diff: ['diff'],
+          dompurify: ['dompurify'],
+          graphql: ['graphql', 'graphql-tag', '@apollo/client', 'apollo-link-batch-http', '@apollo/client/link/error', '@apollo/client/link/retry', 'apollo-upload-client/createUploadLink.mjs'],
+          markdown: ['mdast-util-from-markdown', 'mdast-util-to-markdown'],
+          tree: ['@he-tree/vue'],
+        }
+      }
+    }
   },
   experimental: {
     renderBuiltUrl: () => {

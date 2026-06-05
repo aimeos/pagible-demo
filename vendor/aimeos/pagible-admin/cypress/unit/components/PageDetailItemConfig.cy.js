@@ -1,4 +1,4 @@
-import PageDetailItemConfig from '../../../js/components/PageDetailItemConfig.vue'
+import PageDetailItemSection from '../../../js/components/PageDetailItemSection.vue'
 import { useUserStore, useSchemaStore } from '../../../js/stores'
 
 const stubs = {
@@ -34,9 +34,11 @@ function setupSchemaPlugin() {
 }
 
 function mountConfig(props = {}, perms = {}) {
-  return cy.mount(PageDetailItemConfig, {
+  return cy.mount(PageDetailItemSection, {
     props: {
       item: { ...item, config: { ...item.config } },
+      section: 'config',
+      permission: 'page:config',
       assets: {},
       ...props,
     },
@@ -50,7 +52,7 @@ function mountConfig(props = {}, perms = {}) {
   })
 }
 
-describe('PageDetailItemConfig', () => {
+describe('PageDetailItemSection (config)', () => {
   beforeEach(() => {
     cy.on('uncaught:exception', () => false)
   })
@@ -72,18 +74,18 @@ describe('PageDetailItemConfig', () => {
 
   it('shows add button with page:save and page:config permissions', () => {
     mountConfig({}, { 'page:save': true, 'page:config': true })
-    cy.get('button[title="Add element"]').should('exist')
+    cy.get('button.btn-add').should('exist')
   })
 
   it('hides add button without page:save permission', () => {
     mountConfig()
-    cy.get('button[title="Add element"]').should('not.exist')
+    cy.get('button.btn-add').should('not.exist')
   })
 
   it('shows remove button with proper permissions', () => {
     mountConfig({}, { 'page:save': true, 'page:config': true })
     cy.get('.v-expansion-panel').first().click()
-    cy.get('button[title="Remove content element"]').should('exist')
+    cy.get('button.btn-remove').should('exist')
   })
 
   it('renders Fields stub inside expansion panel', () => {

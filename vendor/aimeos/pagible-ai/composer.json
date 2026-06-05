@@ -9,16 +9,13 @@
     "minimum-stability": "dev",
     "require": {
         "php": "^8.2",
-        "aimeos/pagible-core": "0.10.*",
-        "aimeos/pagible-graphql": "0.10.*",
-        "aimeos/prisma": "dev-master",
-        "prism-php/prism": "0.100.1"
+        "aimeos/pagible-mcp": "0.11.*",
+        "aimeos/pagible-core": "0.11.*",
+        "aimeos/pagible-graphql": "0.11.*",
+        "aimeos/prisma": "~0.4"
     },
     "require-dev": {
         "orchestra/testbench": "^9.0||^10.0||^11.0"
-    },
-    "suggest": {
-        "aimeos/pagible-mcp": "For AI MCP tools"
     },
     "autoload": {
         "psr-4": {

@@ -1,19 +1,37 @@
-@pushOnce('js:caption')
-	<script defer src="{{ cmsasset('vendor/cms/theme/caption.js') }}"></script>
+@pushOnce('foot')
+<link href="{{ cmstheme($page, 'video.css') }}" rel="preload" as="style">
 @endPushOnce
 
-@if($file = cms($files, @$data->file?->id))
+@pushOnce('foot:caption')
+	<script defer src="{{ cmstheme($page, 'caption.js') }}"></script>
+@endPushOnce
+
+@if($file = cms($files, $data->file?->id ?? null))
 	<video preload="metadata" controls playsinline
-		title="{{ @cms($file, 'description')?->{cms($page, 'lang')} }}"
+		title="{{ cms($file, 'description')?->{cms($page, 'lang')} ?? '' }}"
 		src="{{ cmsurl(cms($file, 'path')) }}"
 		@if($preview = current(array_reverse((array) cms($file, 'previews', []))))
 			poster="{{ cmsurl($preview) }}"
 		@endif
 	>
 		{{ __('Download file') }}: <a href="{{ cmsurl(cms($file, 'path')) }}">{{ cmsurl(cms($file, 'path')) }}</a>
-		<div class="transcription" lang="{{ cms($page, 'lang') }}">{{ @cms($file, 'transcription')?->{cms($page, 'lang')} }}</div>
+		<div class="transcription" lang="{{ cms($page, 'lang') }}">{{ cms($file, 'transcription')?->{cms($page, 'lang')} ?? '' }}</div>
 	</video>
 	<div class="caption"></div>
+
+	<script type="application/ld+json">{
+		"@@context": "https://schema.org",
+		"@@type": "VideoObject",
+		"name": {!! cmsjson(cms($file, 'description')?->{cms($page, 'lang')} ?? cms($page, 'title')) !!},
+		"contentUrl": {!! cmsjson(cmsurl(cms($file, 'path'))) !!},
+		"uploadDate": "{{ $page->created_at->toIso8601String() }}"
+		@if($preview = current(array_reverse((array) cms($file, 'previews', []))))
+			, "thumbnailUrl": {!! cmsjson(cmsurl($preview)) !!}
+		@endif
+		@if(cms($file, 'transcription')?->{cms($page, 'lang')} ?? null)
+			, "transcript": {!! cmsjson(cms($file, 'transcription')->{cms($page, 'lang')}) !!}
+		@endif
+	}</script>
 @else
 	<!-- no video file -->
 @endif

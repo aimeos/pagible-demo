@@ -7,7 +7,6 @@
 
 namespace Aimeos\Cms\Tools;
 
-use Aimeos\Cms\Utils;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Resource;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -31,7 +30,7 @@ class SaveElement extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'element:save', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -41,13 +40,14 @@ class SaveElement extends Tool
             'data' => 'array',
             'files' => 'array',
             'files.*' => 'string|max:36',
+            'latestId' => 'string|max:36',
         ], [
             'id.required' => 'You must specify the ID of the element to save.',
         ] );
 
         try {
-            $input = array_diff_key( $v, array_flip( ['id', 'files'] ) );
-            $element = Resource::saveElement( $v['id'], $input, Utils::editor( $request->user() ), $v['files'] ?? [] );
+            $input = array_diff_key( $v, array_flip( ['id', 'files', 'latestId'] ) );
+            $element = Resource::saveElement( $v['id'], $input, $request->user(), $v['files'] ?? null, $v['latestId'] ?? null );
         } catch( ModelNotFoundException $e ) {
             return Response::structured( ['error' => 'Element not found.'] );
         }
@@ -60,6 +60,7 @@ class SaveElement extends Tool
             'name' => $data['name'] ?? '',
             'lang' => $element->latest?->lang,
             'data' => $data['data'] ?? new \stdClass(),
+            'changed' => $element->changed,
             'created_at' => (string) $element->created_at,
             'updated_at' => (string) $element->updated_at,
         ] );
@@ -86,6 +87,8 @@ class SaveElement extends Tool
             'files' => $schema->array()
                 ->items( $schema->string() )
                 ->description( 'Array of file UUIDs to attach to the version.' ),
+            'latestId' => $schema->string()
+                ->description( 'Version ID the caller last retrieved. Enables conflict detection and three-way merge when another editor has saved in the meantime.' ),
         ];
     }
 

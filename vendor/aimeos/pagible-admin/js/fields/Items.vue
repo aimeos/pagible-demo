@@ -8,6 +8,7 @@
  * - `required`: boolean, if true, the field is required
  */
 import gql from 'graphql-tag'
+import { markRaw } from 'vue'
 import {
   mdiDotsVertical,
   mdiClose,
@@ -23,11 +24,9 @@ import {
   mdiMicrophone,
   mdiViewGridPlus
 } from '@mdi/js'
-import { recording } from '../audio'
 import { VueDraggable } from 'vue-draggable-plus'
 import { useUserStore, useClipboardStore, useMessageStore } from '../stores'
-import { txlocales } from '../utils'
-import { transcribe } from '../ai'
+import { itemTitle, txlocales } from '../utils'
 
 export default {
   components: {
@@ -53,6 +52,7 @@ export default {
       composing: {},
       errors: [],
       items: [],
+      lastError: null,
       menu: [],
       panel: [],
       audio: {}
@@ -81,9 +81,24 @@ export default {
       mdiMicrophoneOutline,
       mdiMicrophone,
       mdiViewGridPlus,
-      txlocales,
-      transcribe
+      txlocales
     }
+  },
+
+  beforeUnmount() {
+    for (const key of Object.keys(this.audio)) {
+      if (this.audio[key]) {
+        this.audio[key].then((rec) => rec?.stop?.()).catch(() => {})
+      }
+    }
+    this.audio = null
+    this.translating = null
+    this.dictating = null
+    this.composing = null
+    this.menu = null
+    this.panel = null
+    this.items = null
+    this.errors = null
   },
 
   computed: {
@@ -105,26 +120,37 @@ export default {
       this.items.push({})
       this.panel.push(this.items.length - 1)
       this.$emit('update:modelValue', this.items)
+      this.check()
     },
 
     change() {
       this.$emit('update:modelValue', this.items)
     },
 
+    check() {
+      const hasError = !this.rules.every((rule) => rule(this.items) === true)
+      if (hasError !== this.lastError) {
+        this.lastError = hasError
+        this.$emit('error', hasError)
+      }
+    },
+
     copy(idx) {
-      this.clipboard.set('items-content', JSON.parse(JSON.stringify(this.items[idx])))
+      this.clipboard.set('items-content', structuredClone(this.items[idx]))
     },
 
     cut(idx) {
-      this.clipboard.set('items-content', JSON.parse(JSON.stringify(this.items[idx])))
+      this.clipboard.set('items-content', structuredClone(this.items[idx]))
       this.items.splice(idx, 1)
       this.$emit('update:modelValue', this.items)
+      this.check()
     },
 
     insert(idx) {
       this.items.splice(idx, 0, {})
       this.panel.push(idx)
       this.$emit('update:modelValue', this.items)
+      this.check()
     },
 
     paste(idx = null) {
@@ -134,6 +160,7 @@ export default {
 
       this.items.splice(idx, 0, this.clipboard.get('items-content'))
       this.$emit('update:modelValue', this.items)
+      this.check()
     },
 
     record(idx, code) {
@@ -142,7 +169,7 @@ export default {
       }
 
       if (!this.audio[idx + code]) {
-        return (this.audio[idx + code] = recording().start())
+        return (this.audio[idx + code] = markRaw(import('../audio').then((mod) => mod.recording().start())))
       }
 
       this.audio[idx + code].then((rec) => {
@@ -150,7 +177,8 @@ export default {
         this.audio[idx + code] = null
 
         rec.stop()?.then((buffer) => {
-          this.transcribe(buffer)
+          import('../ai')
+            .then((mod) => mod.transcribe(buffer))
             .then((transcription) => {
               this.update(idx, code, transcription.asText())
             })
@@ -164,19 +192,11 @@ export default {
     remove(idx) {
       this.items.splice(idx, 1)
       this.$emit('update:modelValue', this.items)
+      this.check()
     },
 
     title(el) {
-      return (
-        (
-          el.title ||
-          el.text ||
-          Object.values(el || {})
-            .map((v) => (v && typeof v !== 'object' && typeof v !== 'boolean' ? v : null))
-            .filter((v) => !!v)
-            .join(' - ')
-        ).substring(0, 100) || ''
-      )
+      return itemTitle(el)
     },
 
     toName(type) {
@@ -242,13 +262,7 @@ export default {
       immediate: true,
       handler(val) {
         this.items = Array.isArray(val) ? val : (this.config.default ?? [])
-
-        this.$emit(
-          'error',
-          !this.rules.every((rule) => {
-            return rule(this.items) === true
-          })
-        )
+        this.check()
       }
     }
   }
@@ -263,82 +277,90 @@ export default {
       :disabled="readonly || $vuetify.display.smAndDown"
       :forceFallback="true"
       fallbackTolerance="10"
+      handle=".item-handle"
       draggable=".item"
       group="items"
       animation="500"
     >
       <v-expansion-panel v-for="(item, idx) in items" :key="idx" class="item">
         <v-expansion-panel-title>
-          <component
-            :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
-            :aria-label="$gettext('Actions')"
-            v-if="!readonly"
-            v-model="menu[idx]"
-            transition="scale-transition"
-            location="end center"
-            max-width="300"
-          >
-            <template #activator="{ props }">
-              <v-btn
-                v-bind="props"
-                :title="$gettext('Actions')"
-                :icon="mdiDotsVertical"
-                variant="text"
-              />
-            </template>
+          <v-btn v-if="!readonly" variant="text" class="item-handle" :aria-label="$gettext('Move element')" icon>
+            <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9,3H11V5H9V3M13,3H15V5H13V3M9,7H11V9H9V7M13,7H15V9H13V7M9,11H11V13H9V11M13,11H15V13H13V11M9,15H11V17H9V15M13,15H15V17H13V15M9,19H11V21H9V19M13,19H15V21H13V19Z" />
+            </svg>
+          </v-btn>
 
-            <v-card>
-              <v-toolbar density="compact">
-                <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
+          <span class="btn-actions" v-if="!readonly">
+            <component
+              :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
+              :aria-label="$gettext('Actions')"
+              v-model="menu[idx]"
+              transition="scale-transition"
+              location="end center"
+              max-width="300"
+            >
+              <template #activator="{ props }">
                 <v-btn
-                  :icon="mdiClose"
-                  :aria-label="$gettext('Close')"
-                  @click="menu[idx] = false"
+                  v-bind="props"
+                  :title="$gettext('Actions')"
+                  :icon="mdiDotsVertical"
+                  variant="text"
                 />
-              </v-toolbar>
+              </template>
 
-              <v-list @click="menu[idx] = false">
-                <v-list-item>
-                  <v-btn :prepend-icon="mdiContentCopy" variant="text" @click="copy(idx)">{{
-                    $gettext('Copy')
-                  }}</v-btn>
-                </v-list-item>
-                <v-list-item>
-                  <v-btn :prepend-icon="mdiContentCut" variant="text" @click="cut(idx)">{{
-                    $gettext('Cut')
-                  }}</v-btn>
-                </v-list-item>
-                <v-list-item>
-                  <v-btn :prepend-icon="mdiDelete" variant="text" @click="remove(idx)">{{
-                    $gettext('Delete')
-                  }}</v-btn>
-                </v-list-item>
+              <v-card>
+                <v-toolbar density="compact">
+                  <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
+                  <v-btn
+                    :icon="mdiClose"
+                    :aria-label="$gettext('Close')"
+                    @click="menu[idx] = false"
+                  />
+                </v-toolbar>
 
-                <v-divider></v-divider>
+                <v-list @click="menu[idx] = false">
+                  <v-list-item>
+                    <v-btn :prepend-icon="mdiContentCopy" variant="text" @click="copy(idx)">{{
+                      $gettext('Copy')
+                    }}</v-btn>
+                  </v-list-item>
+                  <v-list-item>
+                    <v-btn :prepend-icon="mdiContentCut" variant="text" @click="cut(idx)">{{
+                      $gettext('Cut')
+                    }}</v-btn>
+                  </v-list-item>
+                  <v-list-item>
+                    <v-btn :prepend-icon="mdiDelete" variant="text" @click="remove(idx)">{{
+                      $gettext('Delete')
+                    }}</v-btn>
+                  </v-list-item>
 
-                <v-list-item v-if="menu[idx] && clipboard.get('items-content')">
-                  <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="paste(idx)">{{
-                    $gettext('Paste before')
-                  }}</v-btn>
-                </v-list-item>
-                <v-list-item v-if="menu[idx] && clipboard.get('items-content')">
-                  <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="paste(idx + 1)">{{
-                    $gettext('Paste after')
-                  }}</v-btn>
-                </v-list-item>
-                <v-list-item>
-                  <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="insert(idx)">{{
-                    $gettext('Insert before')
-                  }}</v-btn>
-                </v-list-item>
-                <v-list-item>
-                  <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="insert(idx + 1)">{{
-                    $gettext('Insert after')
-                  }}</v-btn>
-                </v-list-item>
-              </v-list>
-            </v-card>
-          </component>
+                  <v-divider></v-divider>
+
+                  <v-list-item v-if="menu[idx] && clipboard.get('items-content')">
+                    <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="paste(idx)">{{
+                      $gettext('Paste before')
+                    }}</v-btn>
+                  </v-list-item>
+                  <v-list-item v-if="menu[idx] && clipboard.get('items-content')">
+                    <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="paste(idx + 1)">{{
+                      $gettext('Paste after')
+                    }}</v-btn>
+                  </v-list-item>
+                  <v-list-item>
+                    <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="insert(idx)">{{
+                      $gettext('Insert before')
+                    }}</v-btn>
+                  </v-list-item>
+                  <v-list-item>
+                    <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="insert(idx + 1)">{{
+                      $gettext('Insert after')
+                    }}</v-btn>
+                  </v-list-item>
+                </v-list>
+              </v-card>
+            </component>
+          </span>
 
           <div class="element-title">{{ title(item) }}</div>
         </v-expansion-panel-title>
@@ -443,6 +465,7 @@ export default {
       v-if="!readonly && (!config.max || (config.max && +items.length < +config.max))"
       :title="$gettext('Add element')"
       :icon="mdiViewGridPlus"
+      class="btn-add"
       @click="add()"
     />
   </div>
@@ -455,6 +478,10 @@ export default {
 
 .items.v-expansion-panels {
   display: block;
+}
+
+.item-handle {
+  cursor: move;
 }
 
 .v-expansion-panel-title {

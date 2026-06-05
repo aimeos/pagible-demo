@@ -1,0 +1,16 @@
+/**
+ * @license MIT, https://opensource.org/license/MIT
+ */
+
+.image > img,
+.image > source {
+    max-width: 100%;
+    display: block;
+    margin: auto;
+}
+
+.image picture,
+picture.image {
+    display: block;
+    border-radius: calc(var(--pico-border-radius) * 2);
+}

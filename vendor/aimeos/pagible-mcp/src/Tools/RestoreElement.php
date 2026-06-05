@@ -31,7 +31,7 @@ class RestoreElement extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'element:keep', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         $v = $request->validate([
@@ -41,7 +41,7 @@ class RestoreElement extends Tool
         ] );
 
         /** @var Element|null $element */
-        $element = Element::withTrashed()->find( $v['id'] );
+        $element = Element::withTrashed()->select( 'id', 'deleted_at' )->find( $v['id'] );
 
         if( !$element ) {
             return Response::structured( ['error' => 'Element not found.'] );

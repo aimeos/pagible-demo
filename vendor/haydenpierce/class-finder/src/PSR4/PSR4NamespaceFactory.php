@@ -131,8 +131,8 @@ class PSR4NamespaceFactory
         $regExp = '%^(?<wrappers>(?:[[:print:]]{2,}://)*)';
         // Optional root prefix.
         $regExp .= '(?<root>(?:[[:alpha:]]:[/\\\\]|/)?)';
-        // Actual path.
-        $regExp .= '(?<path>(?:[[:print:]]*))$%';
+        // Actual path. Using .* instead of [[:print:]]* to support Unicode characters (e.g. emojis in paths).
+        $regExp .= '(?<path>(?:.*))$%u';
         $parts = array();
         if (!preg_match($regExp, $path, $parts)) {
             $mess = sprintf('Path is NOT valid, was given %s', $path);
