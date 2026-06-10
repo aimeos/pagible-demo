@@ -13,8 +13,11 @@ class PSR4Namespace
     /** @var string[] */
     private $directories;
 
-    /** @var PSR4Namespace[] */
+    /** @var PSR4Namespace[]|null */
     private $directSubnamespaces;
+
+    /** @var callable|null */
+    private $subnamespacesResolver;
 
     /**
      * @param string $namespace
@@ -281,7 +284,13 @@ class PSR4Namespace
      */
     public function getDirectSubnamespaces()
     {
-        return $this->directSubnamespaces;
+        if ($this->directSubnamespaces === null && $this->subnamespacesResolver !== null) {
+            $resolver = $this->subnamespacesResolver;
+            $this->directSubnamespaces = $resolver($this);
+            $this->subnamespacesResolver = null;
+        }
+
+        return $this->directSubnamespaces === null ? array() : $this->directSubnamespaces;
     }
 
     /**
@@ -290,6 +299,16 @@ class PSR4Namespace
     public function setDirectSubnamespaces($directSubnamespaces)
     {
         $this->directSubnamespaces = $directSubnamespaces;
+        $this->subnamespacesResolver = null;
+    }
+
+    /**
+     * @param callable $resolver
+     */
+    public function setSubnamespacesResolver($resolver)
+    {
+        $this->subnamespacesResolver = $resolver;
+        $this->directSubnamespaces = null;
     }
 
     /**

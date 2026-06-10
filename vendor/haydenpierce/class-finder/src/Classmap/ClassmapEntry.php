@@ -9,12 +9,19 @@ class ClassmapEntry
     /** @var string */
     private $className;
 
+    /** @var string */
+    private $directNamespace;
+
     /**
      * @param string $fullyQualifiedClassName
      */
     public function __construct($fullyQualifiedClassName)
     {
         $this->className = $fullyQualifiedClassName;
+        $lastBackslash = strrpos($fullyQualifiedClassName, '\\');
+        $this->directNamespace = $lastBackslash === false
+            ? ''
+            : substr($fullyQualifiedClassName, 0, $lastBackslash);
     }
 
     /**
@@ -66,12 +73,6 @@ class ClassmapEntry
      */
     private function doesMatchDirectNamespace($namespace)
     {
-        $classNameFragments = explode('\\', $this->getClassName());
-        array_pop($classNameFragments);
-        $classNamespace = implode('\\', $classNameFragments);
-
-        $namespace = trim($namespace, '\\');
-
-        return $namespace === $classNamespace;
+        return trim($namespace, '\\') === $this->directNamespace;
     }
 }

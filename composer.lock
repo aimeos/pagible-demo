@@ -160,12 +160,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "9c445c9120c4614083482c46cf5f9a7906fffb51"
+                "reference": "b7b6afd30f37121958de89324e0642c0b9690ecc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/9c445c9120c4614083482c46cf5f9a7906fffb51",
-                "reference": "9c445c9120c4614083482c46cf5f9a7906fffb51",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/b7b6afd30f37121958de89324e0642c0b9690ecc",
+                "reference": "b7b6afd30f37121958de89324e0642c0b9690ecc",
                 "shasum": ""
             },
             "require": {
@@ -220,7 +220,7 @@
                 "issues": "https://github.com/aimeos/pagible/issues",
                 "source": "https://github.com/aimeos/pagible/tree/0.11"
             },
-            "time": "2026-06-05T22:21:58+00:00"
+            "time": "2026-06-08T16:50:15+00:00"
         },
         {
             "name": "aimeos/pagible-admin",
@@ -669,12 +669,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-glass.git",
-                "reference": "28dd732640502a22cab874ceee4eb4f42c73ba2e"
+                "reference": "807b0f229133d5ae32dea7e5e70a41e3dc15e0e3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-glass/zipball/28dd732640502a22cab874ceee4eb4f42c73ba2e",
-                "reference": "28dd732640502a22cab874ceee4eb4f42c73ba2e",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-glass/zipball/807b0f229133d5ae32dea7e5e70a41e3dc15e0e3",
+                "reference": "807b0f229133d5ae32dea7e5e70a41e3dc15e0e3",
                 "shasum": ""
             },
             "require": {
@@ -711,7 +711,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-glass/issues",
                 "source": "https://github.com/aimeos/pagible-themes-glass/tree/0.11"
             },
-            "time": "2026-06-05T22:22:32+00:00"
+            "time": "2026-06-08T16:51:24+00:00"
         },
         {
             "name": "aimeos/pagible-themes-pagible",
@@ -719,12 +719,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-pagible.git",
-                "reference": "7d11ec2e2f1e6922c391dfa68274bc5584d3487a"
+                "reference": "16ae09c3b8afa326e42d224768333ab395615d34"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/7d11ec2e2f1e6922c391dfa68274bc5584d3487a",
-                "reference": "7d11ec2e2f1e6922c391dfa68274bc5584d3487a",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/16ae09c3b8afa326e42d224768333ab395615d34",
+                "reference": "16ae09c3b8afa326e42d224768333ab395615d34",
                 "shasum": ""
             },
             "require": {
@@ -760,7 +760,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-pagible/issues",
                 "source": "https://github.com/aimeos/pagible-themes-pagible/tree/0.11"
             },
-            "time": "2026-06-05T22:22:33+00:00"
+            "time": "2026-06-08T16:51:18+00:00"
         },
         {
             "name": "aimeos/pagible-themes-paper",
@@ -768,12 +768,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-paper.git",
-                "reference": "0440d95a6ac63c5e36054c9cf4231281d534eea7"
+                "reference": "580622f7358dd00a6deade17765c1e09a03406cc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-paper/zipball/0440d95a6ac63c5e36054c9cf4231281d534eea7",
-                "reference": "0440d95a6ac63c5e36054c9cf4231281d534eea7",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-paper/zipball/580622f7358dd00a6deade17765c1e09a03406cc",
+                "reference": "580622f7358dd00a6deade17765c1e09a03406cc",
                 "shasum": ""
             },
             "require": {
@@ -809,7 +809,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-paper/issues",
                 "source": "https://github.com/aimeos/pagible-themes-paper/tree/0.11"
             },
-            "time": "2026-06-05T22:22:35+00:00"
+            "time": "2026-06-08T16:51:02+00:00"
         },
         {
             "name": "aimeos/pagible-themes-premium",
@@ -817,12 +817,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-premium.git",
-                "reference": "342a145cea96d9a50885e1fcc74c72fbde9a7de8"
+                "reference": "2c3caf742f55e66d3c86dd3f955b6803a3c79068"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-premium/zipball/342a145cea96d9a50885e1fcc74c72fbde9a7de8",
-                "reference": "342a145cea96d9a50885e1fcc74c72fbde9a7de8",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-premium/zipball/2c3caf742f55e66d3c86dd3f955b6803a3c79068",
+                "reference": "2c3caf742f55e66d3c86dd3f955b6803a3c79068",
                 "shasum": ""
             },
             "require": {
@@ -858,7 +858,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-premium/issues",
                 "source": "https://github.com/aimeos/pagible-themes-premium/tree/0.11"
             },
-            "time": "2026-06-05T22:22:31+00:00"
+            "time": "2026-06-08T16:51:17+00:00"
         },
         {
             "name": "aimeos/prisma",
@@ -1896,16 +1896,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.443.0",
+            "version": "v0.444.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "102aba0523d5105adaffdcac6c0c74a527f2bbfc"
+                "reference": "b38b3329e67bf68ef184997c047e6ff5952feca5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/102aba0523d5105adaffdcac6c0c74a527f2bbfc",
-                "reference": "102aba0523d5105adaffdcac6c0c74a527f2bbfc",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/b38b3329e67bf68ef184997c047e6ff5952feca5",
+                "reference": "b38b3329e67bf68ef184997c047e6ff5952feca5",
                 "shasum": ""
             },
             "require": {
@@ -1934,22 +1934,22 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.443.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.444.0"
             },
-            "time": "2026-05-29T01:56:23+00:00"
+            "time": "2026-06-08T01:52:31+00:00"
         },
         {
             "name": "google/auth",
-            "version": "v1.50.2",
+            "version": "v1.51.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-auth-library-php.git",
-                "reference": "58788f86d47e59de692c0dae0bb0c006bd0b6018"
+                "reference": "4c4776e398ff255e81b3b8c4373983f5e1b765bf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-auth-library-php/zipball/58788f86d47e59de692c0dae0bb0c006bd0b6018",
-                "reference": "58788f86d47e59de692c0dae0bb0c006bd0b6018",
+                "url": "https://api.github.com/repos/googleapis/google-auth-library-php/zipball/4c4776e398ff255e81b3b8c4373983f5e1b765bf",
+                "reference": "4c4776e398ff255e81b3b8c4373983f5e1b765bf",
                 "shasum": ""
             },
             "require": {
@@ -1996,9 +1996,9 @@
             "support": {
                 "docs": "https://cloud.google.com/php/docs/reference/auth/latest",
                 "issues": "https://github.com/googleapis/google-auth-library-php/issues",
-                "source": "https://github.com/googleapis/google-auth-library-php/tree/v1.50.2"
+                "source": "https://github.com/googleapis/google-auth-library-php/tree/v1.51.0"
             },
-            "time": "2026-05-29T19:22:31+00:00"
+            "time": "2026-06-10T00:39:33+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -2064,16 +2064,16 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.11.0",
+            "version": "7.11.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "c987f8ce84b8434fa430795eca0f3430663da72b"
+                "reference": "5af96f374e0ab4ebd747b8310888c99d3adb0a8c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/c987f8ce84b8434fa430795eca0f3430663da72b",
-                "reference": "c987f8ce84b8434fa430795eca0f3430663da72b",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/5af96f374e0ab4ebd747b8310888c99d3adb0a8c",
+                "reference": "5af96f374e0ab4ebd747b8310888c99d3adb0a8c",
                 "shasum": ""
             },
             "require": {
@@ -2092,7 +2092,7 @@
                 "bamarni/composer-bin-plugin": "^1.8.2",
                 "ext-curl": "*",
                 "guzzle/client-integration-tests": "3.0.2",
-                "guzzlehttp/test-server": "^0.4",
+                "guzzlehttp/test-server": "^0.5",
                 "php-http/message-factory": "^1.1",
                 "phpunit/phpunit": "^8.5.52 || ^9.6.34",
                 "psr/log": "^1.1 || ^2.0 || ^3.0"
@@ -2172,7 +2172,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.11.0"
+                "source": "https://github.com/guzzle/guzzle/tree/7.11.1"
             },
             "funding": [
                 {
@@ -2188,7 +2188,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-02T12:40:51+00:00"
+            "time": "2026-06-07T22:54:06+00:00"
         },
         {
             "name": "guzzlehttp/promises",
@@ -2481,16 +2481,16 @@
         },
         {
             "name": "haydenpierce/class-finder",
-            "version": "0.5.4",
+            "version": "0.6.0",
             "source": {
                 "type": "git",
                 "url": "https://gitlab.com/hpierce1102/ClassFinder.git",
-                "reference": "a4bd343078ce48c118742152fdd62315a7ac6263"
+                "reference": "b9e7859e9570c77805a9dc9caff7071f5d343636"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://gitlab.com/api/v4/projects/hpierce1102%2FClassFinder/repository/archive.zip?sha=a4bd343078ce48c118742152fdd62315a7ac6263",
-                "reference": "a4bd343078ce48c118742152fdd62315a7ac6263",
+                "url": "https://gitlab.com/api/v4/projects/hpierce1102%2FClassFinder/repository/archive.zip?sha=b9e7859e9570c77805a9dc9caff7071f5d343636",
+                "reference": "b9e7859e9570c77805a9dc9caff7071f5d343636",
                 "shasum": ""
             },
             "require": {
@@ -2521,9 +2521,9 @@
             "description": "A library that can provide of a list of classes in a given namespace",
             "support": {
                 "issues": "https://gitlab.com/hpierce1102/ClassFinder/-/issues",
-                "source": "https://gitlab.com/hpierce1102/ClassFinder/-/tree/0.5.4"
+                "source": "https://gitlab.com/hpierce1102/ClassFinder/-/tree/0.6.0"
             },
-            "time": "2026-05-30T22:14:30+00:00"
+            "time": "2026-05-30T23:39:50+00:00"
         },
         {
             "name": "intervention/gif",
@@ -3280,16 +3280,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.61.1",
+            "version": "v12.62.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "e8472ca9774452fe50841d9bdced060679f4d58d"
+                "reference": "f7e61eb1e0e06a38996802b769bce9127aec227c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/e8472ca9774452fe50841d9bdced060679f4d58d",
-                "reference": "e8472ca9774452fe50841d9bdced060679f4d58d",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/f7e61eb1e0e06a38996802b769bce9127aec227c",
+                "reference": "f7e61eb1e0e06a38996802b769bce9127aec227c",
                 "shasum": ""
             },
             "require": {
@@ -3498,20 +3498,20 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-06-04T14:22:52+00:00"
+            "time": "2026-06-09T13:50:13+00:00"
         },
         {
             "name": "laravel/mcp",
-            "version": "v0.7.2",
+            "version": "v0.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/mcp.git",
-                "reference": "08962a276357f89164f78b38407c08187ab26cfe"
+                "reference": "18221a07093d84153883bc956e5e213999549a4b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/mcp/zipball/08962a276357f89164f78b38407c08187ab26cfe",
-                "reference": "08962a276357f89164f78b38407c08187ab26cfe",
+                "url": "https://api.github.com/repos/laravel/mcp/zipball/18221a07093d84153883bc956e5e213999549a4b",
+                "reference": "18221a07093d84153883bc956e5e213999549a4b",
                 "shasum": ""
             },
             "require": {
@@ -3539,7 +3539,7 @@
             "extra": {
                 "laravel": {
                     "aliases": {
-                        "Mcp": "Laravel\\Mcp\\Server\\Facades\\Mcp"
+                        "Mcp": "Laravel\\Mcp\\Facades\\Mcp"
                     },
                     "providers": [
                         "Laravel\\Mcp\\Server\\McpServiceProvider"
@@ -3572,7 +3572,7 @@
                 "issues": "https://github.com/laravel/mcp/issues",
                 "source": "https://github.com/laravel/mcp"
             },
-            "time": "2026-05-22T11:45:29+00:00"
+            "time": "2026-06-08T13:48:51+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -5048,21 +5048,21 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.66.0",
+            "version": "v6.67.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "70dfc72804c83870c092bb14f4e38d1eafd97cc1"
+                "reference": "49ad62035379ba0139f1b6d3778711603838b014"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/70dfc72804c83870c092bb14f4e38d1eafd97cc1",
-                "reference": "70dfc72804c83870c092bb14f4e38d1eafd97cc1",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/49ad62035379ba0139f1b6d3778711603838b014",
+                "reference": "49ad62035379ba0139f1b6d3778711603838b014",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "haydenpierce/class-finder": "^0.4 || ^0.5",
+                "haydenpierce/class-finder": "^0.4 || ^0.5 || ^0.6",
                 "illuminate/auth": "^9 || ^10 || ^11 || ^12 || ^13",
                 "illuminate/bus": "^9 || ^10 || ^11 || ^12 || ^13",
                 "illuminate/contracts": "^9 || ^10 || ^11 || ^12 || ^13",
@@ -5174,7 +5174,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2026-03-30T07:31:53+00:00"
+            "time": "2026-06-07T09:00:40+00:00"
         },
         {
             "name": "phpoption/phpoption",
@@ -6051,16 +6051,16 @@
         },
         {
             "name": "ratchet/rfc6455",
-            "version": "v0.4.0",
+            "version": "v0.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ratchetphp/RFC6455.git",
-                "reference": "859d95f85dda0912c6d5b936d036d044e3af47ef"
+                "reference": "9b05f371219cbaf9748b505f139617dd0715592b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ratchetphp/RFC6455/zipball/859d95f85dda0912c6d5b936d036d044e3af47ef",
-                "reference": "859d95f85dda0912c6d5b936d036d044e3af47ef",
+                "url": "https://api.github.com/repos/ratchetphp/RFC6455/zipball/9b05f371219cbaf9748b505f139617dd0715592b",
+                "reference": "9b05f371219cbaf9748b505f139617dd0715592b",
                 "shasum": ""
             },
             "require": {
@@ -6104,9 +6104,9 @@
             "support": {
                 "chat": "https://gitter.im/reactphp/reactphp",
                 "issues": "https://github.com/ratchetphp/RFC6455/issues",
-                "source": "https://github.com/ratchetphp/RFC6455/tree/v0.4.0"
+                "source": "https://github.com/ratchetphp/RFC6455/tree/v0.4.1"
             },
-            "time": "2025-02-24T01:18:22+00:00"
+            "time": "2026-06-06T14:34:23+00:00"
         },
         {
             "name": "react/cache",
@@ -8045,16 +8045,16 @@
         },
         {
             "name": "symfony/polyfill-mbstring",
-            "version": "v1.38.1",
+            "version": "v1.38.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-mbstring.git",
-                "reference": "14c5439eec4ccff081ac14eca2dc57feb2a66d92"
+                "reference": "d3d318bad5e7a1bfbd026009c8bfb8d8f99ae6b6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/14c5439eec4ccff081ac14eca2dc57feb2a66d92",
-                "reference": "14c5439eec4ccff081ac14eca2dc57feb2a66d92",
+                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/d3d318bad5e7a1bfbd026009c8bfb8d8f99ae6b6",
+                "reference": "d3d318bad5e7a1bfbd026009c8bfb8d8f99ae6b6",
                 "shasum": ""
             },
             "require": {
@@ -8106,7 +8106,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.38.1"
+                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.38.2"
             },
             "funding": [
                 {
@@ -8126,7 +8126,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-26T12:51:13+00:00"
+            "time": "2026-05-27T06:59:30+00:00"
         },
         {
             "name": "symfony/polyfill-php80",
@@ -8214,16 +8214,16 @@
         },
         {
             "name": "symfony/polyfill-php83",
-            "version": "v1.38.1",
+            "version": "v1.38.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php83.git",
-                "reference": "8339098cae28673c15cce00d80734af0453054e2"
+                "reference": "796a26abb75ce49f3a84433cd81bf1009d73d5f8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-php83/zipball/8339098cae28673c15cce00d80734af0453054e2",
-                "reference": "8339098cae28673c15cce00d80734af0453054e2",
+                "url": "https://api.github.com/repos/symfony/polyfill-php83/zipball/796a26abb75ce49f3a84433cd81bf1009d73d5f8",
+                "reference": "796a26abb75ce49f3a84433cd81bf1009d73d5f8",
                 "shasum": ""
             },
             "require": {
@@ -8270,7 +8270,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php83/tree/v1.38.1"
+                "source": "https://github.com/symfony/polyfill-php83/tree/v1.38.2"
             },
             "funding": [
                 {
@@ -8290,7 +8290,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-26T12:51:13+00:00"
+            "time": "2026-05-27T06:51:48+00:00"
         },
         {
             "name": "symfony/polyfill-php84",

@@ -10,6 +10,9 @@ class PSR4NamespaceFactory
     /** @var AppConfig */
     private $appConfig;
 
+    /** @var array{0: string, 1: PSR4Namespace[]}|null */
+    private $cachedNamespaces = null;
+
     public function __construct(AppConfig $appConfig)
     {
         $this->appConfig = $appConfig;
@@ -20,6 +23,11 @@ class PSR4NamespaceFactory
      */
     public function getPSR4Namespaces()
     {
+        $signature = $this->cacheSignature();
+        if ($this->cachedNamespaces !== null && $this->cachedNamespaces[0] === $signature) {
+            return $this->cachedNamespaces[1];
+        }
+
         $namespaces = $this->getUserDefinedPSR4Namespaces();
         if (!$this->appConfig->ignorePSR4Vendors) {
             $vendorNamespaces = require($this->appConfig->getAppRoot() . 'vendor/composer/autoload_psr4.php');
@@ -33,7 +41,16 @@ class PSR4NamespaceFactory
             return $self->createNamespace($names[$index], $directories[$index]);
         },range(0, count($namespaces) - 1));
 
+        $this->cachedNamespaces = array($signature, $namespaces);
         return $namespaces;
+    }
+
+    /**
+     * @return string
+     */
+    private function cacheSignature()
+    {
+        return $this->appConfig->getAppRoot() . '|' . ($this->appConfig->ignorePSR4Vendors ? '1' : '0');
     }
 
     /**
@@ -83,8 +100,9 @@ class PSR4NamespaceFactory
 
         $psr4Namespace = new PSR4Namespace($namespace, $directories);
 
-        $subNamespaces = $this->getSubnamespaces($psr4Namespace);
-        $psr4Namespace->setDirectSubnamespaces($subNamespaces);
+        $psr4Namespace->setSubnamespacesResolver(function (PSR4Namespace $namespace) use ($self) {
+            return $self->getSubnamespaces($namespace);
+        });
 
         return $psr4Namespace;
     }

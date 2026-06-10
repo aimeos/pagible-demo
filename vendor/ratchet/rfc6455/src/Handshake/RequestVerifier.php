@@ -45,7 +45,7 @@ class RequestVerifier {
      * @return bool
      */
     public function verifyHTTPVersion($val): bool {
-        return 1.1 <= (double)$val;
+        return 1.1 <= (float)$val;
     }
 
     /**
@@ -53,7 +53,7 @@ class RequestVerifier {
      * @return bool
      */
     public function verifyRequestURI(string $val): bool {
-        if ($val[0] !== '/') {
+        if ($val === '' || $val[0] !== '/') {
             return false;
         }
 

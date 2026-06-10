@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Laravel\Mcp\Client\Transport;
 
 use Laravel\Mcp\Client\Contracts\Transport;
-use Laravel\Mcp\Client\Exceptions\ClientException;
+use Laravel\Mcp\Exceptions\ClientException;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\InputStream;
@@ -63,6 +63,19 @@ class StdioTransport implements Transport
     public function setTimeoutSeconds(float $seconds): void
     {
         $this->timeoutSeconds = $seconds;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function recipe(): array
+    {
+        return [
+            'driver' => 'stdio',
+            'command' => $this->command,
+            'args' => $this->args,
+            'timeoutSeconds' => $this->timeoutSeconds,
+        ];
     }
 
     public function send(string $message): void
