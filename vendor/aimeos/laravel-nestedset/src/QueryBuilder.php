@@ -183,6 +183,7 @@ class QueryBuilder extends EloquentBuilder
 
         $dictionary = $this->model
             ->newNestedSetQuery()
+            ->withoutGlobalScopes()
             ->when($root, function (self $query) use ($root) {
                 return $query->whereDescendantOf($root);
             })
@@ -297,7 +298,7 @@ class QueryBuilder extends EloquentBuilder
      */
     public function hasParent(): self
     {
-        $this->query->whereNotNull($this->model->getParentIdName());
+        $this->query->whereNotNull($this->model->getTable() . '.' . $this->model->getParentIdName());
 
         return $this;
     }
@@ -479,6 +480,7 @@ class QueryBuilder extends EloquentBuilder
         }
 
         $existing = $this
+            ->withoutGlobalScopes()
             ->when($root, function (self $query) use ($root) {
                 return $query->whereDescendantOf($root);
             })
@@ -495,6 +497,7 @@ class QueryBuilder extends EloquentBuilder
             if ($delete && ! $this->model->usesSoftDelete()) {
                 $this->model
                     ->newScopedQuery()
+                    ->withoutGlobalScopes()
                     ->whereIn($this->model->getKeyName(), array_keys($existing))
                     ->delete();
             } else {
@@ -709,7 +712,7 @@ class QueryBuilder extends EloquentBuilder
      */
     public function whereIsRoot(): self
     {
-        $this->query->whereNull($this->model->getParentIdName());
+        $this->query->whereNull($this->model->getTable() . '.' . $this->model->getParentIdName());
 
         return $this;
     }
@@ -784,7 +787,7 @@ class QueryBuilder extends EloquentBuilder
      */
     public function withoutRoot(): self
     {
-        $this->query->whereNotNull($this->model->getParentIdName());
+        $this->query->whereNotNull($this->model->getTable() . '.' . $this->model->getParentIdName());
 
         return $this;
     }
@@ -921,7 +924,7 @@ class QueryBuilder extends EloquentBuilder
         }
 
         if ($parent && ($grown = $cut - $parent->getRgt()) != 0) {
-            $moved = $this->model->newScopedQuery()->makeGap($parent->getRgt() + 1, $grown);
+            $moved = $this->model->newScopedQuery()->withoutGlobalScopes()->makeGap($parent->getRgt() + 1, $grown);
 
             $updated[] = $parent->rawNode($parent->getLft(), $cut, $parent->getParentId(), $parent->getDepth());
         }
@@ -950,6 +953,7 @@ class QueryBuilder extends EloquentBuilder
 
         $query = $this->model
             ->newNestedSetQuery($firstAlias)
+            ->withoutGlobalScopes()
             ->toBase()
             ->from($this->query->raw("{$table} as {$waFirst}, {$table} {$waSecond}"))
             ->whereRaw("{$waFirst}.{$keyName} < {$waSecond}.{$keyName}")
@@ -973,6 +977,7 @@ class QueryBuilder extends EloquentBuilder
     {
         return $this->model
             ->newNestedSetQuery()
+            ->withoutGlobalScopes()
             ->toBase()
             ->whereNested(function (Builder $inner) {
                 $grammar = $this->query->getGrammar();
@@ -985,6 +990,7 @@ class QueryBuilder extends EloquentBuilder
 
                 $existsCheck = $this->model
                     ->newNestedSetQuery()
+                    ->withoutGlobalScopes()
                     ->toBase()
                     ->selectRaw('1')
                     ->from($this->query->raw("{$table} as {$wrappedAlias}"))
@@ -1006,6 +1012,7 @@ class QueryBuilder extends EloquentBuilder
     {
         return $this->model
             ->newNestedSetQuery()
+            ->withoutGlobalScopes()
             ->toBase()
             ->whereNested(function (Builder $inner) {
                 list($lft, $rgt) = $this->wrappedColumns();
@@ -1038,6 +1045,7 @@ class QueryBuilder extends EloquentBuilder
 
         $query = $this->model
             ->newNestedSetQuery('c')
+            ->withoutGlobalScopes()
             ->toBase()
             ->from($this->query->raw("{$table} as {$waChild}, {$table} as {$waParent}, $table as {$waInterm}"))
             ->whereRaw("{$waChild}.{$parentIdName}={$waParent}.{$keyName}")

@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'a81f80a600417703cdf540482f60b0a71b6b6d88',
+        'reference' => '1661242c28ffcc2ab70dd9178d06ea353ef4b6cc',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -29,9 +29,9 @@
             'dev_requirement' => false,
         ),
         'aimeos/laravel-nestedset' => array(
-            'pretty_version' => '7.3.1',
-            'version' => '7.3.1.0',
-            'reference' => '05f77e28e52c0ce8ba68422ef4a1c9ba765b70a0',
+            'pretty_version' => '7.3.2',
+            'version' => '7.3.2.0',
+            'reference' => '910df4c973b28d7fef0ad6d979fbf98e059b760c',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/laravel-nestedset',
             'aliases' => array(),
@@ -40,7 +40,7 @@
         'aimeos/pagible' => array(
             'pretty_version' => '0.11.x-dev',
             'version' => '0.11.9999999.9999999-dev',
-            'reference' => 'b7b6afd30f37121958de89324e0642c0b9690ecc',
+            'reference' => 'ec0fbbd9d1ff0a2573d20c2a8ec6bbb727e67245',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible',
             'aliases' => array(),
@@ -121,7 +121,7 @@
         'aimeos/pagible-themes-glass' => array(
             'pretty_version' => '0.11.x-dev',
             'version' => '0.11.9999999.9999999-dev',
-            'reference' => '807b0f229133d5ae32dea7e5e70a41e3dc15e0e3',
+            'reference' => 'd3a788948ab71a76403b491f1a2762c156708f38',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-themes-glass',
             'aliases' => array(),
@@ -130,7 +130,7 @@
         'aimeos/pagible-themes-pagible' => array(
             'pretty_version' => '0.11.x-dev',
             'version' => '0.11.9999999.9999999-dev',
-            'reference' => '16ae09c3b8afa326e42d224768333ab395615d34',
+            'reference' => 'd1e9d2dfa6559f36e79e2c9bf361e6444a428166',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-themes-pagible',
             'aliases' => array(),
@@ -139,7 +139,7 @@
         'aimeos/pagible-themes-paper' => array(
             'pretty_version' => '0.11.x-dev',
             'version' => '0.11.9999999.9999999-dev',
-            'reference' => '580622f7358dd00a6deade17765c1e09a03406cc',
+            'reference' => '2127981a57b0953f70c4d89fb5e5ceca6e213c95',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-themes-paper',
             'aliases' => array(),
@@ -148,7 +148,7 @@
         'aimeos/pagible-themes-premium' => array(
             'pretty_version' => '0.11.x-dev',
             'version' => '0.11.9999999.9999999-dev',
-            'reference' => '2c3caf742f55e66d3c86dd3f955b6803a3c79068',
+            'reference' => 'a5999894b2be1ca3f9c7e61ad8db7f80dd238474',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-themes-premium',
             'aliases' => array(),
@@ -697,7 +697,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'a81f80a600417703cdf540482f60b0a71b6b6d88',
+            'reference' => '1661242c28ffcc2ab70dd9178d06ea353ef4b6cc',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
