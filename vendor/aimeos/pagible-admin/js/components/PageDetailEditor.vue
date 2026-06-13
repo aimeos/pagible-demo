@@ -31,6 +31,13 @@ export default {
 
   emits: ['change'],
 
+  provide() {
+    return {
+      // let descendant file fields refresh the preview after editing a file
+      reload: this.reload
+    }
+  },
+
   setup() {
     const messages = useMessageStore()
     const user = useUserStore()
@@ -70,7 +77,9 @@ export default {
     window.addEventListener('message', this.message)
 
     this.iframeLoad = () => {
-      this.$refs.iframe?.contentWindow?.postMessage('init', '*')
+      if (this.url) {
+        this.$refs.iframe?.contentWindow?.postMessage('init', this.url)
+      }
     }
     this.$refs.iframe?.addEventListener('load', this.iframeLoad)
 
@@ -157,6 +166,20 @@ export default {
     },
 
     message(msg) {
+      // only accept messages coming from our own preview iframe and only from
+      // the exact origin we navigated it to, not from arbitrary windows/frames
+      // that may hold a reference to this window
+      let expected
+      try {
+        expected = new URL(this.url, window.location.origin).origin
+      } catch {
+        return
+      }
+
+      if (msg.source !== this.$refs.iframe?.contentWindow || msg.origin !== expected) {
+        return
+      }
+
       switch (msg.data) {
         // unselect element
         case 0:
@@ -185,6 +208,12 @@ export default {
       }
     },
 
+    reload() {
+      if (this.url) {
+        this.$refs.iframe?.contentWindow?.postMessage('reload', this.url)
+      }
+    },
+
     remove() {
       if (this.index === null) return
 
@@ -192,9 +221,7 @@ export default {
       this.$emit('change', 'content')
       this.index = null
 
-      this.save.fcn(true).then(() => {
-        this.$refs.iframe.contentWindow.postMessage('reload', this.url)
-      })
+      this.save.fcn(true).then(() => this.reload())
     },
 
     update() {
@@ -207,16 +234,14 @@ export default {
       this.pos = null
 
       this.$emit('change', 'content')
-      this.save.fcn(true).then(() => {
-        this.$refs.iframe.contentWindow.postMessage('reload', this.url)
-      })
+      this.save.fcn(true).then(() => this.reload())
     }
   },
 
   watch: {
     'save.count': function () {
       if (this.save.count > 0) {
-        this.$refs.iframe.contentWindow.postMessage('reload', this.url)
+        this.reload()
       }
     }
   }
@@ -275,7 +300,7 @@ export default {
       {{ $gettext('Not CMS content') }}
     </div>
 
-    <iframe ref="iframe" :src="url" @load="loading = false"></iframe>
+    <iframe ref="iframe" :src="url" sandbox="allow-same-origin allow-scripts allow-forms" @load="loading = false"></iframe>
 
     <v-btn
       v-if="!expanded"

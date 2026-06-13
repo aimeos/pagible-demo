@@ -35,6 +35,23 @@ class Utils
 
 
     /**
+     * Formats a number of seconds as a "HH:MM:SS.mmm" timestamp.
+     *
+     * @param float $seconds Time in seconds
+     * @return string Formatted timestamp, e.g. "00:01:23.500"
+     */
+    public static function formatSeconds( float $seconds ) : string
+    {
+        $hours = floor( $seconds / 3600 );
+        $minutes = floor( ( $seconds % 3600 ) / 60 );
+        $secs = floor( $seconds % 60 );
+        $millis = ( $seconds - floor( $seconds ) ) * 1000;
+
+        return sprintf( "%02d:%02d:%02d.%03d", $hours, $minutes, $secs, $millis );
+    }
+
+
+    /**
      * Executes a callback within a database transaction using the CMS connection.
      *
      * @template T
@@ -94,6 +111,56 @@ class Utils
 
 
     /**
+     * Fetches the contents of an http(s) URL using SSRF-safe options.
+     *
+     * The host is pinned to its resolved public IP and redirects to private/reserved
+     * addresses are blocked, so a stored URL cannot be abused to reach internal services.
+     *
+     * @param string $url The http(s) URL to fetch
+     * @return string The response body
+     * @throws Exception If the URL is unsafe or the request fails
+     */
+    public static function fetch( string $url ) : string
+    {
+        $response = Http::withOptions( self::safeHttp( $url ) )->get( $url );
+
+        if( !$response->successful() ) {
+            throw new Exception( sprintf( 'URL "%s" not accessible', $url ) );
+        }
+
+        return $response->body();
+    }
+
+
+    /**
+     * Returns a collection of files associated with the given page.
+     *
+     * @param Page $page The page object containing content and files
+     * @return Collection<int, \Aimeos\Cms\Models\File> A collection of File models associated with the page
+     */
+    public static function files( Page $page ) : Collection
+    {
+        $seen = [];
+        $lang = $page->lang;
+        $lang2 = substr( $lang, 0, 2 );
+
+        foreach( (array) $page->content as $item )
+        {
+            foreach( (array) ( $item->files ?? [] ) as $id )
+            {
+                if( !isset( $seen[$id] ) && ( $file = $page->files[$id] ?? null ) )
+                {
+                    $file->description = $file->description->{$lang} ?? $file->description->{$lang2} ?? null;
+                    $seen[$id] = $file;
+                }
+            }
+        }
+
+        return new Collection( $seen );
+    }
+
+
+    /**
      * Sanitizes the given HTML text to ensure it is safe for output.
      *
      * @param string|null $text The HTML text to sanitize
@@ -115,29 +182,27 @@ class Utils
 
 
     /**
-     * Returns a collection of files associated with the given page.
+     * Returns a file extension that is safe to serve from the storage disk.
      *
-     * @param Page $page The page object containing content and files
-     * @return Collection<int, \Aimeos\Cms\Models\File> A collection of File models associated with the page
+     * Neutralizes dangerous uploads/restores (e.g. .php, .html, .phar) by replacing
+     * extensions the web server may execute or serve as active content with "bin",
+     * so user-supplied files cannot run as code or script.
+     *
+     * @param string|null $ext File extension (without leading dot)
+     * @return string Safe file extension
      */
-    public static function files( Page $page ) : Collection
+    public static function extension( ?string $ext ) : string
     {
-        $lang = $page->lang;
-        $lang2 = substr( $lang, 0, 2 );
-        $seen = [];
+        $ext = strtolower( (string) preg_replace( '/[^A-Za-z0-9]/', '', (string) $ext ) ) ?: 'bin';
 
-        foreach( (array) $page->content as $item )
-        {
-            foreach( (array) ( $item->files ?? [] ) as $id )
-            {
-                if( !isset( $seen[$id] ) && ( $file = $page->files[$id] ?? null ) ) {
-                    $file->description = $file->description->{$lang} ?? $file->description->{$lang2} ?? null;
-                    $seen[$id] = $file;
-                }
-            }
-        }
-
-        return new Collection( $seen );
+        return match( true ) {
+            in_array( $ext, ['htaccess', 'cgi', 'pht', 'phtml', 'phar', 'pl'], true ),
+            str_starts_with( $ext, 'php' ),
+            str_starts_with( $ext, 'asp' ),
+            str_starts_with( $ext, 'jsp' ),
+            str_contains( $ext, 'htm' ) => 'bin',
+            default => $ext,
+        };
     }
 
 
@@ -247,11 +312,9 @@ class Utils
     {
         if( str_starts_with( $path, 'http') )
         {
-            if( !self::isValidUrl( $path ) ) {
-                throw new Exception( 'Invalid URL' );
-            }
-
-            $response = Http::withHeaders( ['Range' => 'bytes=0-299'] )->get( $path );
+            $response = Http::withHeaders( ['Range' => 'bytes=0-299'] )
+                ->withOptions( self::safeHttp( $path ) )
+                ->get( $path );
 
             if( !$response->successful() ) {
                 throw new Exception( 'URL not accessible' );
@@ -261,6 +324,14 @@ class Utils
         }
         else
         {
+            // Reject traversal sequences and null bytes before reading from the disk so a
+            // crafted path (e.g. "cms/1/../2/secret.jpg") can't probe files outside the
+            // intended directory and leak their mime type. Stored paths never contain ".."
+            // (see File::filename()).
+            if( str_contains( $path, '..' ) || str_contains( $path, "\0" ) ) {
+                throw new Exception( 'Invalid file path' );
+            }
+
             $stream = Storage::disk( config( 'cms.storage.disk', 'public' ) )->readStream( $path );
 
             if( !$stream ) {
@@ -304,6 +375,47 @@ class Utils
         }
 
         return null;
+    }
+
+
+    /**
+     * Returns Guzzle HTTP options that mitigate SSRF for the given URL.
+     *
+     * Validates the URL, pins the host to its resolved public IP (preventing
+     * DNS rebinding) and blocks redirects to private or reserved addresses.
+     *
+     * @param string $url The http(s) URL that will be fetched
+     * @return array<string, mixed> Options to pass to Http::withOptions()
+     * @throws Exception If the URL is invalid or resolves to a non-public address
+     */
+    public static function safeHttp( string $url ) : array
+    {
+        if( !self::isValidUrl( $url ) ) {
+            throw new Exception( sprintf( 'Invalid or unsafe URL "%s"', $url ) );
+        }
+
+        $parsed = (array) parse_url( $url );
+        $host = (string) ( $parsed['host'] ?? '' );
+        $port = $parsed['port'] ?? ( ( $parsed['scheme'] ?? '' ) === 'https' ? 443 : 80 );
+
+        if( !( $ip = self::resolve( $host ) ) ) {
+            throw new Exception( sprintf( 'Host "%s" does not resolve to a public address', $host ) );
+        }
+
+        return [
+            'verify' => true,
+            'connect_timeout' => 10,
+            'allow_redirects' => [
+                'max' => 2,
+                'strict' => true,
+                'on_redirect' => function( $request, $response, \Psr\Http\Message\UriInterface $uri ) {
+                    if( !( $host = $uri->getHost() ) || !self::resolve( $host ) ) {
+                        throw new Exception( sprintf( 'Redirect to "%s" blocked', $host ) );
+                    }
+                },
+            ],
+            'curl' => [CURLOPT_RESOLVE => [$host . ':' . $port . ':' . $ip]],
+        ];
     }
 
 

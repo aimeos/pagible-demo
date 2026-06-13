@@ -160,12 +160,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "ec0fbbd9d1ff0a2573d20c2a8ec6bbb727e67245"
+                "reference": "e736720db459d5ec34ad0c8acf1583b319ad04fe"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/ec0fbbd9d1ff0a2573d20c2a8ec6bbb727e67245",
-                "reference": "ec0fbbd9d1ff0a2573d20c2a8ec6bbb727e67245",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/e736720db459d5ec34ad0c8acf1583b319ad04fe",
+                "reference": "e736720db459d5ec34ad0c8acf1583b319ad04fe",
                 "shasum": ""
             },
             "require": {
@@ -220,25 +220,25 @@
                 "issues": "https://github.com/aimeos/pagible/issues",
                 "source": "https://github.com/aimeos/pagible/tree/0.11"
             },
-            "time": "2026-06-10T13:18:34+00:00"
+            "time": "2026-06-13T09:56:07+00:00"
         },
         {
             "name": "aimeos/pagible-admin",
-            "version": "0.11.1",
+            "version": "0.11.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-admin.git",
-                "reference": "59a8f32ce84eaf14b277086d90cce9ad15b5ba91"
+                "reference": "bf3bfdcc3c76eacacd163d220092bb947eda1a57"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/59a8f32ce84eaf14b277086d90cce9ad15b5ba91",
-                "reference": "59a8f32ce84eaf14b277086d90cce9ad15b5ba91",
+                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/bf3bfdcc3c76eacacd163d220092bb947eda1a57",
+                "reference": "bf3bfdcc3c76eacacd163d220092bb947eda1a57",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-core": "0.11.*",
-                "aimeos/pagible-graphql": "0.11.*",
+                "aimeos/pagible-core": "*@dev",
+                "aimeos/pagible-graphql": "*@dev",
                 "php": "^8.2"
             },
             "require-dev": {
@@ -277,28 +277,28 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-admin/issues",
-                "source": "https://github.com/aimeos/pagible-admin/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-admin/tree/0.11.3"
             },
-            "time": "2026-06-05T17:40:44+00:00"
+            "time": "2026-06-13T09:55:59+00:00"
         },
         {
             "name": "aimeos/pagible-ai",
-            "version": "0.11.1",
+            "version": "0.11.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-ai.git",
-                "reference": "4e3c3b2e963734713aae3c0b17ddd7dc9b227f65"
+                "reference": "fe7beeae98a4b9a9496cc504371c839b4b2e5c50"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-ai/zipball/4e3c3b2e963734713aae3c0b17ddd7dc9b227f65",
-                "reference": "4e3c3b2e963734713aae3c0b17ddd7dc9b227f65",
+                "url": "https://api.github.com/repos/aimeos/pagible-ai/zipball/fe7beeae98a4b9a9496cc504371c839b4b2e5c50",
+                "reference": "fe7beeae98a4b9a9496cc504371c839b4b2e5c50",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-core": "0.11.*",
-                "aimeos/pagible-graphql": "0.11.*",
-                "aimeos/pagible-mcp": "0.11.*",
+                "aimeos/pagible-core": "*@dev",
+                "aimeos/pagible-graphql": "*@dev",
+                "aimeos/pagible-mcp": "*@dev",
                 "aimeos/prisma": "~0.4",
                 "php": "^8.2"
             },
@@ -331,22 +331,22 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-ai/issues",
-                "source": "https://github.com/aimeos/pagible-ai/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-ai/tree/0.11.3"
             },
-            "time": "2026-06-05T17:40:41+00:00"
+            "time": "2026-06-10T13:38:42+00:00"
         },
         {
             "name": "aimeos/pagible-core",
-            "version": "0.11.1",
+            "version": "0.11.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-core.git",
-                "reference": "75cfb263b303b889c204f29bf315aef11c79fac7"
+                "reference": "6efff8885b30c47c0b946e0559de8dc42ac32724"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-core/zipball/75cfb263b303b889c204f29bf315aef11c79fac7",
-                "reference": "75cfb263b303b889c204f29bf315aef11c79fac7",
+                "url": "https://api.github.com/repos/aimeos/pagible-core/zipball/6efff8885b30c47c0b946e0559de8dc42ac32724",
+                "reference": "6efff8885b30c47c0b946e0559de8dc42ac32724",
                 "shasum": ""
             },
             "require": {
@@ -391,27 +391,27 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-core/issues",
-                "source": "https://github.com/aimeos/pagible-core/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-core/tree/0.11.3"
             },
-            "time": "2026-06-03T19:46:25+00:00"
+            "time": "2026-06-13T09:52:42+00:00"
         },
         {
             "name": "aimeos/pagible-graphql",
-            "version": "0.11.1",
+            "version": "0.11.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-graphql.git",
-                "reference": "ba70aaec883953fb8354320cc8762cf7f496bcbb"
+                "reference": "3d72fb7cf354a290e9f2e7922fbbda5215547dd1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-graphql/zipball/ba70aaec883953fb8354320cc8762cf7f496bcbb",
-                "reference": "ba70aaec883953fb8354320cc8762cf7f496bcbb",
+                "url": "https://api.github.com/repos/aimeos/pagible-graphql/zipball/3d72fb7cf354a290e9f2e7922fbbda5215547dd1",
+                "reference": "3d72fb7cf354a290e9f2e7922fbbda5215547dd1",
                 "shasum": ""
             },
             "require": {
                 "aimeos/laravel-analytics-bridge": "~1.0",
-                "aimeos/pagible-core": "0.11.*",
+                "aimeos/pagible-core": "*@dev",
                 "mll-lab/graphql-php-scalars": "^6.4",
                 "nuwave/lighthouse": "^6.54",
                 "php": "^8.2"
@@ -445,26 +445,26 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-graphql/issues",
-                "source": "https://github.com/aimeos/pagible-graphql/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-graphql/tree/0.11.3"
             },
-            "time": "2026-06-05T17:40:41+00:00"
+            "time": "2026-06-11T16:38:43+00:00"
         },
         {
             "name": "aimeos/pagible-jsonapi",
-            "version": "0.11.1",
+            "version": "0.11.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-jsonapi.git",
-                "reference": "03ff63554392a5f7a8eb6f78bf24d6605ab37839"
+                "reference": "34aba5d76ccde301c094eebf8e2b07186900acd8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-jsonapi/zipball/03ff63554392a5f7a8eb6f78bf24d6605ab37839",
-                "reference": "03ff63554392a5f7a8eb6f78bf24d6605ab37839",
+                "url": "https://api.github.com/repos/aimeos/pagible-jsonapi/zipball/34aba5d76ccde301c094eebf8e2b07186900acd8",
+                "reference": "34aba5d76ccde301c094eebf8e2b07186900acd8",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-core": "0.11.*",
+                "aimeos/pagible-core": "*@dev",
                 "laravel-json-api/laravel": "^5.1",
                 "php": "^8.2"
             },
@@ -497,28 +497,28 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-jsonapi/issues",
-                "source": "https://github.com/aimeos/pagible-jsonapi/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-jsonapi/tree/0.11.3"
             },
-            "time": "2026-06-05T17:40:40+00:00"
+            "time": "2026-06-10T13:38:41+00:00"
         },
         {
             "name": "aimeos/pagible-mcp",
-            "version": "0.11.1",
+            "version": "0.11.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-mcp.git",
-                "reference": "41ebcc86e1fccf3c194ebb6ffc864e233e0b5205"
+                "reference": "00e197f406a27c13f2588058180b06fde2cd6499"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-mcp/zipball/41ebcc86e1fccf3c194ebb6ffc864e233e0b5205",
-                "reference": "41ebcc86e1fccf3c194ebb6ffc864e233e0b5205",
+                "url": "https://api.github.com/repos/aimeos/pagible-mcp/zipball/00e197f406a27c13f2588058180b06fde2cd6499",
+                "reference": "00e197f406a27c13f2588058180b06fde2cd6499",
                 "shasum": ""
             },
             "require": {
                 "aimeos/laravel-analytics-bridge": "~1.0",
-                "aimeos/pagible-core": "0.11.*",
-                "laravel/mcp": "~0.5",
+                "aimeos/pagible-core": "*@dev",
+                "laravel/mcp": "~0.8",
                 "php": "^8.2"
             },
             "require-dev": {
@@ -550,26 +550,26 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-mcp/issues",
-                "source": "https://github.com/aimeos/pagible-mcp/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-mcp/tree/0.11.3"
             },
-            "time": "2026-06-05T17:40:42+00:00"
+            "time": "2026-06-13T08:15:04+00:00"
         },
         {
             "name": "aimeos/pagible-search",
-            "version": "0.11.1",
+            "version": "0.11.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-search.git",
-                "reference": "49368af1bca43f27b0cf5ca6807c73f2d21f2ca8"
+                "reference": "04da4b39f3d895d61b96c6c229a2a47433315c5d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-search/zipball/49368af1bca43f27b0cf5ca6807c73f2d21f2ca8",
-                "reference": "49368af1bca43f27b0cf5ca6807c73f2d21f2ca8",
+                "url": "https://api.github.com/repos/aimeos/pagible-search/zipball/04da4b39f3d895d61b96c6c229a2a47433315c5d",
+                "reference": "04da4b39f3d895d61b96c6c229a2a47433315c5d",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-core": "0.11.*",
+                "aimeos/pagible-core": "*@dev",
                 "laravel/scout": "^10.20||^11.1",
                 "php": "^8.2"
             },
@@ -603,26 +603,26 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-search/issues",
-                "source": "https://github.com/aimeos/pagible-search/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-search/tree/0.11.3"
             },
-            "time": "2026-06-05T17:40:36+00:00"
+            "time": "2026-06-10T13:38:39+00:00"
         },
         {
             "name": "aimeos/pagible-theme",
-            "version": "0.11.1",
+            "version": "0.11.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-theme.git",
-                "reference": "f525e781cbbabf8997172e188d6318d1e45edbff"
+                "reference": "e18ea5a32eb0b7155b8ef3bc49ac3c2d4a58ef38"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/f525e781cbbabf8997172e188d6318d1e45edbff",
-                "reference": "f525e781cbbabf8997172e188d6318d1e45edbff",
+                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/e18ea5a32eb0b7155b8ef3bc49ac3c2d4a58ef38",
+                "reference": "e18ea5a32eb0b7155b8ef3bc49ac3c2d4a58ef38",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-core": "0.11.*",
+                "aimeos/pagible-core": "*@dev",
                 "league/commonmark": "^2.6",
                 "php": "^8.2"
             },
@@ -659,9 +659,9 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-theme/issues",
-                "source": "https://github.com/aimeos/pagible-theme/tree/0.11.1"
+                "source": "https://github.com/aimeos/pagible-theme/tree/0.11.3"
             },
-            "time": "2026-06-05T17:40:38+00:00"
+            "time": "2026-06-13T09:52:40+00:00"
         },
         {
             "name": "aimeos/pagible-themes-glass",
@@ -719,12 +719,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-pagible.git",
-                "reference": "d1e9d2dfa6559f36e79e2c9bf361e6444a428166"
+                "reference": "2504ce5fb25db8b81b4ce3cb8c25b04027caf381"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/d1e9d2dfa6559f36e79e2c9bf361e6444a428166",
-                "reference": "d1e9d2dfa6559f36e79e2c9bf361e6444a428166",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/2504ce5fb25db8b81b4ce3cb8c25b04027caf381",
+                "reference": "2504ce5fb25db8b81b4ce3cb8c25b04027caf381",
                 "shasum": ""
             },
             "require": {
@@ -760,7 +760,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-pagible/issues",
                 "source": "https://github.com/aimeos/pagible-themes-pagible/tree/0.11"
             },
-            "time": "2026-06-10T13:16:45+00:00"
+            "time": "2026-06-12T09:05:24+00:00"
         },
         {
             "name": "aimeos/pagible-themes-paper",
@@ -1690,16 +1690,16 @@
         },
         {
             "name": "firebase/php-jwt",
-            "version": "v7.0.5",
+            "version": "v7.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/php-jwt.git",
-                "reference": "47ad26bab5e7c70ae8a6f08ed25ff83631121380"
+                "reference": "b374a5d1a4f1f67fadc2165cdb284645945e2fc0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/php-jwt/zipball/47ad26bab5e7c70ae8a6f08ed25ff83631121380",
-                "reference": "47ad26bab5e7c70ae8a6f08ed25ff83631121380",
+                "url": "https://api.github.com/repos/googleapis/php-jwt/zipball/b374a5d1a4f1f67fadc2165cdb284645945e2fc0",
+                "reference": "b374a5d1a4f1f67fadc2165cdb284645945e2fc0",
                 "shasum": ""
             },
             "require": {
@@ -1708,6 +1708,7 @@
             "require-dev": {
                 "guzzlehttp/guzzle": "^7.4",
                 "phpfastcache/phpfastcache": "^9.2",
+                "phpseclib/phpseclib": "~3.0",
                 "phpspec/prophecy-phpunit": "^2.0",
                 "phpunit/phpunit": "^9.5",
                 "psr/cache": "^2.0||^3.0",
@@ -1716,7 +1717,8 @@
             },
             "suggest": {
                 "ext-sodium": "Support EdDSA (Ed25519) signatures",
-                "paragonie/sodium_compat": "Support EdDSA (Ed25519) signatures when libsodium is not present"
+                "paragonie/sodium_compat": "Support EdDSA (Ed25519) signatures when libsodium is not present",
+                "phpseclib/phpseclib": "Support PS256 (RSASSA-PSS) signatures"
             },
             "type": "library",
             "autoload": {
@@ -1741,16 +1743,16 @@
                 }
             ],
             "description": "A simple library to encode and decode JSON Web Tokens (JWT) in PHP. Should conform to the current spec.",
-            "homepage": "https://github.com/firebase/php-jwt",
+            "homepage": "https://github.com/googleapis/php-jwt",
             "keywords": [
                 "jwt",
                 "php"
             ],
             "support": {
                 "issues": "https://github.com/googleapis/php-jwt/issues",
-                "source": "https://github.com/googleapis/php-jwt/tree/v7.0.5"
+                "source": "https://github.com/googleapis/php-jwt/tree/v7.1.0"
             },
-            "time": "2026-04-01T20:38:03+00:00"
+            "time": "2026-06-11T17:54:14+00:00"
         },
         {
             "name": "fruitcake/php-cors",
@@ -2395,16 +2397,16 @@
         },
         {
             "name": "guzzlehttp/uri-template",
-            "version": "v1.0.6",
+            "version": "v1.0.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/uri-template.git",
-                "reference": "eef7f87bab6f204eba3c39224d8075c70c637946"
+                "reference": "7fe811c23a9e3cd712b4389eaeb50b5456d8c529"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/uri-template/zipball/eef7f87bab6f204eba3c39224d8075c70c637946",
-                "reference": "eef7f87bab6f204eba3c39224d8075c70c637946",
+                "url": "https://api.github.com/repos/guzzle/uri-template/zipball/7fe811c23a9e3cd712b4389eaeb50b5456d8c529",
+                "reference": "7fe811c23a9e3cd712b4389eaeb50b5456d8c529",
                 "shasum": ""
             },
             "require": {
@@ -2461,7 +2463,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/uri-template/issues",
-                "source": "https://github.com/guzzle/uri-template/tree/v1.0.6"
+                "source": "https://github.com/guzzle/uri-template/tree/v1.0.7"
             },
             "funding": [
                 {
@@ -2477,7 +2479,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-23T22:00:21+00:00"
+            "time": "2026-06-12T21:33:43+00:00"
         },
         {
             "name": "haydenpierce/class-finder",
@@ -3502,16 +3504,16 @@
         },
         {
             "name": "laravel/mcp",
-            "version": "v0.8.0",
+            "version": "v0.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/mcp.git",
-                "reference": "18221a07093d84153883bc956e5e213999549a4b"
+                "reference": "fdc39c9e21048801508765cb4d72bd9e8501b51f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/mcp/zipball/18221a07093d84153883bc956e5e213999549a4b",
-                "reference": "18221a07093d84153883bc956e5e213999549a4b",
+                "url": "https://api.github.com/repos/laravel/mcp/zipball/fdc39c9e21048801508765cb4d72bd9e8501b51f",
+                "reference": "fdc39c9e21048801508765cb4d72bd9e8501b51f",
                 "shasum": ""
             },
             "require": {
@@ -3572,7 +3574,7 @@
                 "issues": "https://github.com/laravel/mcp/issues",
                 "source": "https://github.com/laravel/mcp"
             },
-            "time": "2026-06-08T13:48:51+00:00"
+            "time": "2026-06-11T13:59:49+00:00"
         },
         {
             "name": "laravel/prompts",

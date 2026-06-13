@@ -55,7 +55,7 @@ class PageController extends Controller
 
         if( $np && $request->isMethod( 'GET' ) && ( $html = $cache->get( $key ) ) )
         {
-            return response( $html, 200 )
+            return response( $this->inject( $html ), 200 )
                 ->header( 'Content-Type', 'text/html' )
                 ->header( 'Expires', substr( $html, -29 ) );
         }
@@ -89,13 +89,34 @@ class PageController extends Controller
             $cache->put( $key, $html . '<!-- ' . $expires, now()->addMinutes( (int) $page->cache ) );
         }
 
-        $response = ( new Response( $html, 200 ) )->header( 'Content-Type', 'text/html' );
+        $response = ( new Response( $this->inject( $html ), 200 ) )->header( 'Content-Type', 'text/html' );
 
         if( $request->isMethod( 'GET' ) ) {
             $response->header( 'Expires', $expires );
         }
 
         return $response;
+    }
+
+
+    /**
+     * Replaces the cache-safe CSRF token and CSP nonce placeholders with fresh per-request values.
+     *
+     * The rendered page HTML is cached verbatim and served to every visitor, so it must not embed
+     * a session-bound CSRF token or a reusable CSP nonce. The layout/forms emit placeholders and
+     * this injects a unique nonce and the current request's CSRF token into each response (on both
+     * cache miss and cache hit).
+     *
+     * @param string $html Rendered HTML containing the placeholders
+     * @return string HTML with per-request token and nonce
+     */
+    protected function inject( string $html ) : string
+    {
+        return str_replace(
+            ['%%CMS_NONCE%%', '%%CMS_CSRF%%'],
+            [base64_encode( random_bytes( 16 ) ), (string) csrf_token()],
+            $html
+        );
     }
 
 
@@ -112,10 +133,6 @@ class PageController extends Controller
     protected function latest( string $path, string $domain )
     {
         $with = [
-            'files' => fn( $q ) => $q->select( File::SELECT_COLS ),
-            'files.latest',
-            'elements' => fn( $q ) => $q->select( [...Element::SELECT_COLS, 'name'] ),
-            'elements.latest',
             'latest',
             'latest.files' => fn( $q ) => $q->select( File::SELECT_COLS ),
             'latest.files.latest',
@@ -131,6 +148,14 @@ class PageController extends Controller
             ?? Page::with( $with )->where( 'domain', $domain )->where( 'path', $path )->firstOrFail();
 
         $version = $page->latest;
+
+        if( $version ) {
+            // The editor preview renders the draft version's content, so resolve files and
+            // elements from the version's pivots instead of the page-level pivots (which only
+            // reflect the published state and are synced on publish).
+            $page->setRelation( 'files', $version->getRelation( 'files' ) );
+            $page->setRelation( 'elements', $version->getRelation( 'elements' ) );
+        }
 
         if( $to = $version?->data->to ?? $page->to ) {
             return str_starts_with( $to, 'http' ) ? redirect()->away( $to ) : redirect()->to( $to );
@@ -149,7 +174,7 @@ class PageController extends Controller
         $views = [$theme . '::layouts.' . $type, 'cms::layouts.' . $type, 'cms::layouts.page'];
         $html = view()->first( $views, ['page' => $page, 'content' => $content, 'theme' => $theme] )->render();
 
-        return ( new Response( $html, 200 ) )
+        return ( new Response( $this->inject( $html ), 200 ) )
             ->header( 'Content-Type', 'text/html' )
             ->header( 'Cache-Control', 'private, max-age=0' );
     }

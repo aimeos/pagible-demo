@@ -11,7 +11,7 @@ import { applyResult, hasUnresolved } from '../merge'
 import { publishDate, publishItem } from '../publish'
 import { defineAsyncComponent, markRaw } from 'vue'
 import { setupEcho, cleanEcho } from '../echo'
-import { frozenParse } from '../utils'
+import { frozenParse, safeParse, sanitize } from '../utils'
 
 const ChangesDialog = defineAsyncComponent(() => import('../components/ChangesDialog.vue'))
 const HistoryDialog = defineAsyncComponent(() => import('../components/HistoryDialog.vue'))
@@ -76,7 +76,8 @@ export default {
 
   props: {
     item: { type: Object, required: true },
-    stacked: { type: Boolean, default: false }
+    stacked: { type: Boolean, default: false },
+    onSaved: { type: Function, default: null }
   },
 
   data: () => ({
@@ -167,7 +168,7 @@ export default {
         const latest = result.data.file.latest
 
         this.reset()
-        Object.assign(this.item, JSON.parse(latest?.data || '{}'))
+        Object.assign(this.item, safeParse(latest?.data))
         this.item.latestId = latest?.id
         this.item.published = latest?.published
         this.item.updated_at = latest?.created_at
@@ -176,7 +177,7 @@ export default {
         setupEcho(this, 'file', this.item.id, (event) => {
           if (!this.dirty && this.user.can('file:view') && event.editor !== this.user.me?.email) {
             this.item.latestId = event.versionId
-            Object.assign(this.item, event.data)
+            Object.assign(this.item, sanitize(event.data))
           }
         })
 
@@ -309,9 +310,9 @@ export default {
 
           const file = result.data?.saveFile
           const latest = file?.latest
-          const changed = file?.changed ? markRaw(JSON.parse(file.changed)) : null
+          const changed = file?.changed ? markRaw(safeParse(file.changed)) : null
 
-          Object.assign(this.item, JSON.parse(latest?.data || '{}'))
+          Object.assign(this.item, safeParse(latest?.data))
           this.item.updated_at = latest?.created_at
           this.item.latestId = latest?.id
 
@@ -321,6 +322,7 @@ export default {
           this.item.publish_at = latest?.publish_at ?? null
           this.item.editor = latest?.editor ?? this.item.editor
           this.changes.notify('file', this.item)
+          this.onSaved?.()
 
           return true
         })

@@ -13,7 +13,7 @@ import {
   useSideStore
 } from '../stores'
 import { changedState } from '../merge'
-import { debounce, frozenParse, itemTitle, uid } from '../utils'
+import { debounce, frozenParse, itemTitle, safeParse, uid } from '../utils'
 import {
   mdiMenuDown,
   mdiContentCopy,
@@ -47,8 +47,8 @@ const REFINE_CONTENT = gql`
 `
 
 const ADD_ELEMENT = gql`
-  mutation ($input: ElementInput!, $files: [ID!]) {
-    addElement(input: $input, files: $files) {
+  mutation ($input: ElementInput!) {
+    addElement(input: $input) {
       id
       type
       lang
@@ -98,7 +98,7 @@ export default {
     lastError: false,
     refining: false,
     panel: [],
-    menu: [],
+    menu: null,
     index: null,
     checked: false,
     vchange: false,
@@ -395,7 +395,7 @@ export default {
             throw result
           }
 
-          const content = JSON.parse(result.data?.refine || '[]')
+          const content = safeParse(result.data?.refine || '[]', [])
 
           if (content.length) {
             const map = {}
@@ -490,11 +490,7 @@ export default {
               lang: this.item.lang,
               name: this.title(entry),
               data: JSON.stringify(entry.data || {})
-            },
-            files:
-              entry.files?.filter((fileid, idx, self) => {
-                return self.indexOf(fileid) === idx
-              }) || []
+            }
           }
         })
         .then((result) => {
@@ -870,7 +866,8 @@ export default {
               <component
                 :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
                 :aria-label="$gettext('Actions')"
-                v-model="menu[idx]"
+                :model-value="menu === el.id"
+                @update:model-value="(val) => (menu = val ? el.id : null)"
                 transition="scale-transition"
                 location="end center"
                 max-width="300"
@@ -890,11 +887,11 @@ export default {
                     <v-btn
                       :icon="mdiClose"
                       :aria-label="$gettext('Close')"
-                      @click="menu[idx] = false"
+                      @click="menu = null"
                     />
                   </v-toolbar>
 
-                  <v-list @click="menu[idx] = false">
+                  <v-list @click="menu = null">
                     <v-list-item v-if="!el._error">
                       <v-btn :prepend-icon="mdiContentCopy" variant="text" @click="copy(idx)">{{
                         $gettext('Copy')
@@ -913,12 +910,12 @@ export default {
 
                     <v-divider></v-divider>
 
-                    <v-list-item v-if="menu[idx] && clipboard.get('page-content')">
+                    <v-list-item v-if="clipboard.get('page-content')">
                       <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="paste(idx)">{{
                         $gettext('Paste before')
                       }}</v-btn>
                     </v-list-item>
-                    <v-list-item v-if="menu[idx] && clipboard.get('page-content')">
+                    <v-list-item v-if="clipboard.get('page-content')">
                       <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="paste(idx + 1)">{{
                         $gettext('Paste after')
                       }}</v-btn>
