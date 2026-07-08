@@ -3,13 +3,15 @@
 namespace Aimeos\Prisma\Providers\Text;
 
 use Aimeos\Prisma\Contracts\Text\Structure;
+use Aimeos\Prisma\Contracts\Text\Vectorize;
 use Aimeos\Prisma\Contracts\Text\Write;
 use Aimeos\Prisma\Providers\Cohere as CohereBase;
 use Aimeos\Prisma\Responses\TextResponse;
+use Aimeos\Prisma\Responses\VectorResponse;
 use Aimeos\Prisma\Schema\Schema;
 
 
-class Cohere extends CohereBase implements Structure, Write
+class Cohere extends CohereBase implements Structure, Vectorize, Write
 {
     public function structure( string $prompt, Schema $schema, array $files = [], array $options = [] ) : TextResponse
     {
@@ -24,9 +26,42 @@ class Cohere extends CohereBase implements Structure, Write
             $options
         );
 
-        $structured = json_decode( $response->text() ?? '', true ) ?: [];
+        return $response->withStructured( $this->parseJson( $response->text() ) );
+    }
 
-        return $response->withStructured( $structured );
+
+    public function vectorize( array $texts, ?int $size = null, array $options = [] ) : VectorResponse
+    {
+        $allowed = $this->allowed( $options, ['input_type', 'embedding_types', 'truncate', 'max_tokens'] );
+        $request = [
+            'model' => $this->modelName( 'embed-v4.0' ),
+            'texts' => array_values( $texts ),
+            'input_type' => 'search_document',
+            'output_dimension' => $size ?: 1536,
+            ...$allowed,
+        ] + ['embedding_types' => ['float']];
+
+        $response = $this->client()->post( 'v2/embed', ['json' => $request] );
+
+        $this->validate( $response );
+
+        /** @var array<string, mixed> $data */
+        $data = $this->fromJson( $response );
+
+        /** @var array<string, mixed> $embeddings */
+        $embeddings = $data['embeddings'] ?? [];
+        /** @var array<int, array<int, float>|null> $vectors */
+        $vectors = $embeddings['float'] ?? [];
+
+        /** @var array<string, mixed> $meta */
+        $meta = $data['meta'] ?? [];
+        /** @var array<string, mixed> $billedUnits */
+        $billedUnits = $meta['billed_units'] ?? [];
+        $used = $billedUnits['input_tokens'] ?? 0;
+
+        return VectorResponse::fromVectors( $vectors )
+            ->withUsage( is_numeric( $used ) ? (float) $used : 0, $billedUnits )
+            ->withMeta( $meta );
     }
 
 
@@ -52,34 +87,52 @@ class Cohere extends CohereBase implements Structure, Write
      */
     protected function jsonSchema( array $schema ) : array
     {
-        $type = $schema['type'] ?? null;
+        return \Aimeos\Prisma\Schema\Schema::map( $schema, function( array $node ) {
+            $type = $node['type'] ?? null;
 
-        if( $type === 'object' || ( is_array( $type ) && in_array( 'object', $type, true ) ) ) {
-            $schema['additionalProperties'] = false;
-        }
-
-        if( isset( $schema['properties'] ) && is_array( $schema['properties'] ) )
-        {
-            if( empty( $schema['required'] ) ) {
-                $schema['required'] = array_keys( $schema['properties'] );
+            if( $type === 'object' || ( is_array( $type ) && in_array( 'object', $type, true ) ) ) {
+                $node['additionalProperties'] = false;
             }
 
-            $schema['properties'] = array_map( fn( array $prop ) => $this->jsonSchema( $prop ), $schema['properties'] );
+            if( isset( $node['properties'] ) && is_array( $node['properties'] ) && empty( $node['required'] ) ) {
+                $node['required'] = array_keys( $node['properties'] );
+            }
+
+            return $node;
+        } );
+    }
+
+
+    /**
+     * Parses tool calls from Cohere API response.
+     *
+     * @param array<string, mixed> $result API response data
+     * @return array<int, array{id: string|null, name: string, arguments: array<string, mixed>}> Parsed tool calls
+     */
+    protected function toolCalls( array $result ) : array
+    {
+        $toolCalls = [];
+
+        /** @var array<string, mixed> $msg */
+        $msg = $result['message'] ?? [];
+        /** @var array<int, array<string, mixed>> $calls */
+        $calls = $msg['tool_calls'] ?? [];
+
+        foreach( $calls as $call )
+        {
+            /** @var string|null $id */
+            $id = $call['id'] ?? null;
+            /** @var array{name?: string, arguments?: string} $fn */
+            $fn = $call['function'] ?? [];
+
+            $toolCalls[] = [
+                'id' => $id,
+                'name' => $fn['name'] ?? '',
+                'arguments' => $this->jsonArgs( $fn['arguments'] ?? '{}' ),
+            ];
         }
 
-        if( isset( $schema['items'] ) && is_array( $schema['items'] ) ) {
-            $schema['items'] = $this->jsonSchema( $schema['items'] );
-        }
-
-        if( isset( $schema['anyOf'] ) && is_array( $schema['anyOf'] ) ) {
-            $schema['anyOf'] = array_map( fn( array $sub ) => $this->jsonSchema( $sub ), $schema['anyOf'] );
-        }
-
-        if( isset( $schema['$defs'] ) && is_array( $schema['$defs'] ) ) {
-            $schema['$defs'] = array_map( fn( array $sub ) => $this->jsonSchema( $sub ), $schema['$defs'] );
-        }
-
-        return $schema;
+        return $toolCalls;
     }
 
 
@@ -92,6 +145,7 @@ class Cohere extends CohereBase implements Structure, Write
     private function generate( array $messages, array $options ) : TextResponse
     {
         $allSteps = [];
+        $calls = [];
         $rateLimit = null;
         $texts = [];
         $result = [];
@@ -111,7 +165,7 @@ class Cohere extends CohereBase implements Structure, Write
                 // The configured choice applies only on the first step so the model can
                 // produce a final text answer after calling the tools.
                 $choice = $step === 1 ? match( $this->toolChoice() ) {
-                    self::REQ => 'REQUIRED',
+                    self::REQUIRED => 'REQUIRED',
                     self::NONE => 'NONE',
                     default => null,
                 } : null;
@@ -145,54 +199,19 @@ class Cohere extends CohereBase implements Structure, Write
             // when maxSteps is reached) doesn't discard the model's partial answer.
             $texts = $stepTexts ?: $texts;
 
-            $toolCalls = $this->parseToolCalls( $result );
+            $toolCalls = $this->toolCalls( $result );
 
             if( !$toolCalls ) {
                 break;
             }
 
-            $toolResults = $this->execTools( $toolCalls );
+            $toolResults = $this->execTools( $toolCalls, $calls );
             array_push( $allSteps, ...$toolResults );
             $messages[] = $message ?: ['role' => 'assistant', 'content' => null];
             $messages = array_merge( $messages, $this->toolResults( $toolResults ) );
         }
 
         return $this->result( $result, $allSteps, $texts, $rateLimit );
-    }
-
-
-    /**
-     * Parses tool calls from Cohere API response.
-     *
-     * @param array<string, mixed> $result API response data
-     * @return array<int, array{id: string|null, name: string, arguments: array<string, mixed>}> Parsed tool calls
-     */
-    protected function parseToolCalls( array $result ) : array
-    {
-        $toolCalls = [];
-
-        /** @var array<string, mixed> $msg */
-        $msg = $result['message'] ?? [];
-        /** @var array<int, array<string, mixed>> $calls */
-        $calls = $msg['tool_calls'] ?? [];
-
-        foreach( $calls as $call )
-        {
-            /** @var string|null $id */
-            $id = $call['id'] ?? null;
-            /** @var array{name?: string, arguments?: string} $fn */
-            $fn = $call['function'] ?? [];
-            /** @var array<string, mixed> $decoded */
-            $decoded = json_decode( $fn['arguments'] ?? '{}', true ) ?: [];
-
-            $toolCalls[] = [
-                'id' => $id,
-                'name' => $fn['name'] ?? '',
-                'arguments' => $decoded,
-            ];
-        }
-
-        return $toolCalls;
     }
 
 

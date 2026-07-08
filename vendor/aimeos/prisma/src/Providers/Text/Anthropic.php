@@ -2,72 +2,57 @@
 
 namespace Aimeos\Prisma\Providers\Text;
 
+use Aimeos\Prisma\Contracts\Text\Stream;
 use Aimeos\Prisma\Contracts\Text\Structure;
 use Aimeos\Prisma\Contracts\Text\Write;
 use Aimeos\Prisma\Providers\Anthropic as Base;
 use Aimeos\Prisma\Responses\TextResponse;
 use Aimeos\Prisma\Schema\Schema;
+use Aimeos\Prisma\Values\Mode;
 
 
-class Anthropic extends Base implements Structure, Write
+class Anthropic extends Base implements Stream, Structure, Write
 {
+    public function stream( string $prompt, array $files = [], array $options = [] ) : TextResponse
+    {
+        $options = $this->allowed( $options, ['citations', 'temperature', 'top_p', 'top_k', 'thinking', 'effort'] );
+        $messages = array_merge( $this->mapMessages(), [['role' => 'user', 'content' => $this->content( $prompt, $files )]] );
+
+        return $this->streamGenerate( $messages, $options );
+    }
+
+
+
     public function structure( string $prompt, Schema $schema, array $files = [], array $options = [] ) : TextResponse
     {
-        $options = $this->allowed( $options, ['temperature', 'top_p', 'top_k'] );
-        $json = $this->jsonSchema( $schema->toArray() );
+        $mode = $options['mode'] ?? null;
+        $options = $this->allowed( $options, ['temperature', 'top_p', 'top_k', 'thinking', 'effort'] );
 
-        if( $this->fits( $json ) )
+        if( Mode::from( $mode )->isJson() )
         {
-            $options['output_config'] = ['format' => ['type' => 'json_schema', 'schema' => $json]];
-            $messages = [['role' => 'user', 'content' => $this->content( $prompt, $files )]];
+            // JSON mode: embed the schema in the prompt and parse the JSON from the response text.
+            $messages = array_merge( $this->mapMessages(), [['role' => 'user', 'content' => $this->content( $schema->toPrompt( $prompt ), $files )]] );
         }
         else
         {
-            // The schema exceeds Anthropic's strict-grammar limits (24 optional and
-            // 16 union-type parameters). Fall back to a prompt-embedded schema and
-            // parse the JSON from the response text instead.
-            $schemaPrompt = $prompt . "\n\nRespond with ONLY valid JSON (no markdown, no code blocks) matching this JSON schema:\n" . $schema->toString();
-            $messages = [['role' => 'user', 'content' => $this->content( $schemaPrompt, $files )]];
+            $options['output_config'] = ['format' => ['type' => 'json_schema', 'schema' => $this->jsonSchema( $schema->toArray() )]];
+            $messages = array_merge( $this->mapMessages(), [['role' => 'user', 'content' => $this->content( $prompt, $files )]] );
         }
 
         $response = $this->generate( $messages, $options );
 
-        $text = trim( $response->text() ?? '' );
-        $text = preg_replace( '/^```(?:json)?\s*|\s*```$/s', '', $text ) ?? $text;
-        $structured = json_decode( $text, true ) ?: [];
-
-        return $response->withStructured( $structured );
+        return $response->withStructured( $this->parseJson( $response->text() ) );
     }
 
 
     public function write( string $prompt, array $files = [], array $options = [] ) : TextResponse
     {
-        $options = $this->allowed( $options, ['citations', 'temperature', 'top_p', 'top_k'] );
+        $options = $this->allowed( $options, ['citations', 'temperature', 'top_p', 'top_k', 'thinking', 'effort'] );
 
         return $this->generate(
-            [['role' => 'user', 'content' => $this->content( $prompt, $files )]],
+            array_merge( $this->mapMessages(), [['role' => 'user', 'content' => $this->content( $prompt, $files )]] ),
             $options
         );
-    }
-
-
-    /**
-     * Tests whether a JSON Schema stays within Anthropic's strict-grammar limits.
-     *
-     * Strict structured outputs are capped at 24 optional parameters (properties not
-     * listed in "required") and 16 union-type parameters ("anyOf" or "type" arrays).
-     * Schemas beyond either limit are rejected at compile time and must use the
-     * prompt-embedded fallback instead.
-     *
-     * @param array<string, mixed> $schema JSON Schema definition
-     * @return bool True if the schema fits the strict-grammar limits
-     */
-    protected function fits( array $schema ) : bool
-    {
-        $counts = ['optional' => 0, 'union' => 0];
-        $this->complexity( $schema, $counts );
-
-        return $counts['optional'] <= 24 && $counts['union'] <= 16;
     }
 
 
@@ -82,205 +67,37 @@ class Anthropic extends Base implements Structure, Write
      */
     protected function jsonSchema( array $schema ) : array
     {
-        $type = $schema['type'] ?? null;
+        return \Aimeos\Prisma\Schema\Schema::map( $schema, function( array $node ) {
+            $type = $node['type'] ?? null;
 
-        // Anthropic rejects a nullable enum expressed as a "type" array combined with
-        // "enum" (e.g. {"type":["string","null"],"enum":[...]}). Rewrite it to the
-        // supported anyOf form with a dedicated null branch.
-        if( isset( $schema['enum'] ) && is_array( $type ) && in_array( 'null', $type, true ) )
-        {
-            $enum = array_values( array_filter( $schema['enum'], fn( $v ) => $v !== null ) );
-            $head = array_filter( ['description' => $schema['description'] ?? null] );
-
-            return $head + ['anyOf' => [['enum' => $enum], ['type' => 'null']]];
-        }
-
-        // Anthropic's strict schema rejects numeric, length and item-count
-        // constraints; "minItems" only supports 0 or 1. Drop the unsupported
-        // keywords and clamp "minItems" to a supported value.
-        unset(
-            $schema['minimum'], $schema['maximum'], $schema['exclusiveMinimum'],
-            $schema['exclusiveMaximum'], $schema['multipleOf'],
-            $schema['minLength'], $schema['maxLength'], $schema['maxItems']
-        );
-
-        if( isset( $schema['minItems'] ) && !in_array( $schema['minItems'], [0, 1], true ) ) {
-            $schema['minItems'] = 1;
-        }
-
-        if( $type === 'object' || ( is_array( $type ) && in_array( 'object', $type, true ) ) ) {
-            $schema['additionalProperties'] = false;
-        }
-
-        if( isset( $schema['properties'] ) && is_array( $schema['properties'] ) ) {
-            $schema['properties'] = array_map( fn( array $prop ) => $this->jsonSchema( $prop ), $schema['properties'] );
-        }
-
-        if( isset( $schema['items'] ) && is_array( $schema['items'] ) ) {
-            $schema['items'] = $this->jsonSchema( $schema['items'] );
-        }
-
-        if( isset( $schema['anyOf'] ) && is_array( $schema['anyOf'] ) ) {
-            $schema['anyOf'] = array_map( fn( array $sub ) => $this->jsonSchema( $sub ), $schema['anyOf'] );
-        }
-
-        if( isset( $schema['$defs'] ) && is_array( $schema['$defs'] ) ) {
-            $schema['$defs'] = array_map( fn( array $sub ) => $this->jsonSchema( $sub ), $schema['$defs'] );
-        }
-
-        return $schema;
-    }
-
-
-    /**
-     * Accumulates the optional and union-type parameter counts of a JSON Schema.
-     *
-     * @param array<string, mixed> $schema JSON Schema definition
-     * @param array{optional: int, union: int} $counts Running counts, updated in place
-     */
-    private function complexity( array $schema, array &$counts ) : void
-    {
-        $type = $schema['type'] ?? null;
-
-        if( isset( $schema['anyOf'] ) || ( is_array( $type ) && in_array( 'null', $type, true ) ) ) {
-            $counts['union']++;
-        }
-
-        if( isset( $schema['properties'] ) && is_array( $schema['properties'] ) )
-        {
-            $required = (array) ( $schema['required'] ?? [] );
-
-            foreach( $schema['properties'] as $name => $prop )
+            // Anthropic rejects a nullable enum as a "type" array plus "enum"; rewrite it to
+            // the supported anyOf form with a dedicated null branch
+            if( isset( $node['enum'] ) && is_array( $type ) && in_array( 'null', $type, true ) )
             {
-                if( !in_array( $name, $required, true ) ) {
-                    $counts['optional']++;
-                }
+                $enum = array_values( array_filter( $node['enum'], fn( $v ) => $v !== null ) );
+                $head = array_filter( ['description' => $node['description'] ?? null] );
 
-                if( is_array( $prop ) ) {
-                    $this->complexity( $prop, $counts );
-                }
-            }
-        }
-
-        if( isset( $schema['items'] ) && is_array( $schema['items'] ) ) {
-            $this->complexity( $schema['items'], $counts );
-        }
-
-        foreach( ['anyOf', '$defs'] as $key )
-        {
-            foreach( (array) ( $schema[$key] ?? [] ) as $sub )
-            {
-                if( is_array( $sub ) ) {
-                    $this->complexity( $sub, $counts );
-                }
-            }
-        }
-    }
-
-
-    /**
-     * Runs the tool loop for the Anthropic Messages API.
-     *
-     * @param array<int, array<string, mixed>> $messages Chat messages
-     * @param array<string, mixed> $options Pre-filtered request options
-     */
-    private function generate( array $messages, array $options ) : TextResponse
-    {
-        $allSteps = [];
-        $citations = [];
-        $thinking = null;
-        $rateLimit = null;
-        $texts = [];
-        $result = [];
-
-        for( $step = 1; $step <= $this->maxSteps(); $step++ )
-        {
-            $params = [
-                'model' => $this->modelName( 'claude-opus-4-8' ),
-                'messages' => $messages,
-                // The Messages API requires "max_tokens", so it can't be omitted when no
-                // limit is set; fall back to the maximum supported by current 4.x models.
-                'max_tokens' => $this->maxTokens() ?? 32000,
-            ] + $options;
-
-            if( $thinkingBudget = $this->thinkingBudget() ) {
-                $params['thinking'] = ['type' => 'enabled', 'budget_tokens' => $thinkingBudget];
+                return $head + ['anyOf' => [['enum' => $enum], ['type' => 'null']]];
             }
 
-            if( $system = $this->systemPrompt() ) {
-                $params['system'] = $system;
+            // Anthropic's strict schema rejects numeric, length and item-count constraints
+            // and supports only minItems 0 or 1; drop the rest and clamp minItems below
+            unset(
+                $node['minimum'], $node['maximum'], $node['exclusiveMinimum'],
+                $node['exclusiveMaximum'], $node['multipleOf'],
+                $node['minLength'], $node['maxLength'], $node['maxItems']
+            );
+
+            if( isset( $node['minItems'] ) && !in_array( $node['minItems'], [0, 1], true ) ) {
+                $node['minItems'] = 1;
             }
 
-            if( $tools = $this->toolsParam() ) {
-                $params['tools'] = $tools;
-
-                // Apply the configured tool choice only on the first step so the
-                // model can produce a final text answer after calling the tools.
-                $toolChoice = $step === 1 ? match( $this->toolChoice() ) {
-                    self::REQ => ['type' => 'any'],
-                    self::AUTO => ['type' => 'auto'],
-                    default => null,
-                } : ['type' => 'auto'];
-
-                if( $toolChoice ) {
-                    $params['tool_choice'] = $toolChoice;
-                }
+            if( $type === 'object' || ( is_array( $type ) && in_array( 'object', $type, true ) ) ) {
+                $node['additionalProperties'] = false;
             }
 
-            $response = $this->client()->post( 'v1/messages', ['json' => $params] );
-
-            $this->validate( $response );
-
-            $rateLimit = $this->getRateLimit( $response );
-            $result = $this->fromJson( $response );
-            $stepTexts = [];
-
-            /** @var array<int, array<string, mixed>> $contentBlocks */
-            $contentBlocks = $result['content'] ?? [];
-
-            foreach( $contentBlocks as $block )
-            {
-                if( ( $block['type'] ?? null ) === 'text' && isset( $block['text'] ) ) {
-                    $stepTexts[] = $block['text'];
-                } elseif( ( $block['type'] ?? null ) === 'thinking' && isset( $block['thinking'] ) ) {
-                    $thinking = $block['thinking'];
-                }
-
-                foreach( $block['citations'] ?? [] as $cit )
-                {
-                    $citations[] = new \Aimeos\Prisma\Values\Citation(
-                        title: $cit['document_title'] ?? null,
-                        source: $cit['cited_text'] ?? null,
-                    );
-                }
-            }
-
-            // Keep the last step that produced text so a tool-only final step (e.g.
-            // when maxSteps is reached) doesn't discard the model's partial answer.
-            $texts = $stepTexts ?: $texts;
-
-            $toolCalls = $this->parseToolCalls( $result );
-
-            if( !$toolCalls )
-            {
-                // Server-side tools (web_search, web_fetch) pause long turns with a
-                // "pause_turn" stop reason. Resend the assistant content unchanged so
-                // Claude resumes and finishes its turn instead of stopping silently.
-                if( ( $result['stop_reason'] ?? null ) === 'pause_turn' ) {
-                    $messages[] = ['role' => 'assistant', 'content' => $this->assistantContent( $result['content'] ?? [] )];
-                    continue;
-                }
-
-                break;
-            }
-
-            $toolResults = $this->execTools( $toolCalls );
-            array_push( $allSteps, ...$toolResults );
-            $messages[] = ['role' => 'assistant', 'content' => $this->assistantContent( $result['content'] ?? [] )];
-            $messages = array_merge( $messages, $this->toolResults( $toolResults ) );
-        }
-
-        return $this->result( $result, $allSteps, $texts, $rateLimit );
+            return $node;
+        } );
     }
 
 
@@ -304,15 +121,184 @@ class Anthropic extends Base implements Structure, Write
 
 
     /**
-     * Builds the TextResponse from an Anthropic API result.
+     * Runs the Anthropic Messages tool loop, drained eagerly into a TextResponse.
      *
+     * @param array<int, array<string, mixed>> $messages Chat messages
+     * @param array<string, mixed> $options Pre-filtered request options
+     */
+    private function generate( array $messages, array $options ) : TextResponse
+    {
+        return TextResponse::fromStream( fn( TextResponse $res ) => $this->runGenerate( $res, $messages, $options, false, $this->toolsParam() ) )->resolve();
+    }
+
+
+    /**
+     * Streams the Anthropic Messages tool loop as a lazy TextResponse.
+     *
+     * Lazy dual of generate(): iterate the returned response for live deltas and tool steps,
+     * or call any accessor to drain and assemble the final response.
+     *
+     * @param array<int, array<string, mixed>> $messages Chat messages
+     * @param array<string, mixed> $options Pre-filtered request options
+     */
+    private function streamGenerate( array $messages, array $options ) : TextResponse
+    {
+        $toolsParam = $this->toolsParam();
+        $params = $this->messageParams( $messages, $options, 1, true, $toolsParam );
+
+        return $this->streamResponse( 'v1/messages', $params, fn( $res, $body ) =>
+            $this->runGenerate( $res, $messages, $options, true, $toolsParam, $body )
+        );
+    }
+
+
+    /**
+     * Builds the request payload for one Anthropic Messages turn.
+     *
+     * @param array<int, array<string, mixed>> $messages Chat messages
+     * @param array<string, mixed> $options Provider specific options
+     * @param int $step Current step in the tool loop (1-based)
+     * @param bool $stream Whether to enable SSE streaming
+     * @param array<int, array<string, mixed>> $toolsParam Pre-built tools payload (hoisted out of the per-turn loop)
+     * @return array<string, mixed> Request payload
+     */
+    private function messageParams( array $messages, array $options, int $step, bool $stream, array $toolsParam ) : array
+    {
+        $params = [
+            'model' => $this->modelName( 'claude-opus-4-8' ),
+            'messages' => $messages,
+            'max_tokens' => $this->maxTokens() ?? 4096,
+        ] + ( $stream ? ['stream' => true] : [] ) + $options;
+
+        // an explicit "thinking" option wins; otherwise withThinkingBudget() enables a fixed budget
+        if( !isset( $params['thinking'] ) && ( $thinkingBudget = $this->thinkingBudget() ) ) {
+            $params['thinking'] = ['type' => 'enabled', 'budget_tokens' => $thinkingBudget];
+        }
+
+        if( $system = $this->systemPrompt() ) {
+            $params['system'] = $system;
+        }
+
+        if( $toolsParam ) {
+            $params['tools'] = $toolsParam;
+
+            // apply the configured tool choice only on the first step, so the model can answer after
+            $toolChoice = $step === 1 ? match( $this->toolChoice() ) {
+                self::REQUIRED => ['type' => 'any'],
+                self::AUTO => ['type' => 'auto'],
+                default => null,
+            } : ['type' => 'auto'];
+
+            if( $toolChoice ) {
+                $params['tool_choice'] = $toolChoice;
+            }
+        }
+
+        return $params;
+    }
+
+
+    /**
+     * Runs the Anthropic Messages tool loop, optionally streaming.
+     *
+     * Single loop shared by write() (drained via generate()) and stream() (iterated lazily).
+     * The $stream flag selects the transport; tool calls always run through execStream(),
+     * pause_turn resumption is handled and the assembled result is folded into the response
+     * when the loop ends.
+     *
+     * @param TextResponse $res Response to populate when the loop ends
+     * @param array<int, array<string, mixed>> $messages Chat messages
+     * @param array<string, mixed> $options Pre-filtered request options
+     * @param bool $stream Whether to stream the generation over SSE
+     * @param array<int, array<string, mixed>> $toolsParam Pre-built tools payload, built once by the caller
+     * @param \Psr\Http\Message\StreamInterface|null $firstBody Eagerly opened body for the first streamed turn
+     * @return \Generator<int, mixed> Text deltas and tool steps (empty when not streaming)
+     */
+    private function runGenerate( TextResponse $res, array $messages, array $options, bool $stream, array $toolsParam, ?\Psr\Http\Message\StreamInterface $firstBody = null ) : \Generator
+    {
+        $allSteps = [];
+        $calls = [];
+        $rateLimit = null;
+        $texts = [];
+        /** @var array<string, mixed> $result */
+        $result = [];
+
+        for( $step = 1; $step <= $this->maxSteps(); $step++ )
+        {
+            if( $stream )
+            {
+                if( $firstBody !== null ) {
+                    $body = $firstBody;     // first turn reuses the eagerly opened body
+                    $firstBody = null;
+                } else {
+                    $params = $this->messageParams( $messages, $options, $step, true, $toolsParam );
+                    $body = $this->openStream( 'v1/messages', $params, $rateLimit );
+                }
+
+                $turn = $this->streamTurnMessage( $body );
+                yield from $turn;                       // answer text deltas
+                $result = $turn->getReturn();
+            }
+            else
+            {
+                $params = $this->messageParams( $messages, $options, $step, false, $toolsParam );
+                $result = $this->post( 'v1/messages', $params, $rateLimit );
+            }
+
+            $stepTexts = [];
+
+            /** @var array<int, array<string, mixed>> $contentBlocks */
+            $contentBlocks = $result['content'] ?? [];
+
+            foreach( $contentBlocks as $block )
+            {
+                if( ( $block['type'] ?? null ) === 'text' && isset( $block['text'] ) ) {
+                    $stepTexts[] = $block['text'];
+                }
+            }
+
+            // keep the last step that produced text so a tool-only final step doesn't discard it
+            $texts = $stepTexts ?: $texts;
+
+            $toolCalls = $this->toolCalls( $result );
+
+            if( !$toolCalls )
+            {
+                // stop_reason "pause_turn" means a long-running server-side tool needs another
+                // turn; resend the accumulated assistant content to resume instead of ending
+                if( ( $result['stop_reason'] ?? null ) === 'pause_turn' && $step < $this->maxSteps() ) {
+                    $messages[] = ['role' => 'assistant', 'content' => $this->assistantContent( $result['content'] ?? [] )];
+                    continue;
+                }
+
+                break;
+            }
+
+            $exec = $this->execStream( $toolCalls, $calls );
+            yield from $exec;                       // tool steps before and after execution
+            $toolResults = $exec->getReturn();
+
+            array_push( $allSteps, ...$toolResults );
+            $messages[] = ['role' => 'assistant', 'content' => $this->assistantContent( $result['content'] ?? [] )];
+            $messages = array_merge( $messages, $this->toolResults( $toolResults ) );
+        }
+
+        $this->applyMessage( $res, $result, $allSteps, $texts, $rateLimit );
+    }
+
+
+    /**
+     * Populates a TextResponse from an Anthropic API result.
+     *
+     * Shared by the non-streaming and streaming paths so both assemble the same final response.
+     *
+     * @param TextResponse $res Response to populate
      * @param array<string, mixed> $result API response data
      * @param array<int, \Aimeos\Prisma\Tools\Step> $allSteps Accumulated tool steps
      * @param array<int, string|null> $texts Extracted text content
      * @param \Aimeos\Prisma\Values\RateLimit|null $rateLimit Rate limit information
-     * @return TextResponse Text response
      */
-    private function result( array $result, array $allSteps, array $texts, ?\Aimeos\Prisma\Values\RateLimit $rateLimit ) : TextResponse
+    private function applyMessage( TextResponse $res, array $result, array $allSteps, array $texts, ?\Aimeos\Prisma\Values\RateLimit $rateLimit ) : void
     {
         $thinking = null;
         $citations = [];
@@ -345,13 +331,15 @@ class Anthropic extends Base implements Structure, Write
         /** @var array<string, mixed> $usage */
         $usage = $result['usage'] ?? [];
 
-        return TextResponse::fromTexts( $texts )
-            ->withSteps( $allSteps )
+        $res->addAll( $texts );
+
+        $res->withSteps( $allSteps )
             ->withCitations( $citations )
             ->withReason( match( $result['stop_reason'] ?? null ) {
                 'end_turn', 'stop_sequence' => TextResponse::STOP,
                 'tool_use', 'pause_turn' => TextResponse::TOOL,
                 'max_tokens' => TextResponse::LENGTH,
+                'refusal' => TextResponse::CONTENT,
                 default => TextResponse::UNKNOWN,
             } )
             ->withUsage(
@@ -361,5 +349,107 @@ class Anthropic extends Base implements Structure, Write
             )
             ->withRateLimit( $rateLimit )
             ->withMeta( $meta );
+    }
+
+
+    /**
+     * Streams an Anthropic Messages request, yielding each text delta and returning the result.
+     *
+     * Reassembles the content blocks (text, thinking and tool_use with their accumulated JSON
+     * input) into a result shaped like a regular Messages response, returned via the generator value.
+     *
+     * @param \Psr\Http\Message\StreamInterface $body Open SSE body for this turn
+     * @return \Generator<int, string, mixed, array<string, mixed>> Text deltas, returning the reassembled result
+     */
+    private function streamTurnMessage( \Psr\Http\Message\StreamInterface $body ) : \Generator
+    {
+        /** @var array<string, mixed> $message */
+        $message = [];
+        /** @var array<int, array<string, mixed>> $blocks */
+        $blocks = [];
+        /** @var array<int, string> $buffers */
+        $buffers = [];
+        $stopReason = null;
+        /** @var array<string, mixed> $usage */
+        $usage = [];
+
+        foreach( $this->streamData( $body ) as $event )
+        {
+            // validate the server-supplied block index against inflating the block map
+            $idx = $this->streamSlot( $event['index'] ?? 0, count( $blocks ), 0 );
+
+            switch( $event['type'] ?? '' )
+            {
+                case 'message_start':
+                    // seed the result with the message envelope (id, model, role, ...) for meta()
+                    /** @var array<string, mixed> $message */
+                    $message = $event['message'] ?? [];
+                    /** @var array<string, mixed> $startUsage */
+                    $startUsage = $message['usage'] ?? [];
+                    $usage = $startUsage + $usage;
+                    break;
+
+                case 'content_block_start':
+                    $blocks[$idx] = $event['content_block'] ?? [];
+                    $buffers[$idx] = '';
+                    break;
+
+                case 'content_block_delta':
+                    /** @var array<string, mixed> $delta */
+                    $delta = $event['delta'] ?? [];
+
+                    switch( $delta['type'] ?? '' )
+                    {
+                        case 'text_delta':
+                            $text = $delta['text'] ?? '';
+                            $blocks[$idx]['text'] = ( $blocks[$idx]['text'] ?? '' ) . $text;
+
+                            if( $text !== '' ) {
+                                yield $text;
+                            }
+                            break;
+
+                        case 'input_json_delta':
+                            $buffers[$idx] = ( $buffers[$idx] ?? '' ) . ( $delta['partial_json'] ?? '' );
+                            break;
+
+                        case 'thinking_delta':
+                            $blocks[$idx]['thinking'] = ( $blocks[$idx]['thinking'] ?? '' ) . ( $delta['thinking'] ?? '' );
+                            break;
+
+                        case 'signature_delta':
+                            $blocks[$idx]['signature'] = ( $blocks[$idx]['signature'] ?? '' ) . ( $delta['signature'] ?? '' );
+                            break;
+
+                        case 'citations_delta':
+                            if( isset( $delta['citation'] ) ) {
+                                $blocks[$idx]['citations'][] = $delta['citation'];
+                            }
+                            break;
+                    }
+                    break;
+
+                case 'content_block_stop':
+                    if( ( $blocks[$idx]['type'] ?? '' ) === 'tool_use' ) {
+                        $blocks[$idx]['input'] = $this->jsonArgs( $buffers[$idx] ?? '' );
+                    }
+                    break;
+
+                case 'message_delta':
+                    $stopReason = $event['delta']['stop_reason'] ?? $stopReason;
+                    /** @var array<string, mixed> $deltaUsage */
+                    $deltaUsage = $event['usage'] ?? [];
+                    $usage = $deltaUsage + $usage;
+                    break;
+            }
+        }
+
+        ksort( $blocks );
+
+        $message['content'] = array_values( $blocks );
+        $message['stop_reason'] = $stopReason;
+        $message['usage'] = $usage;
+
+        return $message;
     }
 }

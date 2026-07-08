@@ -2,6 +2,7 @@
 
 namespace Aimeos\Prisma\Providers\Text;
 
+use Aimeos\Prisma\Contracts\Text\Stream;
 use Aimeos\Prisma\Contracts\Text\Structure;
 use Aimeos\Prisma\Contracts\Text\Write;
 use Aimeos\Prisma\Providers\Openrouter as Base;
@@ -9,16 +10,26 @@ use Aimeos\Prisma\Responses\TextResponse;
 use Aimeos\Prisma\Schema\Schema;
 
 
-class Openrouter extends Base implements Structure, Write
+class Openrouter extends Base implements Stream, Structure, Write
 {
+    public function stream( string $prompt, array $files = [], array $options = [] ) : TextResponse
+    {
+        $options = $this->allowed( $options, ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty'] );
+        $messages = $this->messages( $this->content( $prompt, $files ) );
+
+        return $this->streamCompletions( 'api/v1/chat/completions', 'openai/gpt-5.5', $messages, $options );
+    }
+
+
+
     public function structure( string $prompt, Schema $schema, array $files = [], array $options = [] ) : TextResponse
     {
+        $mode = $options['mode'] ?? null;
         $options = $this->allowed( $options, ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty'] );
 
         return $this->structuredCompletions(
             'api/v1/chat/completions', 'openai/gpt-5.5',
-            $this->messages( $this->content( $prompt, $files ) ),
-            $schema, $options
+            $prompt, $files, $schema, $options, $mode
         );
     }
 

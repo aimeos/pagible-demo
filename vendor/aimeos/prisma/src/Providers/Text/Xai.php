@@ -2,6 +2,7 @@
 
 namespace Aimeos\Prisma\Providers\Text;
 
+use Aimeos\Prisma\Contracts\Text\Stream;
 use Aimeos\Prisma\Contracts\Text\Structure;
 use Aimeos\Prisma\Contracts\Text\Write;
 use Aimeos\Prisma\Providers\Xai as Base;
@@ -9,18 +10,37 @@ use Aimeos\Prisma\Responses\TextResponse;
 use Aimeos\Prisma\Schema\Schema;
 
 
-class Xai extends Base implements Structure, Write
+class Xai extends Base implements Stream, Structure, Write
 {
+    public function stream( string $prompt, array $files = [], array $options = [] ) : TextResponse
+    {
+        if( $this->providerTools() )
+        {
+            $options = $this->reasoning( $this->allowed( $options, ['temperature', 'top_p', 'reasoning'] ) );
+            $input = $this->responsesInput( $prompt, $files );
+
+            return $this->streamResponses( 'v1/responses', 'grok-4.3', $input, $options );
+        }
+
+        $options = $this->allowed( $options, ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty'] );
+        $messages = $this->messages( $this->content( $prompt, $files ) );
+
+        return $this->streamCompletions( 'v1/chat/completions', 'grok-4.3', $messages, $options );
+    }
+
+
+
     public function structure( string $prompt, Schema $schema, array $files = [], array $options = [] ) : TextResponse
     {
+        $mode = $options['mode'] ?? null;
+
         if( $this->providerTools() )
         {
             $options = $this->reasoning( $this->allowed( $options, ['temperature', 'top_p', 'reasoning'] ) );
 
             return $this->structuredResponses(
                 'v1/responses', 'grok-4.3',
-                [['role' => 'user', 'content' => $this->responsesContent( $prompt, $files )]],
-                $schema, $options
+                $prompt, $files, $schema, $options, $mode
             );
         }
 
@@ -28,8 +48,7 @@ class Xai extends Base implements Structure, Write
 
         return $this->structuredCompletions(
             'v1/chat/completions', 'grok-4.3',
-            $this->messages( $this->content( $prompt, $files ) ),
-            $schema, $options
+            $prompt, $files, $schema, $options, $mode
         );
     }
 
@@ -42,7 +61,7 @@ class Xai extends Base implements Structure, Write
 
             return $this->responses(
                 'v1/responses', 'grok-4.3',
-                [['role' => 'user', 'content' => $this->responsesContent( $prompt, $files )]],
+                $this->responsesInput( $prompt, $files ),
                 $options
             );
         }

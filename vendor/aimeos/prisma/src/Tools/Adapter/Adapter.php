@@ -17,26 +17,12 @@ interface Adapter
     public function __invoke( array $arguments ) : string;
 
     /**
-     * Returns whether the tool can still be called.
-     *
-     * @return bool True if the tool can be called, false if exhausted
-     */
-    public function can() : bool;
-
-    /**
      * Sets whether this tool can run concurrently with other tools.
      *
      * @param bool $concurrent True to allow concurrent execution
      * @return static Self for chaining
      */
     public function concurrent( bool $concurrent = true ) : static;
-
-    /**
-     * Returns whether this tool can run concurrently.
-     *
-     * @return bool True if the tool can run concurrently
-     */
-    public function isConcurrent() : bool;
 
     /**
      * Returns the tool description.
@@ -46,19 +32,26 @@ interface Adapter
     public function description() : string;
 
     /**
-     * Returns the counter of remaining calls.
-     *
-     * @return int Remaining calls
-     */
-    public function counter() : int;
-
-    /**
      * Sets a custom error handler for tool execution failures.
      *
      * @param callable(\Throwable, array<string, mixed>): string $handler Error handler
      * @return static Self for chaining
      */
     public function failed( callable $handler ) : static;
+
+    /**
+     * Returns whether this tool can run concurrently.
+     *
+     * @return bool True if the tool can run concurrently
+     */
+    public function isConcurrent() : bool;
+
+    /**
+     * Returns the configured maximum number of calls.
+     *
+     * @return int Maximum number of calls
+     */
+    public function limit() : int;
 
     /**
      * Sets the maximum number of times this tool can be called.

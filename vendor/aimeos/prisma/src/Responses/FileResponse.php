@@ -15,102 +15,13 @@ use Aimeos\Prisma\Files\File;
  *
  * @implements \IteratorAggregate<int|string, File>
  */
-class FileResponse implements \IteratorAggregate
+class FileResponse implements \IteratorAggregate, \JsonSerializable
 {
     use Async, HasDescription, HasMeta, HasRateLimit, HasUsage;
 
 
     /** @var array<string|int, File> */
     protected array $list = [];
-
-
-    final private function __construct()
-    {
-    }
-
-
-    /**
-     * Create a file instance from a base64 encoded string.
-     *
-     * @param string $base64 Base64 encoded file content
-     * @param string|null $mimeType Optional mime type
-     * @return static FileResponse instance
-     */
-    public static function fromBase64( string $base64, ?string $mimeType = null ) : static
-    {
-        return (new static)->add( File::fromBase64( $base64, $mimeType ) );
-    }
-
-
-    /**
-     * Create a file instance from binary content.
-     *
-     * @param string $binary Binary file content
-     * @param string|null $mimeType Optional mime type
-     * @return static FileResponse instance
-     */
-    public static function fromBinary( string $binary, ?string $mimeType = null ) : static
-    {
-        return (new static)->add( File::fromBinary( $binary, $mimeType ) );
-    }
-
-
-    /**
-     * Create file instances from an array of file objects.
-     *
-     * @param array<int|string, File> $files List of File objects
-     * @return static FileResponse instance
-     */
-    public static function fromFiles( array $files ) : static
-    {
-        $instance = new static();
-
-        foreach( $files as $key => $file ) {
-            $instance->add( $file, $key );
-        }
-
-        return $instance;
-    }
-
-
-    /**
-     * Create a file instance from a local file path.
-     *
-     * @param string $path Local file path
-     * @param string|null $mimeType Optional mime type
-     * @return static FileResponse instance
-     */
-    public static function fromLocalPath( string $path, ?string $mimeType = null ) : static
-    {
-        return (new static)->add( File::fromLocalPath( $path, $mimeType ) );
-    }
-
-
-    /**
-     * Create a file instance from a Laravel storage path.
-     *
-     * @param string $path Storage file path
-     * @param string|null $disk Optional storage disk name
-     * @param string|null $mimeType Optional mime type
-     * @return static FileResponse instance
-     */
-    public static function fromStoragePath( string $path, ?string $disk = null, ?string $mimeType = null ) : static
-    {
-        return (new static)->add( File::fromStoragePath( $path, $disk, $mimeType ) );
-    }
-
-
-    /**
-     * Create a file instance from a URL.
-     *
-     * @param string $url File URL
-     * @param string|null $mimeType Optional mime type
-     * @return static FileResponse instance
-     */
-    public static function fromUrl( string $url, ?string $mimeType = null ) : static
-    {
-        return (new static)->add( File::fromUrl( $url, $mimeType ) );
-    }
 
 
     /**
@@ -221,6 +132,90 @@ class FileResponse implements \IteratorAggregate
 
 
     /**
+     * Create a file instance from a base64 encoded string.
+     *
+     * @param string $base64 Base64 encoded file content
+     * @param string|null $mimeType Optional mime type
+     * @return static FileResponse instance
+     */
+    public static function fromBase64( string $base64, ?string $mimeType = null ) : static
+    {
+        return (new static)->add( File::fromBase64( $base64, $mimeType ) );
+    }
+
+
+    /**
+     * Create a file instance from binary content.
+     *
+     * @param string $binary Binary file content
+     * @param string|null $mimeType Optional mime type
+     * @return static FileResponse instance
+     */
+    public static function fromBinary( string $binary, ?string $mimeType = null ) : static
+    {
+        return (new static)->add( File::fromBinary( $binary, $mimeType ) );
+    }
+
+
+    /**
+     * Create file instances from an array of file objects.
+     *
+     * @param array<int|string, File> $files List of File objects
+     * @return static FileResponse instance
+     */
+    public static function fromFiles( array $files ) : static
+    {
+        $instance = new static();
+
+        foreach( $files as $key => $file ) {
+            $instance->add( $file, $key );
+        }
+
+        return $instance;
+    }
+
+
+    /**
+     * Create a file instance from a local file path.
+     *
+     * @param string $path Local file path
+     * @param string|null $mimeType Optional mime type
+     * @return static FileResponse instance
+     */
+    public static function fromLocalPath( string $path, ?string $mimeType = null ) : static
+    {
+        return (new static)->add( File::fromLocalPath( $path, $mimeType ) );
+    }
+
+
+    /**
+     * Create a file instance from a Laravel storage path.
+     *
+     * @param string $path Storage file path
+     * @param string|null $disk Optional storage disk name
+     * @param string|null $mimeType Optional mime type
+     * @return static FileResponse instance
+     */
+    public static function fromStoragePath( string $path, ?string $disk = null, ?string $mimeType = null ) : static
+    {
+        return (new static)->add( File::fromStoragePath( $path, $disk, $mimeType ) );
+    }
+
+
+    /**
+     * Create a file instance from a URL.
+     *
+     * @param string $url File URL
+     * @param string|null $mimeType Optional mime type
+     * @return static FileResponse instance
+     */
+    public static function fromUrl( string $url, ?string $mimeType = null ) : static
+    {
+        return (new static)->add( File::fromUrl( $url, $mimeType ) );
+    }
+
+
+    /**
      * Allows iterating over the list of available files.
      *
      * @return \ArrayIterator<int|string, File> Traversable list of File objects
@@ -232,6 +227,30 @@ class FileResponse implements \IteratorAggregate
         }
 
         return new \ArrayIterator( $this->list );
+    }
+
+
+    /**
+     * Returns the response as a plain array for serialization.
+     *
+     * Resolves the response (polling an async job if needed) and exposes file metadata only -
+     * filename, mime type and URL, never the binary content - so it stays cheap to snapshot
+     * or JSON-encode.
+     *
+     * @return array<string, mixed> Response data
+     */
+    public function jsonSerialize() : array
+    {
+        return [
+            'files' => array_map( fn( File $file ) => [
+                'filename' => $file->filename(),
+                'mimeType' => $file->mimeType(),
+                'url' => $file->url(),
+            ], $this->files() ),
+            'description' => $this->description(),
+            'usage' => $this->usage(),
+            'meta' => $this->meta(),
+        ];
     }
 
 
@@ -254,5 +273,10 @@ class FileResponse implements \IteratorAggregate
     public function url() : ?string
     {
         return $this->first()?->url();
+    }
+
+
+    final private function __construct()
+    {
     }
 }

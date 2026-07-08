@@ -15,7 +15,8 @@
         "aimeos/pagible-themes-premium": "0.11.x-dev",
         "laravel/framework": "^12.0",
         "laravel/reverb": "^1.10",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "stancl/tenancy": "^3.10"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

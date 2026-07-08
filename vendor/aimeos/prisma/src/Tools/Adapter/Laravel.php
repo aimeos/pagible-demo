@@ -9,6 +9,7 @@ namespace Aimeos\Prisma\Tools\Adapter;
 class Laravel extends Base
 {
     private object $tool;
+    private ?\Aimeos\Prisma\Schema\Schema $schema = null;
 
 
     /**
@@ -24,22 +25,6 @@ class Laravel extends Base
         }
 
         $this->tool = is_string( $tool ) ? app( $tool ) : $tool; // @phpstan-ignore function.notFound
-    }
-
-
-    protected function execute( array $arguments ) : mixed
-    {
-        $class = '\Laravel\Mcp\Server\Tool';
-
-        if( class_exists( $class ) && $this->tool instanceof $class ) {
-            return $this->unwrap( app()->call( [$this->tool, 'handle'], ['request' => new \Laravel\Mcp\Request( $arguments )] ) ); // @phpstan-ignore class.notFound, function.notFound
-        } elseif( method_exists( $this->tool, '__invoke' ) ) {
-            return ( $this->tool )( $arguments );
-        } elseif( method_exists( $this->tool, 'handle' ) ) {
-            return $this->tool->handle( $arguments );
-        }
-
-        return '';
     }
 
 
@@ -72,6 +57,10 @@ class Laravel extends Base
      */
     public function schema() : \Aimeos\Prisma\Schema\Schema
     {
+        if( $this->schema !== null ) {
+            return $this->schema;
+        }
+
         /** @var array<string, mixed> $arr */
         $arr = $this->tool->toArray(); // @phpstan-ignore method.notFound
 
@@ -79,7 +68,23 @@ class Laravel extends Base
         // fall back to the raw array for tools that already return a bare schema.
         $schema = $arr['inputSchema'] ?? $arr['parameters'] ?? $arr;
 
-        return \Aimeos\Prisma\Schema\Schema::fromArray( $this->name(), $schema );
+        return $this->schema = \Aimeos\Prisma\Schema\Schema::fromArray( $this->name(), $schema );
+    }
+
+
+    protected function execute( array $arguments ) : mixed
+    {
+        $class = '\Laravel\Mcp\Server\Tool';
+
+        if( class_exists( $class ) && $this->tool instanceof $class ) {
+            return $this->unwrap( app()->call( [$this->tool, 'handle'], ['request' => new \Laravel\Mcp\Request( $arguments )] ) ); // @phpstan-ignore class.notFound, function.notFound
+        } elseif( method_exists( $this->tool, '__invoke' ) ) {
+            return ( $this->tool )( $arguments );
+        } elseif( method_exists( $this->tool, 'handle' ) ) {
+            return $this->tool->handle( $arguments );
+        }
+
+        return '';
     }
 
 

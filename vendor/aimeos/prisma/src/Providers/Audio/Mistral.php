@@ -56,7 +56,7 @@ class Mistral extends Base implements Describe, Transcribe
 
     public function transcribe( Audio $audio, ?string $lang = null, array $options = [] ) : TextResponse
     {
-        $allowed = $this->allowed( $options, ['temperature', 'timestamp_granularities'] );
+        $allowed = $this->allowed( $options, ['temperature', 'timestamp_granularities', 'diarize'] );
 
         $files = [];
         $request = [
@@ -70,7 +70,7 @@ class Mistral extends Base implements Describe, Transcribe
             $files['file'] = $audio;
         }
 
-        $request = $this->request( $request, $files );
+        $request = $this->payload( $request, $files );
         $response = $this->client()->post( 'v1/audio/transcriptions', ['multipart' => $request] );
 
         return $this->toTextResponse( $response );

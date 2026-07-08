@@ -9,13 +9,36 @@ use PHPUnit\Framework\TestCase;
 
 class XaiTest extends TestCase
 {
-    protected function setUp() : void
+    public function testImagine() : void
     {
-        \Dotenv\Dotenv::createImmutable( dirname( __DIR__, 2 ) )->load();
+        $response = Prisma::image()
+            ->using( 'xai', ['api_key' => $_ENV['XAI_API_KEY']] )
+            ->ensure( 'imagine' )
+            ->imagine( 'a cartoon dog' );
 
-        if( empty( $_ENV['XAI_API_KEY'] ) ) {
-            $this->markTestSkipped( 'XAI_API_KEY is not defined in the environment' );
+        $this->assertGreaterThan( 0, strlen( $response->binary() ) );
+
+        file_put_contents( __DIR__ . '/results/xai_imagine.png', $response->binary() );
+    }
+
+
+    public function testStream() : void
+    {
+        $deltas = [];
+
+        $response = Prisma::text()
+            ->using( 'xai', ['api_key' => $_ENV['XAI_API_KEY']] )
+            ->ensure( 'stream' )
+            ->stream( 'What is the capital of France? Reply with only the city name.' );
+
+        foreach( $response->stream() as $chunk ) {
+            if( is_string( $chunk ) ) {
+                $deltas[] = $chunk;
+            }
         }
+
+        $this->assertNotEmpty( $deltas );
+        $this->assertStringContainsStringIgnoringCase( 'Paris', $response->text() );
     }
 
 
@@ -34,17 +57,6 @@ class XaiTest extends TestCase
 
         $this->assertEquals( 'John', $response->structured()['name'] );
         $this->assertEquals( 30, $response->structured()['age'] );
-    }
-
-
-    public function testWrite() : void
-    {
-        $response = Prisma::text()
-            ->using( 'xai', ['api_key' => $_ENV['XAI_API_KEY']] )
-            ->ensure( 'write' )
-            ->write( 'Reply with just the word "hello" in lowercase, nothing else.' );
-
-        $this->assertStringContainsStringIgnoringCase( 'hello', $response->text() );
     }
 
 
@@ -67,7 +79,7 @@ class XaiTest extends TestCase
         $response = Prisma::text()
             ->using( 'xai', ['api_key' => $_ENV['XAI_API_KEY']] )
             ->withTools( [$next, $ahead, \Aimeos\Prisma\Tools::provider( 'web_search' )] )
-            ->withToolChoice( \Aimeos\Prisma\Providers\Base::REQ )
+            ->withToolChoice( \Aimeos\Prisma\Providers\Base::REQUIRED )
             ->withMaxSteps( 5 )
             ->ensure( 'write' )
             ->write( 'Give me the next passphrase and the passphrase for 2 days from now.' );
@@ -75,5 +87,26 @@ class XaiTest extends TestCase
         $this->assertGreaterThanOrEqual( 2, count( $response->steps() ) );
         $this->assertStringContainsStringIgnoringCase( 'wobbly-marmalade-1987', $response->text() );
         $this->assertStringContainsStringIgnoringCase( 'crimson-otter-4521', $response->text() );
+    }
+
+
+    public function testWrite() : void
+    {
+        $response = Prisma::text()
+            ->using( 'xai', ['api_key' => $_ENV['XAI_API_KEY']] )
+            ->ensure( 'write' )
+            ->write( 'Reply with just the word "hello" in lowercase, nothing else.' );
+
+        $this->assertStringContainsStringIgnoringCase( 'hello', $response->text() );
+    }
+
+
+    protected function setUp() : void
+    {
+        \Dotenv\Dotenv::createImmutable( dirname( __DIR__, 2 ) )->load();
+
+        if( empty( $_ENV['XAI_API_KEY'] ) ) {
+            $this->markTestSkipped( 'XAI_API_KEY is not defined in the environment' );
+        }
     }
 }

@@ -12,28 +12,44 @@ class Symfony extends Base
     private string $description;
     private string $method;
     private string $name;
+    private ?\Aimeos\Prisma\Schema\Schema $schema = null;
 
 
     /**
-     * Initializes the adapter with a Symfony tool instance.
+     * Initializes the adapter from a class with an #[AsTool] attribute.
      *
-     * @param object $instance Tool class instance
-     * @param string $name Tool name
-     * @param string $description Tool description
-     * @param string $method Method name to invoke
+     * @param object|string $tool Symfony tool object or class name
+     * @param string|null $name Optional tool name to select a specific #[AsTool] attribute
+     * @throws \InvalidArgumentException If the class has no matching #[AsTool] attribute
      */
-    public function __construct( object $instance, string $name, string $description, string $method = '__invoke' )
+    public function __construct( object|string $tool, ?string $name = null )
     {
-        $this->instance = $instance;
-        $this->description = $description;
-        $this->method = $method;
-        $this->name = $name;
-    }
+        // @phpstan-ignore argument.type
+        $ref = new \ReflectionClass( $tool );
+        $attrs = array_filter( $ref->getAttributes(), fn( $a ) => str_ends_with( $a->getName(), 'AsTool' ) );
 
+        if( empty( $attrs ) ) {
+            throw new \InvalidArgumentException( sprintf( 'Class "%s" has no #[AsTool] attribute', is_object( $tool ) ? get_class( $tool ) : $tool ) );
+        }
 
-    protected function execute( array $arguments ) : mixed
-    {
-        return $this->instance->{$this->method}( ...$arguments );
+        foreach( $attrs as $attr )
+        {
+            /** @var array<string, string> $args */
+            $args = $attr->getArguments();
+            $toolName = $args['name'] ?? $args[0] ?? '';
+
+            if( $name === null || $toolName === $name )
+            {
+                $this->instance = is_object( $tool ) ? $tool : $ref->newInstance();
+                $this->name = $toolName;
+                $this->description = $args['description'] ?? $args[1] ?? '';
+                $this->method = $args['method'] ?? $args[2] ?? '__invoke';
+
+                return;
+            }
+        }
+
+        throw new \InvalidArgumentException( sprintf( 'Class "%s" has no #[AsTool] attribute with name "%s"', is_object( $tool ) ? get_class( $tool ) : $tool, $name ) );
     }
 
 
@@ -66,6 +82,10 @@ class Symfony extends Base
      */
     public function schema() : \Aimeos\Prisma\Schema\Schema
     {
+        if( $this->schema !== null ) {
+            return $this->schema;
+        }
+
         $method = new \ReflectionMethod( $this->instance, $this->method );
         $properties = [];
         $required = [];
@@ -134,6 +154,12 @@ class Symfony extends Base
             'required' => $required ?: null,
         ], fn( $v ) => $v !== null );
 
-        return \Aimeos\Prisma\Schema\Schema::fromArray( $this->name, $schema );
+        return $this->schema = \Aimeos\Prisma\Schema\Schema::fromArray( $this->name, $schema );
+    }
+
+
+    protected function execute( array $arguments ) : mixed
+    {
+        return $this->instance->{$this->method}( ...$arguments );
     }
 }

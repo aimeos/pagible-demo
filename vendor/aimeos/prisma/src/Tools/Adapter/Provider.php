@@ -9,6 +9,7 @@ namespace Aimeos\Prisma\Tools\Adapter;
 class Provider extends Base
 {
     private string $name;
+    private ?\Aimeos\Prisma\Schema\Schema $schema = null;
 
 
     /**
@@ -19,12 +20,6 @@ class Provider extends Base
     public function __construct( string $name )
     {
         $this->name = $name;
-    }
-
-
-    protected function execute( array $arguments ) : mixed
-    {
-        return '';
     }
 
 
@@ -57,6 +52,12 @@ class Provider extends Base
      */
     public function schema() : \Aimeos\Prisma\Schema\Schema
     {
-        return \Aimeos\Prisma\Schema\Schema::fromArray( $this->name, [] );
+        return $this->schema ??= \Aimeos\Prisma\Schema\Schema::fromArray( $this->name, [] );
+    }
+
+
+    protected function execute( array $arguments ) : mixed
+    {
+        return '';
     }
 }

@@ -21,6 +21,16 @@ class AnyOfType extends Type
 
 
     /**
+     * Adds another allowed type to the anyOf.
+     */
+    public function add( Type $type ) : static
+    {
+        $this->types[] = $type;
+        return $this;
+    }
+
+
+    /**
      * Creates an anyOf type from a JSON Schema definition.
      *
      * @param array<string, mixed> $def JSON Schema type definition
@@ -48,16 +58,6 @@ class AnyOfType extends Type
 
 
     /**
-     * Adds another allowed type to the anyOf.
-     */
-    public function add( Type $type ) : static
-    {
-        $this->types[] = $type;
-        return $this;
-    }
-
-
-    /**
      * Returns the type as a JSON Schema array.
      *
      * @return array<string, mixed> JSON Schema type definition
@@ -70,6 +70,25 @@ class AnyOfType extends Type
             'anyOf' => array_map( fn( Type $t ) => $t->toArray(), $this->types ) ?: null,
             'default' => $this->default,
         ], fn( $v ) => $v !== null );
+    }
+
+
+    /**
+     * Validates the value against the allowed types, passing if any one matches.
+     *
+     * @param array<string, Type> $defs Reusable definitions for $ref resolution
+     * @return array<int, string> Validation error messages
+     */
+    public function validate( mixed $data, array $defs = [], string $path = '' ) : array
+    {
+        foreach( $this->types as $type )
+        {
+            if( !$type->validate( $data, $defs, $path ) ) {
+                return [];
+            }
+        }
+
+        return [$this->label( $path ) . ' does not match any allowed type'];
     }
 
 

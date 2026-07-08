@@ -9,7 +9,7 @@ use Aimeos\Prisma\Concerns\HasUsage;
 /**
  * Embedding vector response.
  */
-class VectorResponse
+class VectorResponse implements \JsonSerializable
 {
     use HasMeta, HasUsage;
 
@@ -18,8 +18,14 @@ class VectorResponse
     private array $vectors;
 
 
-    final private function __construct()
+    /**
+     * Get the first embedding vector.
+     *
+     * @return array<int, float>|null First embedding vector
+     */
+    public function first() : ?array
     {
+        return $this->vectors[0] ?? null;
     }
 
 
@@ -39,17 +45,6 @@ class VectorResponse
 
 
     /**
-     * Get the first embedding vector.
-     *
-     * @return array<int, float>|null First embedding vector
-     */
-    public function first() : ?array
-    {
-        return $this->vectors[0] ?? null;
-    }
-
-
-    /**
      * Allows iterating over the list of available vectors.
      *
      * @return \ArrayIterator<int, array<int, float>|null> Traversable list of vectors
@@ -61,6 +56,21 @@ class VectorResponse
 
 
     /**
+     * Returns the response as a plain array for serialization.
+     *
+     * @return array<string, mixed> Response data
+     */
+    public function jsonSerialize() : array
+    {
+        return [
+            'vectors' => $this->vectors,
+            'usage' => $this->usage(),
+            'meta' => $this->meta(),
+        ];
+    }
+
+
+    /**
      * Get the embedding vectors.
      *
      * @return array<int, array<int, float>|null> Embedding vectors
@@ -68,5 +78,10 @@ class VectorResponse
     public function vectors() : array
     {
         return $this->vectors;
+    }
+
+
+    final private function __construct()
+    {
     }
 }

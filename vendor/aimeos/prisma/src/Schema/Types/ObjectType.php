@@ -24,6 +24,28 @@ class ObjectType extends Type
 
 
     /**
+     * Adds a reusable definition referenced via "$ref".
+     */
+    public function def( string $name, Type $type ) : static
+    {
+        $this->defs[$name] = $type;
+        return $this;
+    }
+
+
+    /**
+     * Sets the default value.
+     *
+     * @param array<string, mixed> $value Default object value
+     */
+    public function default( array $value ) : static
+    {
+        $this->default = $value;
+        return $this;
+    }
+
+
+    /**
      * Creates an object type from a JSON Schema definition.
      *
      * @param array<string, mixed> $def JSON Schema type definition
@@ -68,28 +90,6 @@ class ObjectType extends Type
 
 
     /**
-     * Adds a reusable definition referenced via "$ref".
-     */
-    public function def( string $name, Type $type ) : static
-    {
-        $this->defs[$name] = $type;
-        return $this;
-    }
-
-
-    /**
-     * Sets the default value.
-     *
-     * @param array<string, mixed> $value Default object value
-     */
-    public function default( array $value ) : static
-    {
-        $this->default = $value;
-        return $this;
-    }
-
-
-    /**
      * Returns the type as a JSON Schema array.
      *
      * @return array<string, mixed> JSON Schema type definition
@@ -114,6 +114,53 @@ class ObjectType extends Type
     {
         $this->additionalProperties = false;
         return $this;
+    }
+
+
+    protected function check( mixed $data, array $defs, string $path ) : array
+    {
+        if( !is_array( $data ) || ( $data !== [] && array_is_list( $data ) ) ) {
+            return [$this->label( $path ) . ' must be an object'];
+        }
+
+        // A root object carries the $defs registry; nested objects inherit it. Merge (own
+        // first) rather than replace, so a nested object's own $defs don't shadow root defs.
+        $defs = $this->defs + $defs;
+        $errors = [];
+
+        foreach( $this->properties as $name => $type )
+        {
+            if( $type->required === true && !array_key_exists( $name, $data ) ) {
+                $errors[] = sprintf( '%s is missing required property "%s"', $this->label( $path ), $name );
+            }
+        }
+
+        if( $this->additionalProperties === false )
+        {
+            foreach( $data as $key => $value )
+            {
+                if( !array_key_exists( $key, $this->properties ) ) {
+                    $errors[] = sprintf( '%s has unexpected property "%s"', $this->label( $path ), (string) $key );
+                }
+            }
+        }
+
+        foreach( $this->properties as $name => $type )
+        {
+            if( !array_key_exists( $name, $data ) ) {
+                continue;
+            }
+
+            // A null value for an optional property means "not provided"; skip it rather
+            // than rejecting, since models commonly emit null for absent optional fields.
+            if( $data[$name] === null && $type->required !== true ) {
+                continue;
+            }
+
+            $errors = array_merge( $errors, $type->validate( $data[$name], $defs, $this->join( $path, $name ) ) );
+        }
+
+        return $errors;
     }
 
 

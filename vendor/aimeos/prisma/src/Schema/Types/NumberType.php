@@ -10,6 +10,13 @@ class NumberType extends Type
     protected int|float|null $multipleOf = null;
 
 
+    public function default( int|float $value ) : static
+    {
+        $this->default = $value;
+        return $this;
+    }
+
+
     /**
      * Creates a number type from a JSON Schema definition.
      *
@@ -24,13 +31,6 @@ class NumberType extends Type
         $type->multipleOf = is_int( $def['multipleOf'] ?? null ) || is_float( $def['multipleOf'] ?? null ) ? $def['multipleOf'] : null;
 
         return $type;
-    }
-
-
-    public function default( int|float $value ) : static
-    {
-        $this->default = $value;
-        return $this;
     }
 
 
@@ -67,6 +67,16 @@ class NumberType extends Type
             'maximum' => $this->maximum,
             'multipleOf' => $this->multipleOf,
         ], fn( $v ) => $v !== null );
+    }
+
+
+    protected function check( mixed $data, array $defs, string $path ) : array
+    {
+        if( !is_int( $data ) && !( is_float( $data ) && is_finite( $data ) ) ) {
+            return [$this->label( $path ) . ' must be a number'];
+        }
+
+        return $this->bounds( $data, $this->minimum, $this->maximum, $this->multipleOf, $path );
     }
 
 

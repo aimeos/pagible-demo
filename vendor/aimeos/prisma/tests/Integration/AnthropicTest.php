@@ -10,13 +10,23 @@ use PHPUnit\Framework\TestCase;
 
 class AnthropicTest extends TestCase
 {
-    protected function setUp() : void
+    public function testStream() : void
     {
-        \Dotenv\Dotenv::createImmutable( dirname( __DIR__, 2 ) )->load();
+        $deltas = [];
 
-        if( empty( $_ENV['ANTHROPIC_API_KEY'] ) ) {
-            $this->markTestSkipped( 'ANTHROPIC_API_KEY is not defined in the environment' );
+        $response = Prisma::text()
+            ->using( 'anthropic', ['api_key' => $_ENV['ANTHROPIC_API_KEY']] )
+            ->ensure( 'stream' )
+            ->stream( 'What is the capital of France? Reply with only the city name.' );
+
+        foreach( $response->stream() as $chunk ) {
+            if( is_string( $chunk ) ) {
+                $deltas[] = $chunk;
+            }
         }
+
+        $this->assertNotEmpty( $deltas );
+        $this->assertStringContainsStringIgnoringCase( 'Paris', $response->text() );
     }
 
 
@@ -39,18 +49,6 @@ class AnthropicTest extends TestCase
     }
 
 
-    public function testWrite() : void
-    {
-        $image = Image::fromLocalPath( __DIR__ . '/assets/cat.png' );
-        $response = Prisma::text()
-            ->using( 'anthropic', ['api_key' => $_ENV['ANTHROPIC_API_KEY']] )
-            ->ensure( 'write' )
-            ->write( 'What animal is in this image? Reply with just the animal name.', [$image] );
-
-        $this->assertStringContainsStringIgnoringCase( 'cat', $response->text() );
-    }
-
-
     public function testTools() : void
     {
         $next = \Aimeos\Prisma\Tools::make(
@@ -70,7 +68,7 @@ class AnthropicTest extends TestCase
         $response = Prisma::text()
             ->using( 'anthropic', ['api_key' => $_ENV['ANTHROPIC_API_KEY']] )
             ->withTools( [$next, $ahead, \Aimeos\Prisma\Tools::provider( 'web_search' )] )
-            ->withToolChoice( \Aimeos\Prisma\Providers\Base::REQ )
+            ->withToolChoice( \Aimeos\Prisma\Providers\Base::REQUIRED )
             ->withMaxSteps( 5 )
             ->ensure( 'write' )
             ->write( 'Give me the next passphrase and the passphrase for 2 days from now.' );
@@ -78,5 +76,27 @@ class AnthropicTest extends TestCase
         $this->assertGreaterThanOrEqual( 2, count( $response->steps() ) );
         $this->assertStringContainsStringIgnoringCase( 'wobbly-marmalade-1987', $response->text() );
         $this->assertStringContainsStringIgnoringCase( 'crimson-otter-4521', $response->text() );
+    }
+
+
+    public function testWrite() : void
+    {
+        $image = Image::fromLocalPath( __DIR__ . '/assets/cat.png' );
+        $response = Prisma::text()
+            ->using( 'anthropic', ['api_key' => $_ENV['ANTHROPIC_API_KEY']] )
+            ->ensure( 'write' )
+            ->write( 'What animal is in this image? Reply with just the animal name.', [$image] );
+
+        $this->assertStringContainsStringIgnoringCase( 'cat', $response->text() );
+    }
+
+
+    protected function setUp() : void
+    {
+        \Dotenv\Dotenv::createImmutable( dirname( __DIR__, 2 ) )->load();
+
+        if( empty( $_ENV['ANTHROPIC_API_KEY'] ) ) {
+            $this->markTestSkipped( 'ANTHROPIC_API_KEY is not defined in the environment' );
+        }
     }
 }

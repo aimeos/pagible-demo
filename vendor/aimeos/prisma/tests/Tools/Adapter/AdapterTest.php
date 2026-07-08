@@ -12,110 +12,11 @@ require_once __DIR__ . '/LaravelStubs.php';
 
 class AdapterTest extends TestCase
 {
-    public function testMake() : void
-    {
-        $tool = Tools::make( 'my-tool', 'My tool desc', Schema::fromArray( 'my-tool', [
-            'type' => 'object',
-            'properties' => [
-                'query' => ['type' => 'string', 'description' => 'Search query'],
-                'limit' => ['type' => 'integer'],
-            ],
-            'required' => ['query'],
-        ] ), fn( $args ) => 'result' );
-
-        $this->assertEquals( 'my-tool', $tool->name() );
-        $this->assertEquals( 'My tool desc', $tool->description() );
-
-        $arr = $tool->schema()->toArray();
-        $this->assertEquals( 'object', $arr['type'] );
-        $this->assertArrayHasKey( 'query', $arr['properties'] );
-        $this->assertContains( 'query', $arr['required'] );
-    }
-
-
-    public function testMakeInvoke() : void
-    {
-        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn( $args ) => $args['x'] );
-
-        $output = $tool( ['x' => 'hello'] );
-        $this->assertEquals( 'hello', $output );
-    }
-
-
-    public function testMakeInvokeString() : void
-    {
-        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn( $args ) => 'plain text' );
-
-        $output = $tool( [] );
-        $this->assertEquals( 'plain text', $output );
-    }
-
-
-    public function testMax() : void
-    {
-        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => '' )->max( 3 );
-
-        $this->assertTrue( $tool->can() );
-        $tool( [] );
-        $tool( [] );
-        $tool( [] );
-        $this->assertFalse( $tool->can() );
-    }
-
-
-    public function testMaxDefault() : void
-    {
-        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => '' );
-
-        $tool( [] );
-        $tool( [] );
-        $this->assertTrue( $tool->can() );
-    }
-
-
-    public function testFailed() : void
-    {
-        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => throw new \RuntimeException( 'boom' ) );
-
-        $output = $tool( [] );
-
-        $this->assertEquals( 'Error: boom', $output );
-    }
-
-
-    public function testFailedCustomHandler() : void
-    {
-        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => throw new \RuntimeException( 'boom' ) )
-            ->failed( fn( \Throwable $e, array $args ) => 'Custom: ' . $e->getMessage() );
-
-        $output = $tool( [] );
-
-        $this->assertEquals( 'Custom: boom', $output );
-    }
-
-
-    public function testFailedChaining() : void
-    {
-        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => 'ok' );
-        $returned = $tool->failed( fn() => 'err' );
-
-        $this->assertSame( $tool, $returned );
-    }
-
-
     public function testConcurrentDefault() : void
     {
         $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => '' );
 
         $this->assertFalse( $tool->isConcurrent() );
-    }
-
-
-    public function testConcurrentFlag() : void
-    {
-        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => '' )->concurrent();
-
-        $this->assertTrue( $tool->isConcurrent() );
     }
 
 
@@ -129,23 +30,41 @@ class AdapterTest extends TestCase
     }
 
 
-    public function testProvider() : void
+    public function testConcurrentFlag() : void
     {
-        $tool = Tools::provider( 'web_search' );
+        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => '' )->concurrent();
 
-        $this->assertInstanceOf( Provider::class, $tool );
-        $this->assertEquals( 'web_search', $tool->name() );
-        $this->assertEquals( [], $tool->options() );
+        $this->assertTrue( $tool->isConcurrent() );
     }
 
 
-    public function testProviderWithOptions() : void
+    public function testFailed() : void
     {
-        $tool = Tools::provider( 'web_search' )->with( ['search_context_size' => 'medium'] );
+        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => throw new \RuntimeException( 'boom' ) );
 
-        $this->assertInstanceOf( Provider::class, $tool );
-        $this->assertEquals( 'web_search', $tool->name() );
-        $this->assertEquals( ['search_context_size' => 'medium'], $tool->options() );
+        $output = $tool( [] );
+
+        $this->assertEquals( 'Error: boom', $output );
+    }
+
+
+    public function testFailedChaining() : void
+    {
+        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => 'ok' );
+        $returned = $tool->failed( fn() => 'err' );
+
+        $this->assertSame( $tool, $returned );
+    }
+
+
+    public function testFailedCustomHandler() : void
+    {
+        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => throw new \RuntimeException( 'boom' ) )
+            ->failed( fn( \Throwable $e, array $args ) => 'Custom: ' . $e->getMessage() );
+
+        $output = $tool( [] );
+
+        $this->assertEquals( 'Custom: boom', $output );
     }
 
 
@@ -202,6 +121,86 @@ class AdapterTest extends TestCase
         $this->assertEquals( 'handle-tool', $tool->name() );
         $this->assertEquals( 'A tool with handle method', $tool->description() );
         $this->assertEquals( 'handled', $tool( [] ) );
+    }
+
+
+    public function testMake() : void
+    {
+        $tool = Tools::make( 'my-tool', 'My tool desc', Schema::fromArray( 'my-tool', [
+            'type' => 'object',
+            'properties' => [
+                'query' => ['type' => 'string', 'description' => 'Search query'],
+                'limit' => ['type' => 'integer'],
+            ],
+            'required' => ['query'],
+        ] ), fn( $args ) => 'result' );
+
+        $this->assertEquals( 'my-tool', $tool->name() );
+        $this->assertEquals( 'My tool desc', $tool->description() );
+
+        $arr = $tool->schema()->toArray();
+        $this->assertEquals( 'object', $arr['type'] );
+        $this->assertArrayHasKey( 'query', $arr['properties'] );
+        $this->assertContains( 'query', $arr['required'] );
+    }
+
+
+    public function testMakeInvoke() : void
+    {
+        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn( $args ) => $args['x'] );
+
+        $output = $tool( ['x' => 'hello'] );
+        $this->assertEquals( 'hello', $output );
+    }
+
+
+    public function testMakeInvokeString() : void
+    {
+        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn( $args ) => 'plain text' );
+
+        $output = $tool( [] );
+        $this->assertEquals( 'plain text', $output );
+    }
+
+
+    public function testMax() : void
+    {
+        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => '' )->max( 3 );
+
+        // The limit is immutable config; invoking the tool does not change it.
+        $this->assertEquals( 3, $tool->limit() );
+        $tool( [] );
+        $tool( [] );
+        $tool( [] );
+        $this->assertEquals( 3, $tool->limit() );
+    }
+
+
+    public function testMaxDefault() : void
+    {
+        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => '' );
+
+        $this->assertEquals( PHP_INT_MAX, $tool->limit() );
+    }
+
+
+    public function testProvider() : void
+    {
+        $tool = Tools::provider( 'web_search' );
+
+        $this->assertInstanceOf( Provider::class, $tool );
+        $this->assertEquals( 'web_search', $tool->name() );
+        $this->assertEquals( [], $tool->options() );
+    }
+
+
+    public function testProviderWithOptions() : void
+    {
+        $tool = Tools::provider( 'web_search' )->with( ['search_context_size' => 'medium'] );
+
+        $this->assertInstanceOf( Provider::class, $tool );
+        $this->assertEquals( 'web_search', $tool->name() );
+        $this->assertEquals( ['search_context_size' => 'medium'], $tool->options() );
     }
 
 

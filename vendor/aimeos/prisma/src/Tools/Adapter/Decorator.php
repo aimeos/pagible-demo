@@ -35,17 +35,6 @@ abstract class Decorator implements Adapter
 
 
     /**
-     * Returns whether the tool can still be called.
-     *
-     * @return bool True if the tool can be called, false if exhausted
-     */
-    public function can() : bool
-    {
-        return $this->adapter->can();
-    }
-
-
-    /**
      * Sets whether this tool can run concurrently with other tools.
      *
      * @param bool $concurrent True to allow concurrent execution
@@ -55,17 +44,6 @@ abstract class Decorator implements Adapter
     {
         $this->adapter->concurrent( $concurrent );
         return $this;
-    }
-
-
-    /**
-     * Returns the counter of remaining calls.
-     *
-     * @return int Remaining calls
-     */
-    public function counter() : int
-    {
-        return $this->adapter->counter();
     }
 
 
@@ -81,6 +59,19 @@ abstract class Decorator implements Adapter
 
 
     /**
+     * Sets a custom error handler for tool execution failures.
+     *
+     * @param callable(\Throwable, array<string, mixed>): string $handler Error handler
+     * @return static Self for chaining
+     */
+    public function failed( callable $handler ) : static
+    {
+        $this->adapter->failed( $handler );
+        return $this;
+    }
+
+
+    /**
      * Returns whether this tool can run concurrently.
      *
      * @return bool True if the tool can run concurrently
@@ -92,15 +83,13 @@ abstract class Decorator implements Adapter
 
 
     /**
-     * Sets a custom error handler for tool execution failures.
+     * Returns the configured maximum number of calls.
      *
-     * @param callable(\Throwable, array<string, mixed>): string $handler Error handler
-     * @return static Self for chaining
+     * @return int Maximum number of calls
      */
-    public function failed( callable $handler ) : static
+    public function limit() : int
     {
-        $this->adapter->failed( $handler );
-        return $this;
+        return $this->adapter->limit();
     }
 
 

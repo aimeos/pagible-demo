@@ -17,7 +17,9 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
     <li><a href="#model">model</a><span>: Use the model passed by its name</span></li>
     <li><a href="#withclientoptions">withClientOptions</a><span>: Add options for the Guzzle HTTP client</span></li>
     <li><a href="#withclientretry">withClientRetry</a><span>: Configure automatic retry for failed HTTP requests</span></li>
+    <li><a href="#withmaxresponsesize">withMaxResponseSize</a><span>: Set the maximum bytes read for a single provider response</span></li>
     <li><a href="#withsystemprompt">withSystemPrompt</a><span>: Add a system prompt for the LLM</span></li>
+    <li><a href="#withmessages">withMessages</a><span>: Add prior conversation turns for multi-turn chat</span></li>
     <li><a href="#withmaxtokens">withMaxTokens</a><span>: Set the maximum number of output tokens</span></li>
     <li><a href="#withthinkingbudget">withThinkingBudget</a><span>: Set the thinking/reasoning budget in tokens</span></li>
     <li><a href="#response-objects">Response objects</a><span>: How data is returned by the API</span></li>
@@ -59,6 +61,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
     <li><a href="#imagine">imagine</a><span>: Generate an image from the prompt</span></li>
     <li><a href="#inpaint">inpaint</a><span>: Edit an image area according to a prompt</span></li>
     <li><a href="#isolate">isolate</a><span>: Remove the image background</span></li>
+    <li><a href="#recognize">recognize</a><span>: Recognize the text in an image (OCR)</span></li>
     <li><a href="#relocate">relocate</a><span>: Place the foreground object on a new background</span></li>
     <li><a href="#repaint">repaint</a><span>: Repaint an image according to the prompt</span></li>
     <li><a href="#uncrop">uncrop</a><span>: Extend/outpaint the image</span></li>
@@ -67,8 +70,10 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 </ul>
 <div class="method-header"><a href="#text-api">Text API</a></div>
 <ul class="method-list">
+    <li><a href="#stream">stream</a><span>: Stream a response token by token by iterating the response</span></li>
     <li><a href="#structure">structure</a><span>: Generate structured output from a prompt and schema</span></li>
     <li><a href="#translate">translate</a><span>: Translate texts from one language to another</span></li>
+    <li><a href="#vectorize-1">vectorize</a><span>: Creates embedding vectors from texts</span></li>
     <li><a href="#write">write</a><span>: Generate text from the given prompt</span></li>
 </ul>
 <div class="method-header"><a href="#video-api">Video API</a></div>
@@ -83,6 +88,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 - [Alibaba](https://www.alibabacloud.com/help/en/model-studio/model-api-reference/)
 - [Anthropic](https://docs.anthropic.com/en/api)
 - [AudioPod AI](https://audiopod.ai/)
+- [Azure OpenAI](https://learn.microsoft.com/en-us/azure/ai-services/openai/)
 - [Bedrock Titan (AWS)](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-models.html)
 - [Black Forest Labs](https://docs.bfl.ai/quick_start/introduction)
 - [Clipdrop](https://clipdrop.co/apis)
@@ -96,12 +102,14 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 - [Groq](https://groq.com/)
 - [Ideogram](https://ideogram.ai/api)
 - [Mistral](https://docs.mistral.ai/api)
+- [ModelsLab](https://docs.modelslab.com/)
 - [Murf](https://murf.ai/api)
 - [Ollama](https://ollama.com/)
 - [OpenAI](https://openai.com/api/)
 - [Openrouter](https://openrouter.ai/docs/quickstart)
 - [Perplexity](https://docs.perplexity.ai/)
 - [RemoveBG](https://www.remove.bg/api)
+- [Replicate](https://replicate.com/docs)
 - [StabilityAI](https://platform.stability.ai/)
 - [VertexAI (Google)](https://cloud.google.com/vertex-ai/generative-ai/docs)
 - [VoyageAI](https://docs.voyageai.com/)
@@ -134,31 +142,36 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 | **Groq**              | -          | yes      | -      | -     | -       | -       | -       | -         | -        | -       | -      | -       | -         |
 | **Ideogram**          | beta       | beta     | -      | -     | beta    | beta    | -       | -         | -        | beta    | -      | beta    | -         |
 | **Mistral**           | -          | -        | -      | -     | -       | -       | -       | yes       | -        | -       | -      | -       | -         |
+| **ModelsLab**         | -          | -        | -      | -     | beta    | -       | -       | -         | -        | -       | -      | -       | -         |
 | **OpenAI**            | -          | yes      | -      | -     | yes     | yes     | -       | -         | -        | -       | -      | -       | -         |
 | **RemoveBG**          | -          | -        | -      | -     | -       | -       | yes     | -         | yes      | -       | -      | -       | -         |
+| **Replicate**         | -          | -        | -      | -     | beta    | -       | -       | -         | -        | -       | -      | -       | -         |
 | **StabilityAI**       | -          | -        | -      | yes   | yes     | yes     | yes     | -         | -        | -       | yes    | yes     | -         |
 | **VertexAI**          | -          | -        | -      | -     | yes     | yes     | -       | -         | -        | -       | -      | yes     | yes       |
 | **VoyageAI**          | -          | -        | -      | -     | -       | -       | -       | -         | -        | -       | -      | -       | yes       |
+| **xAI**               | -          | -        | -      | -     | beta    | -       | -       | -         | -        | -       | -      | -       | -         |
 
 ### Text
 
-|                       | structure | translate | write | citations | custom tools | provider tools | system prompt | thinking budget |
-| :---                  | :---:      | :---:     | :---: | :---:     | :---:        | :---:          | :---:         | :---:           |
-| **Alibaba**           | yes        |           | yes   | -         | yes          | yes            | yes           | -               |
-| **Anthropic**         | yes        |           | yes   | yes       | yes          | yes            | yes           | yes             |
-| **Bedrock**           | yes        |           | yes   | -         | yes          |                | yes           | yes             |
-| **Cohere**            | yes        |           | yes   | -         | yes          |                | yes           | -               |
-| **Deepseek**          | yes        |           | yes   | -         | yes          |                | yes           | -               |
-| **DeepL**             |            | yes       |       |           |              |                |               |                 |
-| **Gemini**            | yes        |           | yes   | yes       | yes          | yes            | yes           | yes             |
-| **Google**            |            | yes       |       |           |              |                |               |                 |
-| **Groq**              | yes        |           | yes   | -         | yes          |                | yes           | -               |
-| **Mistral**           | yes        |           | yes   | -         | yes          | yes            | yes           | -               |
-| **Ollama**            | beta       |           | beta  | -         | yes          |                | yes           | -               |
-| **OpenAI**            | yes        |           | yes   | yes       | yes          | yes            | yes           | yes             |
-| **Openrouter**        | yes        |           | yes   | -         | yes          | yes            | yes           | -               |
-| **Perplexity**        | beta       |           | beta  | yes       | yes          |                | yes           | -               |
-| **xAI**               | beta       |           | beta  | yes       | yes          | yes            | yes           | yes             |
+|                       | stream | structure | translate | vectorize | write | citations | custom tools | provider tools | system prompt | thinking budget |
+| :---                  | :---: | :---:      | :---:     | :---:     | :---: | :---:     | :---:        | :---:          | :---:         | :---:           |
+| **Alibaba**           | yes   | yes        |           | yes       | yes   | -         | yes          | yes            | yes           | -               |
+| **Anthropic**         | yes   | yes        |           | -         | yes   | yes       | yes          | yes            | yes           | yes             |
+| **Azure**             | beta  | beta       |           | beta      | beta  | -         | yes          |                | yes           | -               |
+| **Bedrock**           | -     | yes        |           | yes       | yes   | -         | yes          |                | yes           | yes             |
+| **Cohere**            | -     | yes        |           | yes       | yes   | -         | yes          |                | yes           | -               |
+| **Deepseek**          | yes   | yes        |           | -         | yes   | -         | yes          |                | yes           | -               |
+| **DeepL**             |       |            | yes       |           |       |           |              |                |               |                 |
+| **Gemini**            | yes   | yes        |           | yes       | yes   | yes       | yes          | yes            | yes           | yes             |
+| **Google**            |       |            | yes       |           |       |           |              |                |               |                 |
+| **Groq**              | yes   | yes        |           | -         | yes   | -         | yes          |                | yes           | -               |
+| **Mistral**           | yes   | yes        |           | yes       | yes   | -         | yes          | yes            | yes           | -               |
+| **Ollama**            | beta  | beta       |           | beta      | beta  | -         | yes          |                | yes           | -               |
+| **OpenAI**            | yes   | yes        |           | yes       | yes   | yes       | yes          | yes            | yes           | yes             |
+| **Openrouter**        | yes   | yes        |           | -         | yes   | -         | yes          | yes            | yes           | -               |
+| **Perplexity**        | beta  | beta       |           | -         | beta  | yes       | yes          |                | yes           | -               |
+| **Vertexai**          | beta  | beta       |           | beta      | beta  | yes       | yes          | yes            | yes           | yes             |
+| **xAI**               | beta  | beta       |           | -         | beta  | yes       | yes          | yes            | yes           | yes             |
 
 ### Video
 
@@ -191,6 +204,20 @@ $texts = Prisma::text()
     ->ensure( 'translate' )
     ->translate( ['Hello'], 'de' )
     ->texts();
+```
+
+#### OpenAI-compatible gateways
+
+Any OpenAI-compatible endpoint (local servers, proxies or gateways like LiteLLM,
+vLLM or OpenRouter-style services) works with the `openai` provider by overriding
+the base `url`:
+
+```php
+$text = Prisma::text()
+    ->using( 'openai', ['api_key' => 'xxx', 'url' => 'https://my-gateway.example.com'] )
+    ->model( 'my-model' )
+    ->write( 'Hello' )
+    ->text();
 ```
 
 ### ensure
@@ -307,6 +334,30 @@ By default, retries on status codes 429, 500, 502, 503, 504 and connection excep
     ->withClientRetry( 3, 100, fn( $response, $attempt ) => $response->getStatusCode() === 429 );
 ```
 
+### withMaxResponseSize
+
+Set the maximum number of bytes read for a single provider response.
+
+Bounds the bytes consumed from one response - streamed or not - so a runaway or hostile
+endpoint cannot grow the read buffer or the assembled result (text, reasoning, tool-call
+arguments) without limit. Defaults to 64 MB and applies per request, so each tool-loop turn
+is bounded independently rather than spanning a whole multi-turn conversation.
+
+```php
+public function withMaxResponseSize( int `$bytes` ) : self
+```
+
+* @param **int** `$bytes` Maximum bytes per response (minimum 1)
+* @return **self** Provider interface
+
+**Example:**
+
+```php
+\Aimeos\Prisma\Prisma::text()
+    ->using( '<provider>', ['api_key' => 'xxx'])
+    ->withMaxResponseSize( 16 * 1024 * 1024 ); // cap responses at 16 MB
+```
+
 ### withSystemPrompt
 
 Add a system prompt for the LLM.
@@ -327,6 +378,38 @@ public function withSystemPrompt( ?string $prompt ) : self
 \Aimeos\Prisma\Prisma::image()
     ->using( '<provider>', ['api_key' => 'xxx'])
     ->withSystemPrompt( 'You are a professional illustrator' );
+```
+
+### withMessages
+
+Add prior conversation turns sent before the current prompt, so the model has
+context from earlier exchanges in a multi-turn chat.
+
+Each entry is an array with a `role` of `user` or `assistant` and a string
+`content`. User turns may add a `files` key with an array of `File` objects for
+multimodal input, subject to the provider's file support (images for all text
+providers; PDFs additionally on Anthropic; images, audio, video and PDFs on
+Gemini). System context is set via [withSystemPrompt](#withsystemprompt), not as
+a message. The current prompt passed to `stream()`/`write()`/`structure()` is
+appended as the final user turn.
+
+```php
+public function withMessages( array $messages ) : self
+```
+
+* @param **array** `$messages` Conversation turns (`['role' => 'user'|'assistant', 'content' => '…', 'files' => []]`)
+* @return **self** Provider interface
+
+**Example:**
+
+```php
+\Aimeos\Prisma\Prisma::text()
+    ->using( '<provider>', ['api_key' => 'xxx'] )
+    ->withMessages( [
+        ['role' => 'user', 'content' => 'Recommend a laptop'],
+        ['role' => 'assistant', 'content' => 'Sure - what is your budget?'],
+    ] )
+    ->write( 'Around $1500' );
 ```
 
 ### withMaxTokens
@@ -373,7 +456,7 @@ $response = \Aimeos\Prisma\Prisma::text()
     ->write( 'Solve this step by step' );
 
 // Access the model's reasoning (if returned by the provider)
-$thinking = $response->meta()['thinking'] ?? null;
+$thinking = $response->meta()->thinking();
 ```
 
 ### Response objects
@@ -418,8 +501,8 @@ foreach( $response as $text ) {
 **VectorResponse** objects:
 
 ```php
-$vector = $response->first(); // first embedding vector if only one file has been passed
-$vectors = $response->vectors(); // embedding vectors for the passed files in the same order
+$vector = $response->first(); // first embedding vector if only one input has been passed
+$vectors = $response->vectors(); // embedding vectors for the passed inputs in the same order
 
 // loop over all available vectors
 foreach( $response as $vector ) {
@@ -431,19 +514,45 @@ Included **meta data** (optional):
 
 ```php
 $meta = $response->meta();
+
+$meta->id();               // provider response ID or NULL
+$meta->model();            // model that produced the response or NULL
+$meta->thinking();         // extended thinking/reasoning output or NULL
+$meta->reasoningDetails(); // encrypted reasoning blocks for multi-turn continuity or NULL
 ```
 
-It returns an associative array whose content totally depends on the provider.
+`meta()` returns a `Values\Meta` object with typed accessors for the fields shared across
+providers. It also behaves like the array it replaced, so provider-specific keys stay reachable
+by subscript, iteration and `json_encode()`:
+
+```php
+$created = $response->meta()['created'] ?? null; // raw provider key
+$raw = $response->meta()->all();                 // complete provider map as array
+```
 
 Included **usage data** (optional):
 
 ```php
 $usage = $response->usage();
+
+$usage->promptTokens();     // input tokens or NULL
+$usage->completionTokens(); // generated output tokens or NULL
+$usage->totalTokens();      // total tokens (falls back to prompt + completion) or NULL
+$usage->cacheReadTokens();  // cached input tokens or NULL
+$usage->cacheWriteTokens(); // tokens written to the provider cache or NULL
+$usage->thoughtTokens();    // reasoning/thinking tokens or NULL
+$usage->used();             // used units as float (tokens for text, credits/cost for media)
 ```
 
-It returns an associative array whose content depends on the provider. If the provider returns
-usage information, the `used` array key is available and contains a number. What the number
-represents depdends on the provider too.
+`usage()` returns a `Values\Usage` object whose typed accessors normalize the differing token
+keys each provider reports (e.g. `input_tokens`, `prompt_tokens`, `promptTokenCount`,
+`inputTokens` all map to `promptTokens()`). Accessors return `NULL` when a provider does not
+report that figure. Like `meta()`, it stays array-compatible for raw keys:
+
+```php
+$used = $response->usage()['used'];  // raw key, still works
+$raw = $response->usage()->all();    // complete provider map as array
+```
 
 ### Citations
 
@@ -721,7 +830,7 @@ $response = Prisma::text()
     ->write( 'What is the weather in Berlin?' );
 ```
 
-`withMaxSteps()` controls the maximum number of tool calls performed (default is unlimited).
+`withMaxSteps()` controls the maximum number of tool-loop steps performed (default is 25). Raise it for workflows that need more tool calls, or lower it to cap cost.
 
 > **Note:** Tool handlers can return any value. Strings are passed through as-is; all other return types (arrays, objects, numbers) are automatically JSON-encoded.
 
@@ -744,7 +853,7 @@ use Aimeos\Prisma\Providers\Base as Provider;
 **Limiting tool calls:**
 
 ```php
-$tool = Tools::make( ... )->max( 3 ); // This specific tool can only be called 3 times
+$tool = Tools::make( ... )->max( 3 ); // This specific tool can only be called 3 times per request
 ```
 
 ### Provider tools
@@ -771,7 +880,7 @@ $response = Prisma::text()
 | `web_search` | Anthropic, OpenAI, Gemini, Mistral, xAI, OpenRouter, Alibaba |
 | `web_search_premium` | Mistral |
 | `code_execution` | Anthropic, OpenAI, Gemini, Mistral, xAI |
-| `web_fetch` | Anthropic, Gemini |
+| `web_fetch` | Anthropic |
 | `file_search` | OpenAI |
 | `image_generation` | Mistral |
 | `document_library` | Mistral |
@@ -825,18 +934,19 @@ Unknown or unsupported options are silently ignored by each provider.
 
 ### Tool state
 
-Check a tool's remaining call budget using:
+The configured call limit is available via `limit()`:
 
 ```php
 $tool = Tools::make( ... )->max( 3 );
 
-$tool->counter(); // 3 — remaining calls
-$tool->can();     // true — still callable
-
-// after the model has called the tool 3 times:
-$tool->counter(); // 0
-$tool->can();     // false
+$tool->limit(); // 3 — configured maximum calls
 ```
+
+The remaining budget is tracked per request, not on the tool itself: every
+`write()` / `structure()` call starts fresh, so a tool capped at 3 can be called
+up to 3 times in each request. Every executed call counts against the budget,
+including calls whose handler throws. Once the budget is exhausted within a
+request, further calls to that tool return an error to the model.
 
 ### Error handling
 
@@ -1242,6 +1352,8 @@ public function imagine( string $prompt, array $images = [], array $options = []
 * Clipdrop
 * [Gemini](https://ai.google.dev/gemini-api/docs/image-generation#optional_configurations)
 * [Ideogram](https://developer.ideogram.ai/api-reference/api-reference/generate-v3#request)
+* [ModelsLab](https://docs.modelslab.com/image-generation/community-models/text2img)
+* [Replicate](https://replicate.com/docs/topics/predictions/create-a-prediction)
 * [VertexAI](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#generate_images)
 * [OpenAI GPT image 1](https://platform.openai.com/docs/guides/image-generation?image-generation-model=gpt-image-1#customize-image-output)
 * [OpenAI Dall-e-3](https://platform.openai.com/docs/guides/image-generation?image-generation-model=dall-e-3#customize-image-output)
@@ -1249,6 +1361,7 @@ public function imagine( string $prompt, array $images = [], array $options = []
 * [StabilityAI Core](https://platform.stability.ai/docs/api-reference#tag/Generate/paths/~1v2beta~1stable-image~1generate~1core/post)
 * [StabilityAI Ultra](https://platform.stability.ai/docs/api-reference#tag/Generate/paths/~1v2beta~1stable-image~1generate~1ultra/post)
 * [StabilityAI Stable Diffusion 3.5](https://platform.stability.ai/docs/api-reference#tag/Generate/paths/~1v2beta~1stable-image~1generate~1sd3/post)
+* [xAI Grok Image](https://docs.x.ai/docs/guides/image-generations)
 
 **Example:**
 
@@ -1550,6 +1663,132 @@ $vectors = $vectorResponse->vectors();
 
 ## Text API
 
+### stream
+
+Generate text from the given prompt and stream it token by token. The returned `TextResponse` is backed by a live stream: iterate `TextResponse::stream()` to consume each chunk as it arrives. The text accessors (`text()`, `texts()`, `first()`, `output()`) and iterating the response drain the stream for you, so you can also ignore the live chunks and use the response like a non-streamed one. Streaming uses the same endpoint the provider's [write()](#write) method uses, so tools, system prompts, [conversation history](#withmessages) and options work identically.
+
+> **Consume the stream before reading body metadata.** `usage()`, `steps()`, `meta()`, `citations()`, `reason()` and `structured()` are only populated **after** the stream has been consumed - either iterate `stream()` to completion or call one of the text accessors first (e.g. `text()`/`output()`). Read before the stream is drained, they return empty/default values. `rateLimit()` is the exception: it comes from the response headers and is available immediately, as are HTTP/auth errors, which surface from the `stream()` call itself rather than during iteration.
+
+```php
+public function stream( string $prompt, array $files = [], array $options = [] ) : TextResponse
+```
+
+* @param **string** `$prompt` Input prompt for text generation
+* @param **array&#60;int, File&#62;** `$files` Files for multimodal input (images, audio, documents)
+* @param **array&#60;string, mixed&#62;** `$options` Provider specific options
+* @return **TextResponse** Streamed response text
+
+Iterating `$response->stream()` yields:
+
+* a **string** for every streamed text delta, and
+* a **Step** for every executed tool call - once before it runs (`done() === false`) and once after it completed (`done() === true`). A tool that hit its call limit is not executed and is reported once (completed).
+
+> The stream is single-pass and the same `Step` instance is reused for both notifications, so read `done()` / `result()` **inside** the loop (a stored reference reflects the final state).
+
+**Supported providers:**
+
+* [Alibaba](https://www.alibabacloud.com/help/en/model-studio/model-api-reference/)
+* [Anthropic](https://docs.anthropic.com/en/api/messages-streaming)
+* [Azure](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions)
+* [Deepseek](https://api-docs.deepseek.com/api/create-chat-completion)
+* [Gemini](https://ai.google.dev/gemini-api/docs/text-generation)
+* [Groq](https://console.groq.com/docs/text-chat)
+* [Mistral](https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post)
+* [Ollama](https://github.com/ollama/ollama/blob/main/docs/openai.md)
+* [OpenAI](https://platform.openai.com/docs/api-reference/responses-streaming)
+* [Openrouter](https://openrouter.ai/docs/api-reference/streaming)
+* [Perplexity](https://docs.perplexity.ai/api-reference/chat-completions)
+* [xAI](https://docs.x.ai/api/endpoints#chat-completions)
+
+**Example:**
+
+```php
+use Aimeos\Prisma\Prisma;
+
+$textResponse = Prisma::text()
+    ->using( 'openai', ['api_key' => 'xxx'] )
+    ->ensure( 'stream' )
+    ->stream( 'Summarize the benefits of renewable energy' );
+
+foreach( $textResponse->stream() as $delta ) {
+    echo $delta; // print each token as it arrives
+}
+
+$full = $textResponse->text();  // the complete answer
+$usage = $textResponse->usage(); // token usage
+```
+
+**Multi-turn conversation:**
+
+Pass the earlier turns with [withMessages()](#withmessages); the current prompt is appended as the next user message.
+
+```php
+use Aimeos\Prisma\Prisma;
+
+$textResponse = Prisma::text()
+    ->using( 'openai', ['api_key' => 'xxx'] )
+    ->withMessages( [
+        ['role' => 'user', 'content' => 'Recommend a laptop'],
+        ['role' => 'assistant', 'content' => 'Sure - what is your budget?'],
+    ] )
+    ->ensure( 'stream' )
+    ->stream( 'Around $1500' );
+
+foreach( $textResponse->stream() as $delta ) {
+    echo $delta;
+}
+```
+
+**Streaming with tools:**
+
+```php
+use Aimeos\Prisma\Prisma;
+use Aimeos\Prisma\Tools\Step;
+
+$textResponse = Prisma::text()
+    ->using( 'anthropic', ['api_key' => 'xxx'] )
+    ->withTools( [$weatherTool] )
+    ->ensure( 'stream' )
+    ->stream( 'What is the weather in Berlin?' );
+
+foreach( $textResponse->stream() as $chunk ) {
+    if( !$chunk instanceof Step ) {
+        echo $chunk;                                                        // text delta
+    } elseif( $chunk->done() ) {
+        printf( "\n[%s -> %s]\n", $chunk->name(), $chunk->result() );       // tool result
+    } else {
+        printf( "\n[calling %s(%s)]\n", $chunk->name(), json_encode( $chunk->arguments() ) ); // tool call
+    }
+}
+
+$steps = $textResponse->steps(); // executed tool steps, same as write()
+```
+
+> **Performance:** the loop body runs once per token, synchronously in the read loop. For high-frequency sinks (broadcast, WebSocket, database), coalesce deltas - buffer them and flush every ~50ms or every N characters - instead of doing a round trip per token.
+
+**Laravel SSE (`response()->eventStream()`):**
+
+Because `stream()` returns an iterable response, it plugs straight into Laravel's native SSE helper - just delegate to its generator:
+
+```php
+use Aimeos\Prisma\Prisma;
+
+Route::get( '/chat', function () {
+    $response = Prisma::text()
+        ->using( 'openai', config( 'services.openai' ) )
+        ->ensure( 'stream' )
+        ->stream( 'Summarize the benefits of renewable energy' );
+
+    return response()->eventStream( function () use ( $response ) {
+        foreach( $response->stream() as $chunk ) {
+            if( is_string( $chunk ) ) {
+                yield $chunk;
+            }
+        }
+    } );
+} );
+```
+
 ### structure
 
 Generate structured output from the given prompt and schema. The response JSON is parsed and available via the `structured()` method on the response object.
@@ -1564,10 +1803,13 @@ public function structure( string $prompt, Schema $schema, array $files = [], ar
 * @param **array&#60;string, mixed&#62;** `$options` Provider specific options
 * @return **TextResponse** Response text with structured data
 
+> Supply prior conversation turns with [withMessages()](#withmessages); the current `$prompt` is appended as the final user message.
+
 **Supported options:**
 
 * [Alibaba](https://www.alibabacloud.com/help/en/model-studio/developer-reference/api-details)
 * [Anthropic](https://docs.anthropic.com/en/docs/build-with-claude/structured-output)
+* [Azure](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions)
 * [Bedrock](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html)
 * [Cohere](https://docs.cohere.com/reference/chat)
 * [Deepseek](https://api-docs.deepseek.com/api/create-chat-completion)
@@ -1599,6 +1841,30 @@ $textResponse = Prisma::text()
 $data = $textResponse->structured(); // ['name' => 'John', 'age' => 30]
 $json = $textResponse->text(); // '{"name":"John","age":30}'
 ```
+
+**Output mode:**
+
+By default the schema is enforced by the provider's native structured-output API (strict mode). Pass `['mode' => 'json']` to instead embed the schema in the prompt and parse the JSON from the response — useful when a schema is too large or deeply nested for a provider's strict-mode limits. `['mode' => 'structured']` selects native mode explicitly; any other value throws a `BadRequestException`. Providers without a native strict mode (Bedrock, Cohere, Deepseek, Ollama) always use JSON mode and ignore the option.
+
+```php
+$textResponse = Prisma::text()
+    ->using( 'openai', ['api_key' => 'xxx'] )
+    ->ensure( 'structure' )
+    ->structure( 'Extract the person', $schema, [], ['mode' => 'json'] );
+```
+
+> **Warning:** `structured()` is the model's output parsed as-is — always treat it as untrusted. Guard two separate things:
+>
+> * **Shape** — it is not validated against your schema. Native strict mode is provider-enforced, but JSON mode (`['mode' => 'json']`, and the JSON-only providers above) gives no guarantee the result matches the schema. Check it with `$schema->validate( $data )` (returns `[]` when valid).
+> * **Values** — even a schema-conformant result contains model-generated text. `validate()` verifies types and constraints, not safety, so never drop a value straight into SQL, a shell command, a file path, or markup. Use bound parameters, escaping, or allow-lists, exactly as you would for any user input.
+>
+> ```php
+> $data = $textResponse->structured();
+> $errors = $schema->validate( $data ); // [] when valid
+> if( $errors ) {
+>     // reject, retry, or handle the mismatch
+> }
+> ```
 
 ### translate
 
@@ -1633,6 +1899,43 @@ $textResponse = Prisma::text()
 $texts = $textResponse->texts(); // ['Hallo', 'Welt']
 ```
 
+### vectorize
+
+Creates embedding vectors of the texts' content.
+
+```php
+public function vectorize( array $texts, ?int $size = null, array $options = [] ) : VectorResponse
+```
+
+* @param **array&#60;int, string&#62;** `$texts` List of input texts
+* @param **int&#124;null** `$size` Size of the resulting vector or null for provider default
+* @param **array&#60;string, mixed&#62;** `$options` Provider specific options
+* @return **VectorResponse** Response vector object
+
+**Supported options:**
+
+* [Alibaba](https://www.alibabacloud.com/help/en/model-studio/embedding-api-details)
+* [Azure](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings)
+* [Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-embedding-models.html)
+* [Cohere](https://docs.cohere.com/reference/embed)
+* [Gemini](https://ai.google.dev/api/embeddings)
+* [Mistral](https://docs.mistral.ai/api/#tag/embeddings)
+* [Ollama](https://github.com/ollama/ollama/blob/main/docs/openai.md)
+* [OpenAI](https://platform.openai.com/docs/api-reference/embeddings/create)
+
+**Example:**
+
+```php
+use Aimeos\Prisma\Prisma;
+
+$vectorResponse = Prisma::text()
+    ->using( 'openai', ['api_key' => 'xxx'])
+    ->ensure( 'vectorize' )
+    ->vectorize( ['The quick brown fox', 'jumps over the lazy dog'], 256 );
+
+$vectors = $vectorResponse->vectors(); // one embedding vector per input text
+```
+
 ### write
 
 Generate text from the given prompt with optional multimodal file inputs (images, audio, documents).
@@ -1645,6 +1948,8 @@ public function write( string $prompt, array $files = [], array $options = [] ) 
 * @param **array&#60;int, File&#62;** `$files` Files for multimodal input (images, audio, documents)
 * @param **array&#60;string, mixed&#62;** `$options` Provider specific options
 * @return **TextResponse** Response text
+
+> Supply prior conversation turns with [withMessages()](#withmessages); the current `$prompt` is appended as the final user message.
 
 **Supported options:**
 
@@ -1693,4 +1998,3 @@ public function describe( Video $video, ?string $lang = null, array $options = [
 **Supported options:**
 
 * Gemini
-

@@ -4,6 +4,8 @@ namespace Aimeos\Prisma\Providers;
 
 use Aimeos\Prisma\Concerns\HasHttpClient;
 use Aimeos\Prisma\Concerns\HasHttpResponse;
+use Aimeos\Prisma\Concerns\HasHttpStream;
+use Aimeos\Prisma\Concerns\HasMessages;
 use Aimeos\Prisma\Concerns\HasModel;
 use Aimeos\Prisma\Concerns\HasSystemPrompt;
 use Aimeos\Prisma\Concerns\HasTokens;
@@ -26,10 +28,28 @@ abstract class Base implements Provider
 {
     use HasHttpClient;
     use HasHttpResponse;
+    use HasHttpStream;
+    use HasMessages;
     use HasModel;
     use HasSystemPrompt;
     use HasTokens;
     use HasTools;
+
+
+    protected const GEN = 'generation';
+    protected const STRUCT = 'structured';
+
+
+    /** @var array<string, array<string, mixed>> */
+    protected const PROVIDER_TOOL_MAP = [];
+
+
+    /**
+     * Create a new provider instance with the given configuration.
+     *
+     * @param array<string, mixed> $config Provider configuration
+     */
+    abstract public function __construct( array $config );
 
 
     /**
@@ -46,7 +66,7 @@ abstract class Base implements Provider
     /**
      * Ensures that the provider implements the given method.
      *
-     * @param string $method Method name to check (e.g. 'chat', 'generate')
+     * @param string $method Method name to check (e.g. 'stream', 'generate')
      * @return static Same provider instance for fluent calls
      * @throws \Aimeos\Prisma\Exceptions\NotImplementedException If the method is not implemented
      */
@@ -63,7 +83,7 @@ abstract class Base implements Provider
     /**
      * Tests if the provider implements the given method.
      *
-     * @param string $method Method name to check (e.g. 'chat', 'generate')
+     * @param string $method Method name to check (e.g. 'stream', 'generate')
      * @return bool TRUE if the capability is implemented, FALSE otherwise
      */
     public function has( string $method ) : bool
@@ -104,9 +124,28 @@ abstract class Base implements Provider
      * @param string $default Default value
      * @return string Configuration value as string
      */
-    protected function cfg( array $config, string $key, string $default = '' ) : string
+    protected function config( array $config, string $key, string $default = '' ) : string
     {
         return isset( $config[$key] ) && is_string( $config[$key] ) ? $config[$key] : $default;
+    }
+
+
+    /**
+     * Decodes a tool-call arguments JSON string into an array.
+     *
+     * Strips raw control characters that some models emit (which would otherwise make
+     * json_decode() fail) and coerces any non-array result (e.g. a literal "null") to an
+     * empty array so callers always receive a usable arguments map.
+     *
+     * @param string|null $json Tool-call arguments as a JSON string
+     * @return array<string, mixed> Decoded arguments
+     */
+    protected function jsonArgs( ?string $json ) : array
+    {
+        $clean = preg_replace( '/[\x00-\x1F\x7F]/', '', (string) $json );
+        $decoded = json_decode( (string) $clean, true );
+
+        return is_array( $decoded ) ? $decoded : [];
     }
 
 
@@ -126,13 +165,29 @@ abstract class Base implements Provider
 
 
     /**
+     * Decodes the JSON object from a model response, ignoring surrounding code fences.
+     *
+     * @param string|null $text Model response text
+     * @return array<string, mixed> Decoded JSON, or an empty array if invalid
+     */
+    protected function parseJson( ?string $text ) : array
+    {
+        $text = trim( (string) $text );
+        $text = preg_replace( '/^```(?:json)?\s*|\s*```$/s', '', $text ) ?? $text;
+        $data = json_decode( $text, true );
+
+        return is_array( $data ) ? $data : [];
+    }
+
+
+    /**
      * Builds multipart form data for file upload requests.
      *
      * @param array<string, mixed> $options Request options
      * @param array<string, mixed> $files Files to upload
      * @return array<int, array<string, mixed>> Multipart form data
      */
-    protected function request( array $options, array $files = [] ) : array
+    protected function payload( array $options, array $files = [] ) : array
     {
         $data = [];
 

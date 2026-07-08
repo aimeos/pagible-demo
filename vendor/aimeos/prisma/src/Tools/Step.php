@@ -8,12 +8,13 @@ use Aimeos\Prisma\Tools\Adapter\Adapter;
 /**
  * Represents a single tool call step with its result.
  */
-class Step
+class Step implements \JsonSerializable
 {
     private ?string $id;
     private string $name;
     private ?Adapter $tool;
     private string $result = '';
+    private bool $done = false;
 
     /** @var array<string, mixed> */
     private array $arguments;
@@ -36,6 +37,17 @@ class Step
 
 
     /**
+     * Returns the step as a JSON string (id, name, arguments, result, done).
+     *
+     * @return string JSON representation
+     */
+    public function __toString() : string
+    {
+        return (string) json_encode( $this );
+    }
+
+
+    /**
      * Returns the tool call arguments.
      *
      * @return array<string, mixed> Tool call arguments
@@ -54,6 +66,18 @@ class Step
     public function complete( string $result ) : void
     {
         $this->result = $result;
+        $this->done = true;
+    }
+
+
+    /**
+     * Returns whether the tool call has been executed.
+     *
+     * @return bool True after complete() was called, false while the call is still pending
+     */
+    public function done() : bool
+    {
+        return $this->done;
     }
 
 
@@ -65,6 +89,23 @@ class Step
     public function id() : ?string
     {
         return $this->id;
+    }
+
+
+    /**
+     * Returns the step data for JSON serialization (excludes the tool adapter).
+     *
+     * @return array{id: string|null, name: string, arguments: array<string, mixed>, result: string, done: bool}
+     */
+    public function jsonSerialize() : array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'arguments' => $this->arguments,
+            'result' => $this->result,
+            'done' => $this->done,
+        ];
     }
 
 

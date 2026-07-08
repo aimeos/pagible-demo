@@ -587,9 +587,9 @@ class File extends Base
 
         $this->mime = ( new \finfo( FILEINFO_MIME_TYPE ) )->buffer( $bytes ) ?: 'application/octet-stream';
 
-        // SVG (incl. gzip-compressed SVGZ) isn't supported by the image drivers but is stored as preview itself
-        if( !in_array( $this->mime, ['image/svg+xml', 'application/gzip'] ) && !$driver->supports( $this->mime ) )
-        {
+        // SVG (incl. gzip-compressed SVGZ) isn't supported by the image drivers
+        // but is stored as preview itself
+        if( !in_array( $this->mime, ['image/svg+xml', 'application/gzip'] ) && !$driver->supports( $this->mime ) ) {
             $body->close();
             return null;
         }

@@ -11,11 +11,10 @@ use Psr\Http\Message\ResponseInterface;
 class Mistral extends Base
 {
     use CallsTools;
-    use OpenaiApi { toolsParam as openaiToolsParam; }
+    use OpenaiApi;
 
 
-    /** @var array<string, array<string, mixed>> */
-    private static array $providerToolMap = [
+    protected const PROVIDER_TOOL_MAP = [
         'web_search' => ['type' => 'web_search', 'options' => []],
         'web_search_premium' => ['type' => 'web_search_premium', 'options' => []],
         'code_execution' => ['type' => 'code_interpreter', 'options' => []],
@@ -30,8 +29,8 @@ class Mistral extends Base
             throw new PrismaException( 'No API key' );
         }
 
-        $this->header( 'Authorization', 'Bearer ' . $this->cfg( $config, 'api_key' ) );
-        $this->baseUrl( $this->cfg( $config, 'url', 'https://api.mistral.ai' ) );
+        $this->header( 'Authorization', 'Bearer ' . $this->config( $config, 'api_key' ) );
+        $this->baseUrl( $this->config( $config, 'url', 'https://api.mistral.ai' ) );
     }
 
 
@@ -46,17 +45,6 @@ class Mistral extends Base
     protected function toolChoiceParam() : ?string
     {
         return in_array( $choice = $this->toolChoice(), ['auto', 'required', 'any', 'none'], true ) ? $choice : null;
-    }
-
-
-    /**
-     * Builds the tools parameter in Mistral format.
-     *
-     * @return array<int, array<string, mixed>> Formatted tools definition
-     */
-    protected function toolsParam() : array
-    {
-        return array_merge( $this->openaiToolsParam(), $this->mapProviderTools( self::$providerToolMap ) );
     }
 
 

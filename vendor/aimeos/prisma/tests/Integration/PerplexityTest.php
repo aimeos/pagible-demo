@@ -9,13 +9,23 @@ use PHPUnit\Framework\TestCase;
 
 class PerplexityTest extends TestCase
 {
-    protected function setUp() : void
+    public function testStream() : void
     {
-        \Dotenv\Dotenv::createImmutable( dirname( __DIR__, 2 ) )->load();
+        $deltas = [];
 
-        if( empty( $_ENV['PERPLEXITY_API_KEY'] ) ) {
-            $this->markTestSkipped( 'PERPLEXITY_API_KEY is not defined in the environment' );
+        $response = Prisma::text()
+            ->using( 'perplexity', ['api_key' => $_ENV['PERPLEXITY_API_KEY']] )
+            ->ensure( 'stream' )
+            ->stream( 'What is the capital of France? Reply with only the city name.' );
+
+        foreach( $response->stream() as $chunk ) {
+            if( is_string( $chunk ) ) {
+                $deltas[] = $chunk;
+            }
         }
+
+        $this->assertNotEmpty( $deltas );
+        $this->assertStringContainsStringIgnoringCase( 'Paris', $response->text() );
     }
 
 
@@ -45,5 +55,15 @@ class PerplexityTest extends TestCase
             ->write( 'Reply with just the word "hello" in lowercase, nothing else.' );
 
         $this->assertStringContainsStringIgnoringCase( 'hello', $response->text() );
+    }
+
+
+    protected function setUp() : void
+    {
+        \Dotenv\Dotenv::createImmutable( dirname( __DIR__, 2 ) )->load();
+
+        if( empty( $_ENV['PERPLEXITY_API_KEY'] ) ) {
+            $this->markTestSkipped( 'PERPLEXITY_API_KEY is not defined in the environment' );
+        }
     }
 }

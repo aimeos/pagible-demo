@@ -12,6 +12,66 @@ use PHPUnit\Framework\TestCase;
 
 class StepTest extends TestCase
 {
+    public function testComplete() : void
+    {
+        $step = new Step( 'id1', 'test', [] );
+        $step->complete( 'result text' );
+
+        $this->assertEquals( 'result text', $step->result() );
+    }
+
+
+    public function testCompleteDefaults() : void
+    {
+        $step = new Step( 'id1', 'test', [] );
+
+        $this->assertEquals( '', $step->result() );
+    }
+
+
+    public function testJsonSerialize() : void
+    {
+        $step = new Step( 'call_1', 'ping', ['x' => 1] );
+        $step->complete( 'pong' );
+
+        $this->assertSame(
+            ['id' => 'call_1', 'name' => 'ping', 'arguments' => ['x' => 1], 'result' => 'pong', 'done' => true],
+            $step->jsonSerialize()
+        );
+        $this->assertSame( '{"id":"call_1","name":"ping","arguments":{"x":1},"result":"pong","done":true}', json_encode( $step ) );
+    }
+
+
+    public function testJsonSerializePending() : void
+    {
+        $step = new Step( null, 'ping', [] );
+
+        $this->assertSame(
+            ['id' => null, 'name' => 'ping', 'arguments' => [], 'result' => '', 'done' => false],
+            $step->jsonSerialize()
+        );
+    }
+
+
+    public function testRateLimit() : void
+    {
+        $response = TextResponse::fromText( 'hello' )
+            ->withRateLimit( new \Aimeos\Prisma\Values\RateLimit( limit: 100, remaining: 95, reset: '1234567890' ) );
+
+        $this->assertEquals( 100, $response->rateLimit()->limit() );
+        $this->assertEquals( 95, $response->rateLimit()->remaining() );
+        $this->assertEquals( '1234567890', $response->rateLimit()->reset() );
+    }
+
+
+    public function testRateLimitEmpty() : void
+    {
+        $response = TextResponse::fromText( 'hello' );
+
+        $this->assertNull( $response->rateLimit() );
+    }
+
+
     public function testStep() : void
     {
         $step = new Step( 'call_123', 'search', ['query' => 'hello'] );
@@ -49,23 +109,6 @@ class StepTest extends TestCase
     }
 
 
-    public function testComplete() : void
-    {
-        $step = new Step( 'id1', 'test', [] );
-        $step->complete( 'result text' );
-
-        $this->assertEquals( 'result text', $step->result() );
-    }
-
-
-    public function testCompleteDefaults() : void
-    {
-        $step = new Step( 'id1', 'test', [] );
-
-        $this->assertEquals( '', $step->result() );
-    }
-
-
     public function testStepsOnResponse() : void
     {
         $step1 = new Step( 'id1', 'search', ['q' => 'a'] );
@@ -82,36 +125,14 @@ class StepTest extends TestCase
     }
 
 
-    public function testRateLimit() : void
+    public function testToString() : void
     {
-        $response = TextResponse::fromText( 'hello' )
-            ->withRateLimit( new \Aimeos\Prisma\Values\RateLimit( limit: 100, remaining: 95, reset: '1234567890' ) );
+        $step = new Step( 'call_1', 'ping', ['x' => 1] );
+        $step->complete( 'pong' );
 
-        $this->assertEquals( 100, $response->rateLimit()->limit() );
-        $this->assertEquals( 95, $response->rateLimit()->remaining() );
-        $this->assertEquals( '1234567890', $response->rateLimit()->reset() );
-    }
-
-
-    public function testRateLimitEmpty() : void
-    {
-        $response = TextResponse::fromText( 'hello' );
-
-        $this->assertNull( $response->rateLimit() );
-    }
-
-
-    public function testToolReturnsString() : void
-    {
-        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => 'plain string' );
-
-        $steps = [new Step( '1', 'test', [], $tool )];
-
-        $runner = new Sequential();
-        $results = $runner->run( $steps );
-
-        $this->assertCount( 1, $results );
-        $this->assertEquals( 'plain string', $results[0]->result() );
+        $this->assertSame( '{"id":"call_1","name":"ping","arguments":{"x":1},"result":"pong","done":true}', (string) $step );
+        // string concatenation (e.g. Laravel's eventStream "data: ".$step) now yields JSON
+        $this->assertSame( 'data: {"id":"call_1","name":"ping","arguments":{"x":1},"result":"pong","done":true}', 'data: ' . $step );
     }
 
 
@@ -126,5 +147,19 @@ class StepTest extends TestCase
 
         $this->assertCount( 1, $results );
         $this->assertEquals( '{"key":"value"}', $results[0]->result() );
+    }
+
+
+    public function testToolReturnsString() : void
+    {
+        $tool = Tools::make( 'test', 'desc', Schema::fromArray( 'test', ['type' => 'object'] ), fn() => 'plain string' );
+
+        $steps = [new Step( '1', 'test', [], $tool )];
+
+        $runner = new Sequential();
+        $results = $runner->run( $steps );
+
+        $this->assertCount( 1, $results );
+        $this->assertEquals( 'plain string', $results[0]->result() );
     }
 }

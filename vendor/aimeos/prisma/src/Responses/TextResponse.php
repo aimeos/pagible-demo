@@ -9,6 +9,7 @@ use Aimeos\Prisma\Concerns\HasRateLimit;
 use Aimeos\Prisma\Concerns\HasReason;
 use Aimeos\Prisma\Concerns\HasToolSteps;
 use Aimeos\Prisma\Concerns\HasUsage;
+use Aimeos\Prisma\Concerns\Stream;
 
 
 /**
@@ -16,9 +17,9 @@ use Aimeos\Prisma\Concerns\HasUsage;
  *
  * @implements \IteratorAggregate<int|string, string|null>
  */
-class TextResponse implements \IteratorAggregate
+class TextResponse implements \IteratorAggregate, \JsonSerializable
 {
-    use Async, HasCitations, HasMeta, HasRateLimit, HasReason, HasToolSteps, HasUsage;
+    use Async, HasCitations, HasMeta, HasRateLimit, HasReason, HasToolSteps, HasUsage, Stream;
 
 
     /** @var array<string|int, mixed> */
@@ -27,8 +28,69 @@ class TextResponse implements \IteratorAggregate
     /** @var array<string|int, string|null> */
     private array $list = [];
 
-    final private function __construct()
+    public function add( ?string $text, int|string|null $key = null ) : self
     {
+        if( $key !== null ) {
+            $this->list[$key] = $text;
+        } else {
+            $this->list[] = $text;
+        }
+
+        return $this;
+    }
+
+
+    /**
+     * Adds multiple text values, preserving their keys.
+     *
+     * @param array<string|int, string|null> $texts Response texts
+     */
+    public function addAll( array $texts ) : self
+    {
+        foreach( $texts as $key => $text ) {
+            $this->add( $text, $key );
+        }
+
+        return $this;
+    }
+
+
+    public function empty() : bool
+    {
+        return empty( $this->list );
+    }
+
+
+    /**
+     * Creates a fake response for testing.
+     *
+     * Seeds the response with canned text and structured output so tests can stub a
+     * Prisma::fake() queue or assert against application code without calling a provider.
+     * Chain the with*() setters (withUsage(), withMeta(), withReason(), withSteps()) for
+     * any additional fields.
+     *
+     * @param string|array<int|string, string|null> $text Response text, or a list of texts
+     * @param array<int|string, mixed> $structured Structured output data
+     * @return self Fake response instance
+     */
+    public static function fake( string|array $text = '', array $structured = [] ) : self
+    {
+        $instance = new self;
+        $instance->list = is_array( $text ) ? $text : [$text];
+        $instance->structured = $structured;
+
+        return $instance;
+    }
+
+
+    public function first() : ?string
+    {
+        if( empty( $this->list ) ) {
+            $this->ensure();
+        }
+
+        $text = reset( $this->list );
+        return $text === false || $text === '' ? null : $text;
     }
 
 
@@ -55,41 +117,51 @@ class TextResponse implements \IteratorAggregate
     }
 
 
-    public function add( ?string $text, int|string|null $key = null ) : self
-    {
-        if( $key !== null ) {
-            $this->list[$key] = $text;
-        } else {
-            $this->list[] = $text;
-        }
-
-        return $this;
-    }
-
-
-    public function empty() : bool
-    {
-        return empty( $this->list );
-    }
-
-
-    public function first() : ?string
-    {
-        if( empty( $this->list ) ) {
-            $this->wait();
-        }
-
-        return reset( $this->list ) ?: null;
-    }
-
-
     public function getIterator(): \Traversable
     {
         if( empty( $this->list ) ) {
-            $this->wait();
+            $this->ensure();
         }
 
         return new \ArrayIterator( $this->list );
+    }
+
+
+    /**
+     * Returns the response as a plain array for serialization.
+     *
+     * Resolves the response (draining a stream or polling an async job) and exposes every
+     * field, so it can be snapshot-tested or JSON-encoded. Nested citations and steps
+     * serialize through their own JsonSerializable implementations.
+     *
+     * @return array<string, mixed> Response data
+     */
+    public function jsonSerialize() : array
+    {
+        return [
+            'texts' => $this->texts(),
+            'structured' => $this->structured(),
+            'usage' => $this->usage(),
+            'meta' => $this->meta(),
+            'reason' => $this->reason(),
+            'citations' => $this->citations(),
+            'steps' => $this->steps(),
+        ];
+    }
+
+
+    /**
+     * Returns all response texts concatenated into a single string.
+     *
+     * text() returns only the first entry; this combines every collected text, which
+     * is useful when a model emits its answer across multiple steps (e.g. text before
+     * and after tool calls).
+     *
+     * @return string Combined response text
+     */
+    public function output() : string
+    {
+        return implode( '', array_map( fn( $text ) => (string) $text, $this->texts() ) );
     }
 
 
@@ -107,10 +179,11 @@ class TextResponse implements \IteratorAggregate
     public function text() : ?string
     {
         if( empty( $this->list ) ) {
-            $this->wait();
+            $this->ensure();
         }
 
-        return current( $this->list ) ?: null;
+        $text = current( $this->list );
+        return $text === false || $text === '' ? null : $text;
     }
 
 
@@ -122,7 +195,7 @@ class TextResponse implements \IteratorAggregate
     public function texts() : array
     {
         if( empty( $this->list ) ) {
-            $this->wait();
+            $this->ensure();
         }
 
         return $this->list;
@@ -138,5 +211,23 @@ class TextResponse implements \IteratorAggregate
     {
         $this->structured = $structured;
         return $this;
+    }
+
+
+    /**
+     * Populates the response from whichever resolution mode backs it.
+     *
+     * Drains the stream (chat) and polls the async job (transcription); each is a no-op unless
+     * its mode is active, so the single call covers stream-backed, poll-backed and eager responses.
+     */
+    private function ensure() : void
+    {
+        $this->resolve();
+        $this->wait();
+    }
+
+
+    final private function __construct()
+    {
     }
 }

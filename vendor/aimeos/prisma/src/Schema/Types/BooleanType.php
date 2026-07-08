@@ -5,6 +5,13 @@ namespace Aimeos\Prisma\Schema\Types;
 
 class BooleanType extends Type
 {
+    public function default( bool $value ) : static
+    {
+        $this->default = $value;
+        return $this;
+    }
+
+
     /**
      * Creates a boolean type from a JSON Schema definition.
      *
@@ -19,10 +26,9 @@ class BooleanType extends Type
     }
 
 
-    public function default( bool $value ) : static
+    protected function check( mixed $data, array $defs, string $path ) : array
     {
-        $this->default = $value;
-        return $this;
+        return is_bool( $data ) ? [] : [$this->label( $path ) . ' must be a boolean'];
     }
 
 

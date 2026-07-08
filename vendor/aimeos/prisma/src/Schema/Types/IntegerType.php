@@ -10,6 +10,13 @@ class IntegerType extends Type
     protected ?int $multipleOf = null;
 
 
+    public function default( int $value ) : static
+    {
+        $this->default = $value;
+        return $this;
+    }
+
+
     /**
      * Creates an integer type from a JSON Schema definition.
      *
@@ -24,13 +31,6 @@ class IntegerType extends Type
         $type->default = is_int( $def['default'] ?? null ) ? $def['default'] : null;
 
         return $type;
-    }
-
-
-    public function default( int $value ) : static
-    {
-        $this->default = $value;
-        return $this;
     }
 
 
@@ -67,6 +67,18 @@ class IntegerType extends Type
             'maximum' => $this->maximum,
             'multipleOf' => $this->multipleOf,
         ], fn( $v ) => $v !== null );
+    }
+
+
+    protected function check( mixed $data, array $defs, string $path ) : array
+    {
+        // Accept whole-number floats (JSON 5.0, or values beyond PHP_INT_MAX) as integers,
+        // but reject non-finite values (INF/NAN) that floor() would otherwise let through.
+        if( !is_int( $data ) && !( is_float( $data ) && is_finite( $data ) && floor( $data ) === $data ) ) {
+            return [$this->label( $path ) . ' must be an integer'];
+        }
+
+        return $this->bounds( $data, $this->minimum, $this->maximum, $this->multipleOf, $path );
     }
 
 

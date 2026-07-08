@@ -15,14 +15,15 @@ trait HasTools
     const AUTO = 'auto';
 
     /** The model must use a tool. */
-    const REQ = 'required';
+    const REQUIRED = 'required';
 
     /** The model cannot use tools. */
     const NONE = 'none';
 
 
     private ?Concurrency $concurrency = null;
-    private int $maxSteps = PHP_INT_MAX;
+    private ?\Closure $toolApproval = null;
+    private int $maxSteps = 25;
     private string $toolChoice = self::AUTO;
 
     /** @var array<int, \Aimeos\Prisma\Tools\Adapter\Adapter> */
@@ -59,9 +60,28 @@ trait HasTools
 
 
     /**
+     * Sets the human-in-the-loop approval callback for tools that require it.
+     *
+     * The callback is invoked before executing any tool registered with the
+     * `needs_approval` option (e.g. `Tool::make(...)->with(['needs_approval' => true])`).
+     * It receives the tool name and the model-supplied arguments and must return true
+     * to allow execution or false to deny it; a denied call returns an error to the
+     * model so it can choose a different action.
+     *
+     * @param callable|null $callback Approval resolver: fn(string $name, array $arguments): bool
+     * @return self
+     */
+    public function withToolApproval( ?callable $callback ) : self
+    {
+        $this->toolApproval = $callback !== null ? \Closure::fromCallable( $callback ) : null;
+        return $this;
+    }
+
+
+    /**
      * Sets the tool choice strategy.
      *
-     * @param string $choice Tool choice (use AUTO, REQ, NONE constants)
+     * @param string $choice Tool choice (use AUTO, REQUIRED, NONE constants)
      * @return self
      */
     public function withToolChoice( string $choice ) : self
@@ -104,8 +124,10 @@ trait HasTools
     /**
      * Returns the concurrency instance.
      *
-     * Defaults to sequential execution. Use withConcurrency() to opt into a
-     * different strategy (e.g. forking) explicitly.
+     * This is the single executor seam for the tool loop: every runnable step is handed to
+     * it in the model's call order. Defaults to sequential execution. Use withConcurrency()
+     * to opt into a different strategy (e.g. forking) or to inject a test double; a parallel
+     * strategy decides per step whether to run it concurrently via Step::tool()->isConcurrent().
      *
      * @return Concurrency Concurrency instance
      */
@@ -139,6 +161,36 @@ trait HasTools
     protected function providerTools() : array
     {
         return $this->providerTools;
+    }
+
+
+    /**
+     * Returns true if a built-in provider tool with the given name is configured.
+     *
+     * @param string $name Provider tool name
+     * @return bool True if the provider tool is configured
+     */
+    protected function hasProviderTool( string $name ) : bool
+    {
+        foreach( $this->providerTools as $tool )
+        {
+            if( $tool->name() === $name ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    /**
+     * Returns the configured human-in-the-loop approval callback.
+     *
+     * @return \Closure|null Approval resolver or null when none is set
+     */
+    protected function toolApproval() : ?\Closure
+    {
+        return $this->toolApproval;
     }
 
 
