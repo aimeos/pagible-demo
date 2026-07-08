@@ -164,12 +164,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "d4ab3aa00d58ea666862683da9445d0b8d4e02e2"
+                "reference": "d04b73956cae1881a2aca2c993318c9258320eff"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/d4ab3aa00d58ea666862683da9445d0b8d4e02e2",
-                "reference": "d4ab3aa00d58ea666862683da9445d0b8d4e02e2",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/d04b73956cae1881a2aca2c993318c9258320eff",
+                "reference": "d04b73956cae1881a2aca2c993318c9258320eff",
                 "shasum": ""
             },
             "require": {
@@ -189,7 +189,7 @@
                 "om/potrans": "^1.0.1",
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-07-08T13:44:49+00:00",
+            "time": "2026-07-08T15:50:54+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -700,19 +700,19 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-glass.git",
-                "reference": "d3a788948ab71a76403b491f1a2762c156708f38"
+                "reference": "b4af97234aaba9f925e7ca25abb511e3d4e5c8cb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-glass/zipball/d3a788948ab71a76403b491f1a2762c156708f38",
-                "reference": "d3a788948ab71a76403b491f1a2762c156708f38",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-glass/zipball/b4af97234aaba9f925e7ca25abb511e3d4e5c8cb",
+                "reference": "b4af97234aaba9f925e7ca25abb511e3d4e5c8cb",
                 "shasum": ""
             },
             "require": {
                 "aimeos/pagible-theme": "0.11.*",
                 "php": "^8.2"
             },
-            "time": "2026-06-10T13:16:47+00:00",
+            "time": "2026-07-08T15:53:59+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -753,19 +753,19 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-pagible.git",
-                "reference": "2504ce5fb25db8b81b4ce3cb8c25b04027caf381"
+                "reference": "367442f9b50afa1de7c70f181bf8efca5d58b9de"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/2504ce5fb25db8b81b4ce3cb8c25b04027caf381",
-                "reference": "2504ce5fb25db8b81b4ce3cb8c25b04027caf381",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/367442f9b50afa1de7c70f181bf8efca5d58b9de",
+                "reference": "367442f9b50afa1de7c70f181bf8efca5d58b9de",
                 "shasum": ""
             },
             "require": {
                 "aimeos/pagible-theme": "0.11.*",
                 "php": "^8.2"
             },
-            "time": "2026-06-12T09:05:24+00:00",
+            "time": "2026-07-08T15:53:54+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -805,19 +805,19 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-paper.git",
-                "reference": "2127981a57b0953f70c4d89fb5e5ceca6e213c95"
+                "reference": "76a597b42ae514b74e4917109fc9c6af745bcbbf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-paper/zipball/2127981a57b0953f70c4d89fb5e5ceca6e213c95",
-                "reference": "2127981a57b0953f70c4d89fb5e5ceca6e213c95",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-paper/zipball/76a597b42ae514b74e4917109fc9c6af745bcbbf",
+                "reference": "76a597b42ae514b74e4917109fc9c6af745bcbbf",
                 "shasum": ""
             },
             "require": {
                 "aimeos/pagible-theme": "0.11.*",
                 "php": "^8.2"
             },
-            "time": "2026-06-10T13:16:44+00:00",
+            "time": "2026-07-08T15:53:57+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -857,19 +857,19 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-premium.git",
-                "reference": "a5999894b2be1ca3f9c7e61ad8db7f80dd238474"
+                "reference": "39fb9ac54a102c5e6c537293cdd80e622eb08be9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-premium/zipball/a5999894b2be1ca3f9c7e61ad8db7f80dd238474",
-                "reference": "a5999894b2be1ca3f9c7e61ad8db7f80dd238474",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-premium/zipball/39fb9ac54a102c5e6c537293cdd80e622eb08be9",
+                "reference": "39fb9ac54a102c5e6c537293cdd80e622eb08be9",
                 "shasum": ""
             },
             "require": {
                 "aimeos/pagible-theme": "0.11.*",
                 "php": "^8.2"
             },
-            "time": "2026-06-10T13:16:44+00:00",
+            "time": "2026-07-08T15:53:57+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -2352,17 +2352,17 @@
         },
         {
             "name": "guzzlehttp/promises",
-            "version": "2.5.0",
-            "version_normalized": "2.5.0.0",
+            "version": "2.5.1",
+            "version_normalized": "2.5.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/promises.git",
-                "reference": "4360e982f87f5f258bf872d094647791db2f4c8e"
+                "reference": "9ad1e4fc607446a055b95870c7f668e93b5cff29"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/promises/zipball/4360e982f87f5f258bf872d094647791db2f4c8e",
-                "reference": "4360e982f87f5f258bf872d094647791db2f4c8e",
+                "url": "https://api.github.com/repos/guzzle/promises/zipball/9ad1e4fc607446a055b95870c7f668e93b5cff29",
+                "reference": "9ad1e4fc607446a055b95870c7f668e93b5cff29",
                 "shasum": ""
             },
             "require": {
@@ -2373,7 +2373,7 @@
                 "bamarni/composer-bin-plugin": "^1.8.2",
                 "phpunit/phpunit": "^8.5.52 || ^9.6.34"
             },
-            "time": "2026-06-02T12:23:43+00:00",
+            "time": "2026-07-08T15:48:39+00:00",
             "type": "library",
             "extra": {
                 "bamarni-bin": {
@@ -2419,7 +2419,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/promises/issues",
-                "source": "https://github.com/guzzle/promises/tree/2.5.0"
+                "source": "https://github.com/guzzle/promises/tree/2.5.1"
             },
             "funding": [
                 {
