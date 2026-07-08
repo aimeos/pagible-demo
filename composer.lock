@@ -160,12 +160,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "5d5b6d2f9031c47906e6c22621cc15403f84f274"
+                "reference": "4aceb8751832bd4699d213694f4968f30d6fdbea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/5d5b6d2f9031c47906e6c22621cc15403f84f274",
-                "reference": "5d5b6d2f9031c47906e6c22621cc15403f84f274",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/4aceb8751832bd4699d213694f4968f30d6fdbea",
+                "reference": "4aceb8751832bd4699d213694f4968f30d6fdbea",
                 "shasum": ""
             },
             "require": {
@@ -220,7 +220,7 @@
                 "issues": "https://github.com/aimeos/pagible/issues",
                 "source": "https://github.com/aimeos/pagible/tree/0.11"
             },
-            "time": "2026-06-19T14:34:35+00:00"
+            "time": "2026-07-08T13:22:50+00:00"
         },
         {
             "name": "aimeos/pagible-admin",
