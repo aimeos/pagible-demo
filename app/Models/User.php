@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -21,6 +22,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'tenant_id',
+        'cmsperms',
     ];
 
     /**
@@ -43,6 +46,22 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'cmsperms' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('tenant', function (Builder $builder): void {
+            if ($tenantId = tenant()?->getTenantKey()) {
+                $builder->where('tenant_id', $tenantId);
+            }
+        });
+
+        static::creating(function (User $user): void {
+            if (empty($user->tenant_id) && $tenantId = tenant()?->getTenantKey()) {
+                $user->tenant_id = (string) $tenantId;
+            }
+        });
     }
 }
