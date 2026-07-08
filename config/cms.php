@@ -105,7 +105,7 @@ return [
     | display. If disabled, the pages are shared across all domains.
     |
     */
-    'multidomain' => env( 'CMS_MULTIDOMAIN', true ),
+    'multidomain' => env( 'CMS_MULTIDOMAIN', false ),
 
     /*
     |--------------------------------------------------------------------------
