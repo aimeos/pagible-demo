@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
+        <meta name="csrf-token" content="%%CMS_CSRF%%">
         @if(!config('app.debug'))
             <meta http-equiv="Content-Security-Policy" content="
                 base-uri 'self';
@@ -12,8 +12,8 @@
                 connect-src 'self' {{ config('cms.theme.csp.connect-src') }};
                 img-src 'self' data: blob: {{ config('cms.theme.csp.media-src') }};
                 media-src 'self' data: blob: {{ config('cms.theme.csp.media-src') }};
-                style-src 'self' 'nonce-{{ csrf_token() }}' {{ config('cms.theme.csp.style-src') }};
-                script-src 'self' 'nonce-{{ csrf_token() }}' {{ config('cms.theme.csp.script-src') }};
+                style-src 'self' 'nonce-%%CMS_NONCE%%' {{ config('cms.theme.csp.style-src') }};
+                script-src 'self' 'nonce-%%CMS_NONCE%%' {{ config('cms.theme.csp.script-src') }};
                 font-src 'self';
             ">
         @endif
@@ -45,13 +45,13 @@
 
         @foreach($page->ancestorsAndSelf as $navItem)
             @if($text = cms($navItem, 'config.styles.data.text'))
-                <style nonce="{{ csrf_token() }}">
+                <style nonce="%%CMS_NONCE%%">
                     {!! $text !!}
                 </style>
             @endif
         @endforeach
 
-        <script type="application/ld+json" nonce="{{ csrf_token() }}">
+        <script type="application/ld+json" nonce="%%CMS_NONCE%%">
             [{
                 "@@context": "https://schema.org",
                 "@@type": "WebSite",
@@ -145,7 +145,7 @@
                 </ul>
                 <ul class="menu">
                     <li>
-                        <a href="#" class="search" data-modal="modal-search" title="{{ __('Search') }}" aria-label="{{ __('Search') }}" role="menuitem">
+                        <a href="#" class="search" data-modal="modal-search" title="{{ __('Search') }}" aria-label="{{ __('Search') }}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
                                 <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
                             </svg>
@@ -156,12 +156,12 @@
                             <li>
                                 @if($item->children->count())
                                     <details class="dropdown is-menu">
-                                        <summary role="menuitem">{{ cms($item, 'name') }}</summary>
+                                        <summary>{{ cms($item, 'name') }}</summary>
                                         <ul class="align">
                                             @foreach($item->children as $subItem)
                                                 @if(cms($subItem, 'status') == 1)
                                                     <li>
-                                                        <a href="{{ cmsroute($subItem) }}" class="{{ $page->isSelfOrDescendantOf($subItem) ? 'active' : '' }}" role="menuitem">
+                                                        <a href="{{ cmsroute($subItem) }}" class="{{ $page->isSelfOrDescendantOf($subItem) ? 'active' : '' }}">
                                                             {{ cms($subItem, 'name') }}
                                                         </a>
                                                     </li>
@@ -170,7 +170,7 @@
                                         </ul>
                                     </details>
                                 @else
-                                    <a href="{{ cmsroute($item) }}" class="{{ $page->isSelfOrDescendantOf($item) ? 'active' : '' }}" role="menuitem">
+                                    <a href="{{ cmsroute($item) }}" class="{{ $page->isSelfOrDescendantOf($item) ? 'active' : '' }}">
                                         {{ cms($item, 'name') }}
                                     </a>
                                 @endif
@@ -191,7 +191,7 @@
         </header>
 
         @if($page->ancestors->count() > 1)
-            <nav class="breadcrumb" aria-label="breadcrumb">
+            <nav class="breadcrumb" aria-label="{{ __('Breadcrumb navigation') }}">
                 <ul>
                     @foreach($page->ancestors->skip(1) as $item)
                         @if(cms($item, 'status') == 1)
@@ -237,7 +237,7 @@
 
         @foreach($page->ancestorsAndSelf as $navItem)
             @if($text = cms($navItem, 'config.javascript.data.text'))
-                <script nonce="{{ csrf_token() }}">
+                <script nonce="%%CMS_NONCE%%">
                     {!! $text !!}
                 </script>
             @endif
