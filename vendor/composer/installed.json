@@ -636,17 +636,17 @@
         },
         {
             "name": "aimeos/pagible-theme",
-            "version": "0.11.4",
-            "version_normalized": "0.11.4.0",
+            "version": "0.11.x-dev",
+            "version_normalized": "0.11.9999999.9999999-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-theme.git",
-                "reference": "13154493c96146459977125bc896fa41f1b57f9f"
+                "reference": "48a1565ec398b1155962b16fc9819c1e33961271"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/13154493c96146459977125bc896fa41f1b57f9f",
-                "reference": "13154493c96146459977125bc896fa41f1b57f9f",
+                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/48a1565ec398b1155962b16fc9819c1e33961271",
+                "reference": "48a1565ec398b1155962b16fc9819c1e33961271",
                 "shasum": ""
             },
             "require": {
@@ -657,7 +657,7 @@
             "require-dev": {
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-06-15T10:13:35+00:00",
+            "time": "2026-07-08T15:53:54+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -672,7 +672,8 @@
                     "src/helpers.php"
                 ],
                 "psr-4": {
-                    "Aimeos\\Cms\\": "src/"
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -689,7 +690,7 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-theme/issues",
-                "source": "https://github.com/aimeos/pagible-theme/tree/0.11.4"
+                "source": "https://github.com/aimeos/pagible-theme/tree/0.11"
             },
             "install-path": "../aimeos/pagible-theme"
         },

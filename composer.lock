@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bc96b7fbd728cb80026d3fbdf5d63abc",
+    "content-hash": "2f6aa2b13e61eafc087c94cd82e68d91",
     "packages": [
         {
             "name": "aimeos/laravel-analytics-bridge",
@@ -609,16 +609,16 @@
         },
         {
             "name": "aimeos/pagible-theme",
-            "version": "0.11.4",
+            "version": "0.11.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-theme.git",
-                "reference": "13154493c96146459977125bc896fa41f1b57f9f"
+                "reference": "48a1565ec398b1155962b16fc9819c1e33961271"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/13154493c96146459977125bc896fa41f1b57f9f",
-                "reference": "13154493c96146459977125bc896fa41f1b57f9f",
+                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/48a1565ec398b1155962b16fc9819c1e33961271",
+                "reference": "48a1565ec398b1155962b16fc9819c1e33961271",
                 "shasum": ""
             },
             "require": {
@@ -642,7 +642,8 @@
                     "src/helpers.php"
                 ],
                 "psr-4": {
-                    "Aimeos\\Cms\\": "src/"
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -659,9 +660,9 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-theme/issues",
-                "source": "https://github.com/aimeos/pagible-theme/tree/0.11.4"
+                "source": "https://github.com/aimeos/pagible-theme/tree/0.11"
             },
-            "time": "2026-06-15T10:13:35+00:00"
+            "time": "2026-07-08T15:53:54+00:00"
         },
         {
             "name": "aimeos/pagible-themes-glass",
@@ -12231,6 +12232,7 @@
     "stability-flags": {
         "aimeos/pagible": 20,
         "aimeos/pagible-admin": 20,
+        "aimeos/pagible-theme": 20,
         "aimeos/pagible-themes-glass": 20,
         "aimeos/pagible-themes-pagible": 20,
         "aimeos/pagible-themes-paper": 20,

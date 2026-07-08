@@ -116,7 +116,7 @@ return array(
     'Doctrine\\Inflector\\' => array($vendorDir . '/doctrine/inflector/src'),
     'Doctrine\\Common\\Lexer\\' => array($vendorDir . '/doctrine/lexer/src'),
     'Dflydev\\DotAccessData\\' => array($vendorDir . '/dflydev/dot-access-data/src'),
-    'Database\\Seeders\\' => array($baseDir . '/database/seeders', $vendorDir . '/aimeos/pagible-core/database/seeders'),
+    'Database\\Seeders\\' => array($baseDir . '/database/seeders', $vendorDir . '/aimeos/pagible-theme/database/seeders', $vendorDir . '/aimeos/pagible-core/database/seeders'),
     'Database\\Factories\\' => array($baseDir . '/database/factories'),
     'Cron\\' => array($vendorDir . '/dragonmantank/cron-expression/src/Cron'),
     'Clue\\Redis\\Protocol\\' => array($vendorDir . '/clue/redis-protocol/src'),

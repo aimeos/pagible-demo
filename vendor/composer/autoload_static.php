@@ -759,7 +759,8 @@ class ComposerStaticInit3a2e4a865a32ad7405eb07756c6ddd83
         'Database\\Seeders\\' =>
         array (
             0 => __DIR__ . '/../..' . '/database/seeders',
-            1 => __DIR__ . '/..' . '/aimeos/pagible-core/database/seeders',
+            1 => __DIR__ . '/..' . '/aimeos/pagible-theme/database/seeders',
+            2 => __DIR__ . '/..' . '/aimeos/pagible-core/database/seeders',
         ),
         'Database\\Factories\\' =>
         array (
@@ -856,6 +857,7 @@ class ComposerStaticInit3a2e4a865a32ad7405eb07756c6ddd83
         'Aimeos\\Cms\\Commands\\BenchmarkMcp' => __DIR__ . '/..' . '/aimeos/pagible-mcp/src/Commands/BenchmarkMcp.php',
         'Aimeos\\Cms\\Commands\\BenchmarkSearch' => __DIR__ . '/..' . '/aimeos/pagible-search/src/Commands/BenchmarkSearch.php',
         'Aimeos\\Cms\\Commands\\BenchmarkTheme' => __DIR__ . '/..' . '/aimeos/pagible-theme/src/Commands/BenchmarkTheme.php',
+        'Aimeos\\Cms\\Commands\\Demo' => __DIR__ . '/..' . '/aimeos/pagible-theme/src/Commands/Demo.php',
         'Aimeos\\Cms\\Commands\\Description' => __DIR__ . '/..' . '/aimeos/pagible-ai/src/Commands/Description.php',
         'Aimeos\\Cms\\Commands\\Index' => __DIR__ . '/..' . '/aimeos/pagible-search/src/Commands/Index.php',
         'Aimeos\\Cms\\Commands\\Install' => __DIR__ . '/..' . '/aimeos/pagible/src/Commands/Install.php',
@@ -1320,8 +1322,10 @@ class ComposerStaticInit3a2e4a865a32ad7405eb07756c6ddd83
         'Cron\\MinutesField' => __DIR__ . '/..' . '/dragonmantank/cron-expression/src/Cron/MinutesField.php',
         'Cron\\MonthField' => __DIR__ . '/..' . '/dragonmantank/cron-expression/src/Cron/MonthField.php',
         'Database\\Factories\\UserFactory' => __DIR__ . '/../..' . '/database/factories/UserFactory.php',
+        'Database\\Seeders\\AbstractDemo' => __DIR__ . '/..' . '/aimeos/pagible-theme/database/seeders/AbstractDemo.php',
         'Database\\Seeders\\BenchmarkSeeder' => __DIR__ . '/..' . '/aimeos/pagible-core/database/seeders/BenchmarkSeeder.php',
         'Database\\Seeders\\DatabaseSeeder' => __DIR__ . '/../..' . '/database/seeders/DatabaseSeeder.php',
+        'Database\\Seeders\\DefaultDemo' => __DIR__ . '/..' . '/aimeos/pagible-theme/database/seeders/DefaultDemo.php',
         'Database\\Seeders\\DemoSeeder' => __DIR__ . '/..' . '/aimeos/pagible-core/database/seeders/DemoSeeder.php',
         'Database\\Seeders\\TestSeeder' => __DIR__ . '/..' . '/aimeos/pagible-core/database/seeders/TestSeeder.php',
         'DateError' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/DateError.php',

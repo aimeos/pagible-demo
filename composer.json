@@ -10,6 +10,7 @@
         "aimeos/laravel-analytics-matomo": "~1.0",
         "aimeos/pagible": "0.11.x-dev",
         "aimeos/pagible-admin": "0.11.x-dev",
+        "aimeos/pagible-theme": "0.11.x-dev",
         "aimeos/pagible-themes-glass": "0.11.x-dev",
         "aimeos/pagible-themes-pagible": "0.11.x-dev",
         "aimeos/pagible-themes-paper": "0.11.x-dev",
