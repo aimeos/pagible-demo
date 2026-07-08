@@ -164,12 +164,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "4aceb8751832bd4699d213694f4968f30d6fdbea"
+                "reference": "d4ab3aa00d58ea666862683da9445d0b8d4e02e2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/4aceb8751832bd4699d213694f4968f30d6fdbea",
-                "reference": "4aceb8751832bd4699d213694f4968f30d6fdbea",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/d4ab3aa00d58ea666862683da9445d0b8d4e02e2",
+                "reference": "d4ab3aa00d58ea666862683da9445d0b8d4e02e2",
                 "shasum": ""
             },
             "require": {
@@ -189,7 +189,7 @@
                 "om/potrans": "^1.0.1",
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-07-08T13:22:50+00:00",
+            "time": "2026-07-08T13:44:49+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -235,12 +235,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-admin.git",
-                "reference": "595356c51df082df2010ee3c8089f7bc53ab6f78"
+                "reference": "2bb2dccdcd0a64d769baa3232eada38b578ee90a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/595356c51df082df2010ee3c8089f7bc53ab6f78",
-                "reference": "595356c51df082df2010ee3c8089f7bc53ab6f78",
+                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/2bb2dccdcd0a64d769baa3232eada38b578ee90a",
+                "reference": "2bb2dccdcd0a64d769baa3232eada38b578ee90a",
                 "shasum": ""
             },
             "require": {
@@ -254,7 +254,7 @@
             "suggest": {
                 "aimeos/pagible-theme": "For page preview links in the admin panel"
             },
-            "time": "2026-07-08T13:23:17+00:00",
+            "time": "2026-07-08T13:45:15+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
