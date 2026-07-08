@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "50d3f2e9ede0a84803dc6bf3696dddcc",
+    "content-hash": "bc96b7fbd728cb80026d3fbdf5d63abc",
     "packages": [
         {
             "name": "aimeos/laravel-analytics-bridge",
@@ -224,16 +224,16 @@
         },
         {
             "name": "aimeos/pagible-admin",
-            "version": "0.11.4",
+            "version": "0.11.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-admin.git",
-                "reference": "d5d33c3f901ccdede58a76a12c57abc6dbf4ede9"
+                "reference": "595356c51df082df2010ee3c8089f7bc53ab6f78"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/d5d33c3f901ccdede58a76a12c57abc6dbf4ede9",
-                "reference": "d5d33c3f901ccdede58a76a12c57abc6dbf4ede9",
+                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/595356c51df082df2010ee3c8089f7bc53ab6f78",
+                "reference": "595356c51df082df2010ee3c8089f7bc53ab6f78",
                 "shasum": ""
             },
             "require": {
@@ -277,9 +277,9 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-admin/issues",
-                "source": "https://github.com/aimeos/pagible-admin/tree/0.11.4"
+                "source": "https://github.com/aimeos/pagible-admin/tree/0.11"
             },
-            "time": "2026-06-15T10:13:33+00:00"
+            "time": "2026-07-08T13:23:17+00:00"
         },
         {
             "name": "aimeos/pagible-ai",
@@ -12230,6 +12230,7 @@
     "minimum-stability": "dev",
     "stability-flags": {
         "aimeos/pagible": 20,
+        "aimeos/pagible-admin": 20,
         "aimeos/pagible-themes-glass": 20,
         "aimeos/pagible-themes-pagible": 20,
         "aimeos/pagible-themes-paper": 20,

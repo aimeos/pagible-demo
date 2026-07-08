@@ -25,7 +25,7 @@ function mountEditor(props = {}, perms = {}) {
     global: {
       stubs,
       directives: {
-        'observe-visibility': {
+        visible: {
           mounted(el, binding) {
             const handler = typeof binding.value === 'function' ? binding.value : binding.value?.handler
             if (handler) handler(true)
