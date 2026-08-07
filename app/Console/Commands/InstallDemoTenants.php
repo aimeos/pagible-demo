@@ -64,14 +64,8 @@ class InstallDemoTenants extends Command
                 $tenantConfig['theme'],
             ));
 
-            tenancy()->initialize($tenant);
-
-            try {
-                $this->seedTenant($tenantConfig);
-                $this->updatePageDomains($tenantConfig);
-            } finally {
-                tenancy()->end();
-            }
+            $this->seedTenant($tenantConfig);
+            $this->updatePageDomains($tenantConfig);
         }
 
         $this->newLine();

@@ -30,8 +30,8 @@ return [
     'bootstrappers' => [
         // The demo uses the database cache store, which does not support tags.
         // Enable CacheTenancyBootstrapper only with a taggable cache store.
-        Stancl\Tenancy\Bootstrappers\FilesystemTenancyBootstrapper::class,
-        Stancl\Tenancy\Bootstrappers\QueueTenancyBootstrapper::class,
+        // Stancl\Tenancy\Bootstrappers\FilesystemTenancyBootstrapper::class,
+        // Stancl\Tenancy\Bootstrappers\QueueTenancyBootstrapper::class,
         // Stancl\Tenancy\Bootstrappers\RedisTenancyBootstrapper::class, // Note: phpredis is needed
     ],
 
