@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 92" role="img" aria-labelledby="title desc">
+  <title id="title">Veyra logo</title>
+  <desc id="desc">Veyra wordmark with an open V monogram</desc>
+  <g fill="none" fill-rule="evenodd">
+    <path d="M12 16h15l19 53 19-53h15L53 80H39L12 16Z" fill="#FFFFFF"/>
+    <path d="M27 16h13l6 18 6-18h13L46 62 27 16Z" fill="#ABADC7" opacity=".9"/>
+    <text x="101" y="64" fill="#FFFFFF" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="55" font-weight="700" letter-spacing="8">VEYRA</text>
+    <path d="M102 76h254" stroke="#ABADC7" stroke-width="2"/>
+  </g>
+</svg>

@@ -6,9 +6,8 @@ use Aimeos\Cms\Models\Page;
 use Aimeos\Cms\Models\Version;
 use Aimeos\Cms\Tenancy as CmsTenancy;
 use App\Models\Tenant;
-use Database\Seeders\DemoSeeder;
+use Aimeos\Cms\Commands\Demo;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
 
 class InstallDemoTenants extends Command
 {
@@ -211,10 +210,7 @@ class InstallDemoTenants extends Command
         $this->setEnv('CMS_THEME', $tenant['theme']);
         $this->refreshCmsTenant($tenant['id']);
 
-        Artisan::call('db:seed', [
-            '--class' => DemoSeeder::class,
-            '--force' => true,
-        ], $this->output);
+        Demo::make($tenant['theme'], $tenant['id'])->seed();
     }
 
     /**
