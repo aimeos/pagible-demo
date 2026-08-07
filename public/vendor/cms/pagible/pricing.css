@@ -18,50 +18,30 @@
 }
 
 .pricing .pricing-toggle {
-    position: relative;
     display: flex;
     width: fit-content;
+    max-width: 100%;
     margin: 0 auto 3rem;
     padding: 0.25rem;
     background: var(--pico-muted-border-color);
     border-radius: 9999px;
+    overflow-x: auto;
 }
 
 .pricing .pricing-toggle > span {
-    position: relative;
-    z-index: 1;
     padding: 0.5rem 1.25rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--pico-muted-color);
     cursor: pointer;
+    white-space: nowrap;
 }
 
-.pricing .pricing-toggle > span:first-child {
+.pricing .pricing-toggle > span.active {
     color: var(--pico-color);
-}
-
-.pricing .pricing-toggle.alt > span:first-child {
-    color: var(--pico-muted-color);
-}
-
-.pricing .pricing-toggle.alt > span:last-child {
-    color: var(--pico-color);
-}
-
-.pricing .pricing-toggle::before {
-    content: "";
-    position: absolute;
-    inset: 0.25rem;
-    width: calc(50% - 0.25rem);
     background: var(--pico-background-color, #FFFFFF);
     border-radius: 9999px;
     box-shadow: 0 1px 3px #0000001A;
-    transition: transform 0.2s;
-}
-
-.pricing .pricing-toggle.alt::before {
-    transform: translateX(100%);
 }
 
 .pricing .pricing-list {
@@ -112,8 +92,8 @@
     top: -0.75rem;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--pico-primary);
-    color: var(--pico-primary-inverse);
+    background: var(--pico-contrast-hover);
+    color: var(--pico-contrast-inverse);
     padding: 0.2rem 0.75rem;
     font-size: 0.8rem;
     font-weight: 500;
@@ -146,11 +126,13 @@
     line-height: 1.2;
 }
 
+.pricing .currency,
 .pricing .unit {
     font-size: 0.875rem;
     color: var(--pico-muted-color);
 }
 
+.pricing .highlight .currency,
 .pricing .highlight .unit {
     color: color-mix(in srgb, var(--pico-primary-inverse) 70%, transparent);
 }
@@ -161,14 +143,14 @@
     margin: 0 0 0.25rem;
 }
 
-.pricing .pricing-header .text {
+.pricing .pricing-header .cms-text {
     font-size: 0.875rem;
     color: var(--pico-muted-color);
     order: 2;
     margin: 0 0 0.75rem;
 }
 
-.pricing .highlight .pricing-header .text {
+.pricing .highlight .pricing-header .cms-text {
     color: color-mix(in srgb, var(--pico-primary-inverse) 70%, transparent);
 }
 

@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 let diffLinesFn = null
@@ -51,6 +51,7 @@ export default {
 
     labels() {
       return {
+        aux: this.$gettext('Fields'),
         data: this.$gettext('Fields'),
         meta: this.$gettext('Meta tags'),
         config: this.$gettext('Configuration'),

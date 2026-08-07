@@ -1,14 +1,16 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
-use Aimeos\Cms\Permission;
+use Aimeos\Cms\Concerns\ObservesPrisma;
 use Aimeos\Prisma\Prisma;
+use Aimeos\Cms\Permission;
+use Aimeos\Cms\Utils;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -25,6 +27,7 @@ Optionally pass IDs of existing image files as visual references. Returns the cr
 class GenerateImage extends Tool
 {
     use HandlesMedia;
+    use ObservesPrisma;
 
 
     /**
@@ -32,7 +35,8 @@ class GenerateImage extends Tool
      */
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
-        if( !Permission::can( 'image:imagine', $request->user() ) ) {
+        if( !Permission::can( 'image:imagine', $request->user() )
+            || !Permission::can( 'file:add', $request->user() ) ) {
             throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
@@ -48,6 +52,10 @@ class GenerateImage extends Tool
             'prompt.required' => 'You must provide a prompt describing the image to generate.',
         ] );
 
+        if( !empty( $v['files'] ) && !Permission::can( 'file:view', $request->user() ) ) {
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
+        }
+
         $prompt = $v['prompt'] . ( !empty( $v['context'] ) ? "\n\n" . $v['context'] : '' );
         $options = ['size' => ['1536x1024', '1792x1024', '1024x1024']];
 
@@ -55,7 +63,7 @@ class GenerateImage extends Tool
         $config = config( 'cms.ai.imagine', [] );
         $model = config( 'cms.ai.imagine.model' );
 
-        $base64 = Prisma::image()
+        $base64 = Prisma::image()->observe( $this->observer( Utils::editor( $request->user() ) ) )
             ->using( $provider, $config )
             ->model( $model )
             ->ensure( 'imagine' )
@@ -101,6 +109,7 @@ class GenerateImage extends Tool
      */
     public function shouldRegister( Request $request ) : bool
     {
-        return Permission::can( 'image:imagine', $request->user() );
+        return Permission::can( 'image:imagine', $request->user() )
+            && Permission::can( 'file:add', $request->user() );
     }
 }

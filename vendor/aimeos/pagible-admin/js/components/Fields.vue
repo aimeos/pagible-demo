@@ -1,11 +1,11 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import gql from 'graphql-tag'
 import { markRaw } from 'vue'
 import { useUserStore, useMessageStore } from '../stores'
 import { changedState } from '../merge'
-import { fieldTypes } from '../fieldtypes'
+import { fieldTypes, protectTypes } from '../fieldtypes'
 import { hasTrue, txlocales } from '../utils'
 import {
   mdiTranslate,
@@ -61,6 +61,7 @@ export default {
       mdiMicrophoneOutline,
       mdiMicrophone,
       mdiUndoVariant,
+      protectTypes,
       txlocales
     }
   },
@@ -83,17 +84,25 @@ export default {
   },
 
   methods: {
-    addFile(item) {
-      if (!item?.id) {
-        this.$log(`Fields::addFile(): Invalid item without ID`, item)
-        return
+    addFile(value) {
+      const files = new Set(this.files)
+      const items = Array.isArray(value) ? value : [value]
+      let valid = false
+
+      for (const item of items) {
+        if (!item?.id) {
+          this.$log(`Fields::addFile(): Invalid item without ID`, item)
+          continue
+        }
+
+        files.add(item.id)
+        this.assets[item.id] = item
+        valid = true
       }
 
-      const files = [...this.files]
-
-      files.push(item.id)
-      this.assets[item.id] = item
-      this.$emit('update:files', files)
+      if (valid) {
+        this.$emit('update:files', [...files])
+      }
     },
 
     error(code, value) {
@@ -168,6 +177,16 @@ export default {
       return this.dirty.has(code)
     },
 
+    isPrivate(code) {
+      const value = this.data[code]
+      const files = Array.isArray(value) ? value : [value]
+
+      return files.some((file) => {
+        const id = typeof file === 'string' ? file : file?.id
+        return id && this.assets?.[id]?.disk === 'private'
+      })
+    },
+
     resetDirty() {
       this.dirty.clear()
       for (const k in this.original) delete this.original[k]
@@ -231,10 +250,14 @@ export default {
     class="item"
     :class="{
       error: errors[code],
+      protected: isPrivate(code),
       ...changedState(changed, code)
     }"
   >
-    <div v-if="field.type !== 'hidden'" class="label">
+    <div
+      v-if="field.type !== 'hidden' && !protectTypes.has(toName(field.type))"
+      class="label"
+    >
       {{ $pgettext('fn', field.label || code).replace(/-|_/g, ' ') }}
       <div
         v-if="!readonly && (['markdown', 'plaintext', 'string', 'text'].includes(field.type) || isDirty(code))"
@@ -320,13 +343,24 @@ export default {
       :context="data"
       :assets="assets"
       :config="field"
+      :label="protectTypes.has(toName(field.type)) ? $pgettext('fn', field.label || code).replace(/-|_/g, ' ') : null"
       :readonly="readonly"
       :modelValue="data[code]"
       @addFile="addFile($event)"
       @removeFile="removeFile($event)"
       @update:modelValue="update(code, $event)"
       @error="error(code, $event)"
-    ></component>
+    >
+      <template v-if="protectTypes.has(toName(field.type))" #label>
+        <v-btn
+          v-if="isDirty(code)"
+          :title="$gettext('Reset')"
+          @click="resetField(code)"
+          :icon="mdiUndoVariant"
+          variant="text"
+        />
+      </template>
+    </component>
   </div>
 </template>
 
@@ -335,6 +369,10 @@ export default {
   margin: 24px 0;
   padding-inline-start: 8px;
   border-inline-start: 3px solid #d0d8e0;
+}
+
+.item.protected {
+  border-inline-start: 3px solid rgb(var(--v-theme-info));
 }
 
 .item.error {

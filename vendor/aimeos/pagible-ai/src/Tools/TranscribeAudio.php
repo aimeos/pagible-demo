@@ -1,16 +1,17 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
+use Aimeos\Cms\Concerns\ObservesPrisma;
+use Aimeos\Prisma\Prisma;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Utils;
 use Aimeos\Cms\Models\File;
-use Aimeos\Prisma\Prisma;
 use Aimeos\Prisma\Files\Audio;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
@@ -28,12 +29,16 @@ use Laravel\Mcp\Request;
 #[Description('Transcribes the speech in an audio file using AI. Returns an array of segments, each with a start time, end time and the spoken text.')]
 class TranscribeAudio extends Tool
 {
+    use ObservesPrisma;
+
+
     /**
      * Handle the tool request.
      */
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
-        if( !Permission::can( 'audio:transcribe', $request->user() ) ) {
+        if( !Permission::can( 'audio:transcribe', $request->user() )
+            || !Permission::can( 'file:view', $request->user() ) ) {
             throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
@@ -44,7 +49,7 @@ class TranscribeAudio extends Tool
         ] );
 
         /** @var File|null $file */
-        $file = File::select( 'id', 'path', 'mime' )->find( $v['file'] );
+        $file = File::select( 'id', 'disk', 'path', 'mime' )->find( $v['file'] );
 
         if( !$file ) {
             return Response::structured( ['error' => 'File not found.'] );
@@ -61,10 +66,14 @@ class TranscribeAudio extends Tool
         if( str_starts_with( (string) $file->path, 'http' ) ) {
             $doc = Audio::fromUrl( (string) $file->path, $file->mime );
         } else {
-            $doc = Audio::fromStoragePath( (string) $file->path, config( 'cms.disk', 'public' ), $file->mime );
+            $doc = Audio::fromStoragePath(
+                (string) $file->path,
+                File::diskName( (string) $file->disk ),
+                $file->mime,
+            );
         }
 
-        $data = Prisma::audio()
+        $data = Prisma::audio()->observe( $this->observer( Utils::editor( $request->user() ) ) )
             ->using( $provider, $config )
             ->model( $model )
             ->ensure( 'transcribe' )
@@ -104,6 +113,7 @@ class TranscribeAudio extends Tool
      */
     public function shouldRegister( Request $request ) : bool
     {
-        return Permission::can( 'audio:transcribe', $request->user() );
+        return Permission::can( 'audio:transcribe', $request->user() )
+            && Permission::can( 'file:view', $request->user() );
     }
 }

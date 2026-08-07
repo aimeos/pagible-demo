@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
@@ -10,7 +10,7 @@ namespace Aimeos\Cms\Commands;
 use Illuminate\Console\Command;
 use Aimeos\Cms\Models\File;
 use Aimeos\Cms\Models\Page;
-use Aimeos\Cms\Utils;
+use Aimeos\Cms\Validation;
 use Aimeos\Prisma\Prisma;
 use Aimeos\Prisma\Tools;
 use Aimeos\Prisma\Exceptions\PrismaException;
@@ -76,16 +76,11 @@ class Description extends Command
                             ->write( "Page title: {$page->title}\n\nPage content:\n{$text}", [], $config ) // @phpstan-ignore-line method.notFound
                             ->text();
 
-                        $meta = $page->meta ?? (object) [];
-                        $meta->{'meta-tags'} ??= (object) [
-                            'id' => Utils::uid(),
-                            'type' => 'meta-tags',
-                            'group' => 'basic',
-                            'data' => (object) [],
-                        ];
-                        $meta->{'meta-tags'}->data ??= (object) [];
-                        $meta->{'meta-tags'}->data->description = $text;
-                        $page->meta = $meta;
+                        $meta = (array) $page->meta;
+                        $data = (array) ( $page->meta->{'meta-tags'}->data ?? [] );
+                        $data['description'] = $text;
+                        $meta['meta-tags'] = Validation::entry( 'meta-tags', $data, 'meta' );
+                        $page->meta = Validation::structured( $meta, 'meta' );
                         $page->save();
                     }
                     catch( PrismaException $e )
@@ -110,7 +105,7 @@ class Description extends Command
         $config = config( 'cms.ai.describe', [] );
 
         File::select(
-                'id', 'tenant_id', 'path', 'mime', 'name', 'description', 'transcription',
+                'id', 'tenant_id', 'disk', 'path', 'mime', 'name', 'description', 'transcription',
                 'latest_id', 'created_at', 'updated_at', 'deleted_at'
             )
             ->whereRaw( "CAST(description AS CHAR(2)) = '{}'" )
@@ -129,7 +124,11 @@ class Description extends Command
                     {
                         $doc = str_starts_with( (string) $file->path, 'http' )
                             ? \Aimeos\Prisma\Files\File::fromUrl( (string) $file->path, $file->mime )
-                            : \Aimeos\Prisma\Files\File::fromStoragePath( (string) $file->path, config( 'cms.disk', 'public' ), $file->mime );
+                            : \Aimeos\Prisma\Files\File::fromStoragePath(
+                                (string) $file->path,
+                                File::diskName( (string) $file->disk ),
+                                $file->mime,
+                            );
 
                         $text = Prisma::type( $type )
                             ->using( $provider, $config )

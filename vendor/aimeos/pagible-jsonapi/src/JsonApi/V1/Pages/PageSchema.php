@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
@@ -17,7 +17,6 @@ use LaravelJsonApi\Eloquent\Fields\Relations\HasMany;
 use LaravelJsonApi\Eloquent\Fields\Relations\HasOne;
 use LaravelJsonApi\Eloquent\Fields\ArrayHash;
 use LaravelJsonApi\Eloquent\Fields\DateTime;
-use LaravelJsonApi\Eloquent\Fields\Boolean;
 use LaravelJsonApi\Eloquent\Fields\Number;
 use LaravelJsonApi\Eloquent\Fields\Str;
 use LaravelJsonApi\Eloquent\Fields\ID;
@@ -98,7 +97,7 @@ class PageSchema extends Schema
             Str::make( 'type' )->readOnly(),
             Str::make( 'to' )->readOnly(),
             Str::make( 'domain' )->readOnly(),
-            Boolean::make( 'has' )->readOnly(),
+            Number::make( 'has' )->readOnly(),
             Number::make( 'cache' )->readOnly(),
             DateTime::make( 'createdAt' )->readOnly(),
             DateTime::make( 'updatedAt' )->readOnly(),
@@ -175,16 +174,16 @@ class PageSchema extends Schema
 
         if( $needsRelations ) {
             $with = [
-                'files' => fn( $q ) => $q->select( File::SELECT_COLS ),
-                'elements' => fn( $q ) => $q->select( Element::SELECT_COLS ),
-                'elements.files' => fn( $q ) => $q->select( File::SELECT_COLS ),
+                'files' => fn( $q ) => $q->select( File::SELECT_COLUMNS ),
+                'elements' => fn( $q ) => $q->select( Element::SELECT_COLUMNS ),
+                'elements.files' => fn( $q ) => $q->select( File::SELECT_COLUMNS ),
             ];
 
             if( Permission::can( 'page:view', Auth::user() ) ) {
-                $with['latest'] = fn( $q ) => $q->select( 'id', 'versionable_id', 'aux' );
-                $with['latest.files'] = fn( $q ) => $q->select( File::SELECT_COLS );
-                $with['latest.elements'] = fn( $q ) => $q->select( Element::SELECT_COLS );
-                $with['latest.elements.files'] = fn( $q ) => $q->select( File::SELECT_COLS );
+                $with['latest'] = fn( $q ) => $q->select( 'id', 'tenant_id', 'versionable_id', 'aux' );
+                $with['latest.files'] = fn( $q ) => $q->select( File::SELECT_COLUMNS );
+                $with['latest.elements'] = fn( $q ) => $q->select( Element::SELECT_COLUMNS );
+                $with['latest.elements.files'] = fn( $q ) => $q->select( File::SELECT_COLUMNS );
             }
 
             $query = $query->with( $with );

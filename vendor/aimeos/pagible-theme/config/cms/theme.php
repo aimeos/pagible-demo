@@ -11,7 +11,19 @@ return [
     | for fast response times.
     |
     */
-    'cache' => env( 'APP_DEBUG' ) ? 'array' : 'file',
+    'cache' => env( 'CMS_THEME_CACHE', env( 'APP_DEBUG' ) ? 'array' : 'file' ),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Complete-page render lock
+    |--------------------------------------------------------------------------
+    |
+    | Cache misses for public pages use an atomic lock to prevent duplicate
+    | cache writes. The lock TTL is expressed in seconds.
+    |
+    */
+    'lock' => (int) env( 'CMS_THEME_LOCK', 5 ),
+    'stale' => (int) env( 'CMS_THEME_STALE', 10 ),
 
     /*
     |--------------------------------------------------------------------------
@@ -33,12 +45,12 @@ return [
     | The default settings already allow loading from the same origin.
     |
     | "media-src" also feeds "img-src" and defaults to the external hosts used
-    | by the demo content (Unsplash images, W3C video, samplelib audio) and the
-    | Iconify icon API, so it renders out of the box. Override CMS_CSP_MEDIA_SRC
+    | by the demo content (Unsplash images and W3C video) and the Iconify icon
+    | API, so it renders out of the box. Override CMS_CSP_MEDIA_SRC
     | to tighten this for production.
     */
     'csp' => [
-        'media-src' => env( 'CMS_CSP_MEDIA_SRC', 'https://images.unsplash.com https://media.w3.org https://download.samplelib.com https://api.iconify.design' ),
+        'media-src' => env( 'CMS_CSP_MEDIA_SRC', 'https://images.unsplash.com https://media.w3.org https://api.iconify.design' ),
         'style-src' => env( 'CMS_CSP_STYLE_SRC', 'https://hcaptcha.com https://*.hcaptcha.com' ),
         'frame-src' => env( 'CMS_CSP_FRAME_SRC', 'https://hcaptcha.com https://*.hcaptcha.com' ),
         'script-src' => env( 'CMS_CSP_SCRIPT_SRC', 'https://hcaptcha.com https://*.hcaptcha.com' ),
@@ -71,6 +83,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Minimum search term length
+    |--------------------------------------------------------------------------
+    |
+    | Minimum number of characters accepted by the public search form and
+    | endpoint. Limited to 1-10.
+    |
+    */
+    'min-search' => max( 1, min( (int) env( 'CMS_SEARCH_MIN', 2 ), 10 ) ),
+
+    /*
+    |--------------------------------------------------------------------------
     | Sitemap URL path
     |--------------------------------------------------------------------------
     |
@@ -79,4 +102,16 @@ return [
     |
     */
     'sitemap' => env( 'CMS_SITEMAP', 'sitemap' ),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Frontend watch events
+    |--------------------------------------------------------------------------
+    |
+    | Enables structured audit events for frontend search queries and contact
+    | submissions when "cms.watch.channel" is configured. Pulse observations are
+    | listener-driven and don't require this flag.
+    |
+    */
+    'watch' => env( 'CMS_THEME_WATCH', false ),
 ];

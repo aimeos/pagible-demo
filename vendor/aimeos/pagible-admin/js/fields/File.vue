@@ -1,43 +1,30 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
-import gql from 'graphql-tag'
 import {
   mdiDotsVertical,
   mdiPencil,
   mdiTrashCan,
   mdiButtonCursor,
   mdiLinkVariantPlus,
+  mdiTrayArrowDown,
   mdiUpload
 } from '@mdi/js'
-import { useAppStore, useUserStore, useMessageStore, useViewStack } from '../stores'
-import { frozenParse, url, srcset } from '../utils'
+import { ADD_FILE, RELOCATE_FILE, normalizeFile } from '../files'
+import { useUserStore, useMessageStore, useViewStack } from '../stores'
+import { fileurl, filesrcset } from '../utils'
 import { defineAsyncComponent } from 'vue'
-import FileDetail from '../views/FileDetail.vue'
+import FileProtect from '../components/FileProtect.vue'
 
 const FileUrlDialog = defineAsyncComponent(() => import('../components/FileUrlDialog.vue'))
 const FileDialog = defineAsyncComponent(() => import('../components/FileDialog.vue'))
-
-const ADD_FILE = gql`
-  mutation ($file: Upload!) {
-    addFile(file: $file) {
-      id
-      mime
-      name
-      path
-      previews
-      updated_at
-      editor
-    }
-  }
-`
 
 export default {
   inheritAttrs: false,
 
   components: {
+    FileProtect,
     FileUrlDialog,
-    FileDetail, // eslint-disable-line vue/no-unused-components -- used programmatically via openView()
     FileDialog
   },
 
@@ -45,6 +32,7 @@ export default {
     modelValue: { type: [Object, null], default: () => null },
     config: { type: Object, default: () => {} },
     assets: { type: Object, default: () => {} },
+    label: { type: String, default: '' },
     readonly: { type: Boolean, default: false },
     context: { type: Object }
   },
@@ -52,13 +40,17 @@ export default {
   emits: ['update:modelValue', 'error', 'addFile', 'removeFile'],
 
   inject: {
-    reload: { default: null }
+    update: { default: null }
   },
 
   data() {
     return {
+      dragging: false,
       file: {},
       index: Math.floor(Math.random() * 100000),
+      protect: false,
+      protectSet: false,
+      protecting: false,
       selected: null,
       vfiles: false,
       vurls: false
@@ -69,20 +61,19 @@ export default {
     const viewStack = useViewStack()
     const messages = useMessageStore()
     const user = useUserStore()
-    const app = useAppStore()
 
     return {
-      app,
       user,
       messages,
       viewStack,
-      url,
-      srcset,
+      fileurl,
+      filesrcset,
       mdiDotsVertical,
       mdiPencil,
       mdiTrashCan,
       mdiButtonCursor,
       mdiLinkVariantPlus,
+      mdiTrayArrowDown,
       mdiUpload
     }
   },
@@ -96,6 +87,10 @@ export default {
   computed: {
     description() {
       return Object.values(this.file.description || {}).shift() || ''
+    },
+
+    isPrivate() {
+      return this.file.disk === 'private'
     },
 
     rules() {
@@ -115,12 +110,14 @@ export default {
       }
 
       const path = URL.createObjectURL(file)
-      this.file = { path: path, uploading: true }
+      const disk = this.protect ? 'private' : 'public'
+      this.file = { disk, path: path, uploading: true }
 
       return this.$apollo
         .mutate({
           mutation: ADD_FILE,
           variables: {
+            disk,
             file: file
           },
           context: {
@@ -132,11 +129,7 @@ export default {
             throw response.errors
           }
 
-          const data = response.data?.addFile || {}
-          data.previews = frozenParse(data.previews)
-          delete data.__typename
-
-          return this.handle(data, path)
+          return this.handle(normalizeFile(response.data?.addFile), path)
         })
         .catch((error) => {
           this.messages.add(
@@ -151,13 +144,23 @@ export default {
     },
 
     addFromDialog(event) {
-      this.handle(event)
+      this.select([event])
       this.vfiles = false
     },
 
     addFromUrl(event) {
       this.select(event)
       this.vurls = false
+    },
+
+    drop(event) {
+      this.dragging = false
+
+      const file = event.dataTransfer?.files?.[0]
+
+      if (file) {
+        this.add(file)
+      }
     },
 
     formatDate(dateStr) {
@@ -171,6 +174,8 @@ export default {
       }
 
       this.file = { ...item }
+      this.protect = item.disk === 'private'
+      this.protectSet = false
       this.$emit('addFile', item)
       this.$emit('update:modelValue', { id: item.id, type: 'file' })
 
@@ -181,14 +186,16 @@ export default {
       return item
     },
 
-    open(item) {
+    async open(item) {
       // Editing the image in the stacked FileDetail only updates the file's own
       // (already persisted) draft, not the page content, so just refresh the
       // preview when FileDetail saves.
+      const { default: FileDetail } = await import('../views/FileDetail.vue')
+
       this.viewStack.openView(FileDetail, {
         item: item,
         stacked: true,
-        onSaved: () => this.reload?.()
+        onSaved: () => this.update?.()
       })
     },
 
@@ -203,6 +210,8 @@ export default {
 
       this.$emit('update:modelValue', null)
       this.file = {}
+      this.protect = false
+      this.protectSet = false
     },
 
     select(items) {
@@ -211,11 +220,56 @@ export default {
         return
       }
 
+      const protect = this.protectSet ? this.protect : null
       const item = items.shift()
 
-      this.file = { ...item }
-      this.$emit('addFile', item)
-      this.$emit('update:modelValue', { id: item.id, type: 'file' })
+      if (this.handle(item) && protect !== null && protect !== this.protect) {
+        this.setProtect(protect)
+      }
+    },
+
+    setProtect(value) {
+      this.protect = Boolean(value)
+
+      if (!this.file.id) {
+        this.protectSet = true
+        return
+      }
+
+      const previous = this.file.disk === 'private'
+
+      if (previous === this.protect || this.protecting) {
+        return
+      }
+
+      this.protecting = true
+
+      return this.$apollo
+        .mutate({
+          mutation: RELOCATE_FILE,
+          variables: {
+            id: [this.file.id],
+            disk: this.protect ? 'private' : 'public'
+          }
+        })
+        .then((response) => {
+          if (response.errors) {
+            throw response.errors
+          }
+
+          const data = response.data?.relocateFile?.[0] || {}
+          this.file = { ...this.file, ...data }
+          this.$emit('addFile', this.file)
+        })
+        .catch((error) => {
+          this.protect = previous
+          this.messages.add(this.$gettext(`Error saving file`) + ':\n' + error, 'error')
+          this.$log(`File::setProtect(): Error relocating file`, this.file, error)
+        })
+        .finally(() => {
+          this.protecting = false
+          this.protectSet = false
+        })
     }
   },
 
@@ -224,6 +278,7 @@ export default {
       handler(assets) {
         if (!this.file.path && this.modelValue && assets[this.modelValue.id]) {
           this.file = assets[this.modelValue.id]
+          this.protect = this.file.disk === 'private'
         }
 
         this.$emit(
@@ -240,6 +295,7 @@ export default {
       handler(data) {
         if (!this.file.path && data && this.assets[data.id]) {
           this.file = this.assets[data.id]
+          this.protect = this.file.disk === 'private'
         }
 
         this.$emit(
@@ -255,6 +311,19 @@ export default {
 </script>
 
 <template>
+  <FileProtect
+    :disabled="protecting"
+    :labelled="!!label || !!$slots.label"
+    :loading="protecting"
+    :model-value="protect"
+    :name="label"
+    :locked="isPrivate"
+    :readonly="readonly"
+    @update:model-value="setProtect($event)"
+  >
+    <slot name="label" />
+  </FileProtect>
+
   <v-row>
     <v-col cols="12" md="6">
       <div class="files" :class="{ readonly: readonly }">
@@ -318,31 +387,45 @@ export default {
           </v-menu>
         </div>
 
-        <div v-else-if="!readonly" class="file">
-          <v-btn
-            v-if="user.can('file:view')"
-            @click="vfiles = true"
-            :title="$gettext('Add file')"
-            :icon="mdiButtonCursor"
-            class="btn-add"
-            variant="text"
-          />
-          <v-btn
-            @click="vurls = true"
-            :title="$gettext('Add file from URL')"
-            :icon="mdiLinkVariantPlus"
-            class="btn-add-url"
-            variant="text"
-          />
-          <v-btn :title="$gettext('Upload file')" :icon="mdiUpload" class="btn-upload" variant="text">
-            <v-file-input
-              v-model="selected"
-              @update:modelValue="add($event)"
-              :accept="config.accept || '*'"
-              :hide-input="true"
-              :prepend-icon="mdiUpload"
+        <div v-else-if="!readonly" class="file file-empty">
+          <div class="actions">
+            <v-btn
+              v-if="user.can('file:view')"
+              @click="vfiles = true"
+              :title="$gettext('Add file')"
+              :icon="mdiButtonCursor"
+              class="btn-add"
+              variant="text"
             />
-          </v-btn>
+            <v-btn
+              @click="vurls = true"
+              :title="$gettext('Add file from URL')"
+              :icon="mdiLinkVariantPlus"
+              class="btn-add-url"
+              variant="text"
+            />
+            <v-btn :title="$gettext('Upload file')" :icon="mdiUpload" class="btn-upload" variant="text">
+              <v-file-input
+                v-model="selected"
+                @update:modelValue="add($event)"
+                :accept="config.accept || '*'"
+                :hide-input="true"
+                :prepend-icon="mdiUpload"
+              />
+            </v-btn>
+          </div>
+
+          <div
+            class="dropzone"
+            :class="{ dragover: dragging }"
+            @dragenter.prevent="dragging = true"
+            @dragover.prevent="dragging = true"
+            @dragleave.prevent="dragging = false"
+            @drop.prevent="drop($event)"
+          >
+            <v-icon :icon="mdiTrayArrowDown" />
+            <span>{{ $gettext('Drop file here to upload') }}</span>
+          </div>
         </div>
       </div>
     </v-col>
@@ -356,7 +439,7 @@ export default {
         <v-col cols="12" md="9">{{ description }}</v-col>
       </v-row>
       <v-row>
-        <v-col cols="12" md="3" class="name">{{ $gettext('mime') }}:</v-col>
+        <v-col cols="12" md="3" class="name">{{ $gettext('MIME') }}:</v-col>
         <v-col cols="12" md="9">{{ file.mime }}</v-col>
       </v-row>
       <v-row>
@@ -375,7 +458,11 @@ export default {
   </Teleport>
 
   <Teleport to="body">
-    <FileUrlDialog v-model="vurls" @add="addFromUrl" />
+    <FileUrlDialog
+      v-model="vurls"
+      :disk="protect ? 'private' : 'public'"
+      @add="addFromUrl"
+    />
   </Teleport>
 </template>
 
@@ -395,6 +482,46 @@ export default {
   max-height: 200px;
   max-width: 100%;
   width: 100%;
+}
+
+.files .file.file-empty {
+  flex-direction: column;
+  max-height: none;
+  cursor: default;
+  gap: 8px;
+  padding: 8px;
+}
+
+.files .file-empty .actions {
+  justify-content: center;
+  align-items: center;
+  display: flex;
+}
+
+.files .file-empty .dropzone {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px dashed rgba(var(--v-border-color), var(--v-medium-emphasis-opacity));
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  cursor: copy;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.files .file-empty .dropzone.dragover {
+  border-color: rgb(var(--v-theme-primary));
+  background-color: rgba(var(--v-theme-primary), 0.08);
+  color: rgb(var(--v-theme-primary));
+}
+
+.files .file-empty .dropzone * {
+  pointer-events: none;
 }
 
 .files .v-input__prepend > .v-icon {

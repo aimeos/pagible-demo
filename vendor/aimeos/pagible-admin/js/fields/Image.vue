@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import gql from 'graphql-tag'
@@ -9,6 +9,7 @@ import {
   mdiButtonCursor,
   mdiLinkVariantPlus,
   mdiCreation,
+  mdiTrayArrowDown,
   mdiUpload
 } from '@mdi/js'
 import File from './File.vue'
@@ -33,6 +34,7 @@ export default {
       mdiButtonCursor,
       mdiLinkVariantPlus,
       mdiCreation,
+      mdiTrayArrowDown,
       mdiUpload
     }
   },
@@ -59,7 +61,7 @@ export default {
         }
         image.onload = () => { cleanup(); resolve() }
         image.onerror = (err) => { cleanup(); reject(err) }
-        image.src = this.url(Object.values(data.previews).shift() || data.path)
+        image.src = this.fileurl(data, Object.values(data.previews).shift() || data.path)
       })
         .then(() => {
           return File.methods.handle.call(this, data, path)
@@ -74,6 +76,18 @@ export default {
 </script>
 
 <template>
+  <FileProtect
+    :disabled="protecting"
+    :labelled="!!label || !!$slots.label"
+    :loading="protecting"
+    :model-value="protect"
+    :name="label"
+    :readonly="readonly"
+    @update:model-value="setProtect($event)"
+  >
+    <slot name="label" />
+  </FileProtect>
+
   <v-row>
     <v-col cols="12" md="6">
       <div class="files" :class="{ readonly: readonly }">
@@ -96,8 +110,8 @@ export default {
           />
           <v-img
             v-if="file.path"
-            :srcset="srcset(file.previews)"
-            :src="url(Object.values(file.previews)[0] ?? file.path)"
+            :srcset="filesrcset(file)"
+            :src="fileurl(file, Object.values(file.previews)[0] ?? file.path)"
             :alt="file.name"
             :draggable="false"
           />
@@ -127,39 +141,53 @@ export default {
           </v-menu>
         </div>
 
-        <div v-else-if="!readonly" class="file">
-          <v-btn
-            v-if="user.can('file:view')"
-            @click="vfiles = true"
-            :title="$gettext('Add file')"
-            :icon="mdiButtonCursor"
-            class="btn-add"
-            variant="text"
-          />
-          <v-btn
-            @click="vurls = true"
-            :title="$gettext('Add file from URL')"
-            :icon="mdiLinkVariantPlus"
-            class="btn-add-url"
-            variant="text"
-          />
-          <v-btn
-            v-if="user.can('image:imagine')"
-            @click="vcreate = true"
-            :title="$gettext('Create file')"
-            :icon="mdiCreation"
-            class="btn-create"
-            variant="text"
-          />
-          <v-btn :title="$gettext('Upload file')" :icon="mdiUpload" class="btn-upload" variant="text">
-            <v-file-input
-              v-model="selected"
-              @update:modelValue="add($event)"
-              :accept="config.accept || 'image/*'"
-              :hide-input="true"
-              :prepend-icon="mdiUpload"
+        <div v-else-if="!readonly" class="file file-empty">
+          <div class="actions">
+            <v-btn
+              v-if="user.can('file:view')"
+              @click="vfiles = true"
+              :title="$gettext('Add file')"
+              :icon="mdiButtonCursor"
+              class="btn-add"
+              variant="text"
             />
-          </v-btn>
+            <v-btn
+              @click="vurls = true"
+              :title="$gettext('Add file from URL')"
+              :icon="mdiLinkVariantPlus"
+              class="btn-add-url"
+              variant="text"
+            />
+            <v-btn
+              v-if="user.can('image:imagine')"
+              @click="vcreate = true"
+              :title="$gettext('Create file')"
+              :icon="mdiCreation"
+              class="btn-create"
+              variant="text"
+            />
+            <v-btn :title="$gettext('Upload file')" :icon="mdiUpload" class="btn-upload" variant="text">
+              <v-file-input
+                v-model="selected"
+                @update:modelValue="add($event)"
+                :accept="config.accept || 'image/*'"
+                :hide-input="true"
+                :prepend-icon="mdiUpload"
+              />
+            </v-btn>
+          </div>
+
+          <div
+            class="dropzone"
+            :class="{ dragover: dragging }"
+            @dragenter.prevent="dragging = true"
+            @dragover.prevent="dragging = true"
+            @dragleave.prevent="dragging = false"
+            @drop.prevent="drop($event)"
+          >
+            <v-icon :icon="mdiTrayArrowDown" />
+            <span>{{ $gettext('Drop file here to upload') }}</span>
+          </div>
         </div>
       </div>
     </v-col>
@@ -173,7 +201,7 @@ export default {
         <v-col cols="12" md="9">{{ description }}</v-col>
       </v-row>
       <v-row>
-        <v-col cols="12" md="3" class="name">{{ $gettext('mime') }}:</v-col>
+        <v-col cols="12" md="3" class="name">{{ $gettext('MIME') }}:</v-col>
         <v-col cols="12" md="9">{{ file.mime }}</v-col>
       </v-row>
       <v-row>

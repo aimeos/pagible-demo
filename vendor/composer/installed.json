@@ -159,37 +159,38 @@
         },
         {
             "name": "aimeos/pagible",
-            "version": "0.11.x-dev",
-            "version_normalized": "0.11.9999999.9999999-dev",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "cc4373b63ad2a2b03305ff82e9ebf8703a8f4099"
+                "reference": "7427660312be81edc5cb43eb272de2388707973a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/cc4373b63ad2a2b03305ff82e9ebf8703a8f4099",
-                "reference": "cc4373b63ad2a2b03305ff82e9ebf8703a8f4099",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/7427660312be81edc5cb43eb272de2388707973a",
+                "reference": "7427660312be81edc5cb43eb272de2388707973a",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-admin": "0.11.*",
-                "aimeos/pagible-ai": "0.11.*",
-                "aimeos/pagible-core": "0.11.*",
-                "aimeos/pagible-graphql": "0.11.*",
-                "aimeos/pagible-jsonapi": "0.11.*",
-                "aimeos/pagible-mcp": "0.11.*",
-                "aimeos/pagible-search": "0.11.*",
-                "aimeos/pagible-theme": "0.11.*"
+                "aimeos/pagible-admin": "0.12.*",
+                "aimeos/pagible-ai": "0.12.*",
+                "aimeos/pagible-core": "0.12.*",
+                "aimeos/pagible-graphql": "0.12.*",
+                "aimeos/pagible-jsonapi": "0.12.*",
+                "aimeos/pagible-mcp": "0.12.*",
+                "aimeos/pagible-search": "0.12.*",
+                "aimeos/pagible-theme": "0.12.*"
             },
             "require-dev": {
                 "kkomelin/laravel-translatable-string-exporter": "^1.26",
                 "larastan/larastan": "^3.9",
                 "laravel-json-api/testing": "^3.1",
+                "laravel/pulse": "^1.7",
                 "om/potrans": "^1.0.1",
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-07-17T12:11:12+00:00",
+            "time": "2026-08-07T10:19:50+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -224,28 +225,28 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible/issues",
-                "source": "https://github.com/aimeos/pagible/tree/0.11"
+                "source": "https://github.com/aimeos/pagible/tree/0.12"
             },
             "install-path": "../aimeos/pagible"
         },
         {
             "name": "aimeos/pagible-admin",
-            "version": "0.11.x-dev",
-            "version_normalized": "0.11.9999999.9999999-dev",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-admin.git",
-                "reference": "0c9f43cd9b56c171adcd73dbc39c338fb6c92ecf"
+                "reference": "8312824a7874db42b3ce9395cf6f907d7c1dbf5e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/0c9f43cd9b56c171adcd73dbc39c338fb6c92ecf",
-                "reference": "0c9f43cd9b56c171adcd73dbc39c338fb6c92ecf",
+                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/8312824a7874db42b3ce9395cf6f907d7c1dbf5e",
+                "reference": "8312824a7874db42b3ce9395cf6f907d7c1dbf5e",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-core": "0.11.*",
-                "aimeos/pagible-graphql": "0.11.*",
+                "aimeos/pagible-core": "0.12.*",
+                "aimeos/pagible-graphql": "0.12.*",
                 "php": "^8.2"
             },
             "require-dev": {
@@ -254,7 +255,7 @@
             "suggest": {
                 "aimeos/pagible-theme": "For page preview links in the admin panel"
             },
-            "time": "2026-07-17T10:02:12+00:00",
+            "time": "2026-08-07T10:20:57+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -274,7 +275,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - Admin panel",
             "homepage": "https://pagible.com",
@@ -286,36 +287,36 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-admin/issues",
-                "source": "https://github.com/aimeos/pagible-admin/tree/0.11"
+                "source": "https://github.com/aimeos/pagible-admin/tree/0.12"
             },
             "install-path": "../aimeos/pagible-admin"
         },
         {
             "name": "aimeos/pagible-ai",
-            "version": "0.11.5",
-            "version_normalized": "0.11.5.0",
+            "version": "0.12.0",
+            "version_normalized": "0.12.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-ai.git",
-                "reference": "62e73367d8da0c4758112b62b215cb14677e71b1"
+                "reference": "c9e281acc85d0897cc8cf587016990c7a12baebe"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-ai/zipball/62e73367d8da0c4758112b62b215cb14677e71b1",
-                "reference": "62e73367d8da0c4758112b62b215cb14677e71b1",
+                "url": "https://api.github.com/repos/aimeos/pagible-ai/zipball/c9e281acc85d0897cc8cf587016990c7a12baebe",
+                "reference": "c9e281acc85d0897cc8cf587016990c7a12baebe",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-core": "0.11.*",
-                "aimeos/pagible-graphql": "0.11.*",
-                "aimeos/pagible-mcp": "0.11.*",
-                "aimeos/prisma": "~0.4",
+                "aimeos/pagible-core": "0.12.*",
+                "aimeos/pagible-graphql": "0.12.*",
+                "aimeos/pagible-mcp": "0.12.*",
+                "aimeos/prisma": "dev-master",
                 "php": "^8.2"
             },
             "require-dev": {
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-07-17T11:33:37+00:00",
+            "time": "2026-08-07T10:20:59+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -332,7 +333,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - AI features",
             "homepage": "https://pagible.com",
@@ -343,23 +344,23 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-ai/issues",
-                "source": "https://github.com/aimeos/pagible-ai/tree/0.11.5"
+                "source": "https://github.com/aimeos/pagible-ai/tree/0.12.0"
             },
             "install-path": "../aimeos/pagible-ai"
         },
         {
             "name": "aimeos/pagible-core",
-            "version": "0.11.5",
-            "version_normalized": "0.11.5.0",
+            "version": "0.12.0",
+            "version_normalized": "0.12.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-core.git",
-                "reference": "249007724b05a088f3b64f53c4a8ac5074349ed8"
+                "reference": "4c63f3f0ff8549ff5a8b4b40a1f3c73b65485944"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-core/zipball/249007724b05a088f3b64f53c4a8ac5074349ed8",
-                "reference": "249007724b05a088f3b64f53c4a8ac5074349ed8",
+                "url": "https://api.github.com/repos/aimeos/pagible-core/zipball/4c63f3f0ff8549ff5a8b4b40a1f3c73b65485944",
+                "reference": "4c63f3f0ff8549ff5a8b4b40a1f3c73b65485944",
                 "shasum": ""
             },
             "require": {
@@ -375,7 +376,13 @@
             "require-dev": {
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-07-17T11:33:35+00:00",
+            "suggest": {
+                "santigarcor/laratrust": "Minimum version for Laratrust frontend page access: 8.3.0",
+                "silber/bouncer": "Minimum version for Bouncer frontend page access: 1.0.2",
+                "spatie/laravel-permission": "Minimum version for Spatie frontend page access: 6.2.0",
+                "stancl/tenancy": "Optional Stancl lifecycle and tenant-aware queue integration"
+            },
+            "time": "2026-08-06T12:09:01+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -393,7 +400,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - Core package",
             "homepage": "https://pagible.com",
@@ -406,28 +413,28 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-core/issues",
-                "source": "https://github.com/aimeos/pagible-core/tree/0.11.5"
+                "source": "https://github.com/aimeos/pagible-core/tree/0.12.0"
             },
             "install-path": "../aimeos/pagible-core"
         },
         {
             "name": "aimeos/pagible-graphql",
-            "version": "0.11.5",
-            "version_normalized": "0.11.5.0",
+            "version": "0.12.0",
+            "version_normalized": "0.12.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-graphql.git",
-                "reference": "625ac49e1b60d4ccf2a1c6e4fc5e0deb89078c65"
+                "reference": "be5db062fadbbee469ae90ee79c0ffeddd14f4c3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-graphql/zipball/625ac49e1b60d4ccf2a1c6e4fc5e0deb89078c65",
-                "reference": "625ac49e1b60d4ccf2a1c6e4fc5e0deb89078c65",
+                "url": "https://api.github.com/repos/aimeos/pagible-graphql/zipball/be5db062fadbbee469ae90ee79c0ffeddd14f4c3",
+                "reference": "be5db062fadbbee469ae90ee79c0ffeddd14f4c3",
                 "shasum": ""
             },
             "require": {
                 "aimeos/laravel-analytics-bridge": "~1.0",
-                "aimeos/pagible-core": "0.11.*",
+                "aimeos/pagible-core": "0.12.*",
                 "mll-lab/graphql-php-scalars": "^6.4",
                 "nuwave/lighthouse": "^6.54",
                 "php": "^8.2"
@@ -435,7 +442,7 @@
             "require-dev": {
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-07-17T11:33:36+00:00",
+            "time": "2026-08-07T10:20:54+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -452,7 +459,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - GraphQL API",
             "homepage": "https://pagible.com",
@@ -463,34 +470,34 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-graphql/issues",
-                "source": "https://github.com/aimeos/pagible-graphql/tree/0.11.5"
+                "source": "https://github.com/aimeos/pagible-graphql/tree/0.12.0"
             },
             "install-path": "../aimeos/pagible-graphql"
         },
         {
             "name": "aimeos/pagible-jsonapi",
-            "version": "0.11.5",
-            "version_normalized": "0.11.5.0",
+            "version": "0.12.0",
+            "version_normalized": "0.12.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-jsonapi.git",
-                "reference": "f9c646d994087d8a328ee51451c2ea3850287368"
+                "reference": "52569b5ed925ddcd1fd646bcce6fdd12cbfcce6c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-jsonapi/zipball/f9c646d994087d8a328ee51451c2ea3850287368",
-                "reference": "f9c646d994087d8a328ee51451c2ea3850287368",
+                "url": "https://api.github.com/repos/aimeos/pagible-jsonapi/zipball/52569b5ed925ddcd1fd646bcce6fdd12cbfcce6c",
+                "reference": "52569b5ed925ddcd1fd646bcce6fdd12cbfcce6c",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-core": "0.11.*",
+                "aimeos/pagible-core": "0.12.*",
                 "laravel-json-api/laravel": "^5.1",
                 "php": "^8.2"
             },
             "require-dev": {
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-07-17T11:33:38+00:00",
+            "time": "2026-08-07T10:20:55+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -507,7 +514,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - JSON:API server",
             "homepage": "https://pagible.com",
@@ -518,35 +525,35 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-jsonapi/issues",
-                "source": "https://github.com/aimeos/pagible-jsonapi/tree/0.11.5"
+                "source": "https://github.com/aimeos/pagible-jsonapi/tree/0.12.0"
             },
             "install-path": "../aimeos/pagible-jsonapi"
         },
         {
             "name": "aimeos/pagible-mcp",
-            "version": "0.11.5",
-            "version_normalized": "0.11.5.0",
+            "version": "0.12.0",
+            "version_normalized": "0.12.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-mcp.git",
-                "reference": "5e0bf048427453331a92d13fc8c63af6a901441b"
+                "reference": "6661b01a2277686d440718dca97dcc25b9383596"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-mcp/zipball/5e0bf048427453331a92d13fc8c63af6a901441b",
-                "reference": "5e0bf048427453331a92d13fc8c63af6a901441b",
+                "url": "https://api.github.com/repos/aimeos/pagible-mcp/zipball/6661b01a2277686d440718dca97dcc25b9383596",
+                "reference": "6661b01a2277686d440718dca97dcc25b9383596",
                 "shasum": ""
             },
             "require": {
                 "aimeos/laravel-analytics-bridge": "~1.0",
-                "aimeos/pagible-core": "0.11.*",
+                "aimeos/pagible-core": "0.12.*",
                 "laravel/mcp": "~0.8",
                 "php": "^8.2"
             },
             "require-dev": {
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-07-17T11:33:45+00:00",
+            "time": "2026-08-07T10:20:55+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -563,7 +570,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - MCP server and tools",
             "homepage": "https://pagible.com",
@@ -574,34 +581,34 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-mcp/issues",
-                "source": "https://github.com/aimeos/pagible-mcp/tree/0.11.5"
+                "source": "https://github.com/aimeos/pagible-mcp/tree/0.12.0"
             },
             "install-path": "../aimeos/pagible-mcp"
         },
         {
             "name": "aimeos/pagible-search",
-            "version": "0.11.5",
-            "version_normalized": "0.11.5.0",
+            "version": "0.12.0",
+            "version_normalized": "0.12.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-search.git",
-                "reference": "e432c857c41fc154242007c2f9032ced69ffbbaf"
+                "reference": "e18aa7343d3e500da67f475d6195f7f3a686e6c2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-search/zipball/e432c857c41fc154242007c2f9032ced69ffbbaf",
-                "reference": "e432c857c41fc154242007c2f9032ced69ffbbaf",
+                "url": "https://api.github.com/repos/aimeos/pagible-search/zipball/e18aa7343d3e500da67f475d6195f7f3a686e6c2",
+                "reference": "e18aa7343d3e500da67f475d6195f7f3a686e6c2",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-core": "0.11.*",
+                "aimeos/pagible-core": "0.12.*",
                 "laravel/scout": "^10.20||^11.1",
                 "php": "^8.2"
             },
             "require-dev": {
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-07-17T11:33:49+00:00",
+            "time": "2026-08-07T10:21:01+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -618,7 +625,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - Custom search engine",
             "homepage": "https://pagible.com",
@@ -630,34 +637,35 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-search/issues",
-                "source": "https://github.com/aimeos/pagible-search/tree/0.11.5"
+                "source": "https://github.com/aimeos/pagible-search/tree/0.12.0"
             },
             "install-path": "../aimeos/pagible-search"
         },
         {
             "name": "aimeos/pagible-theme",
-            "version": "0.11.x-dev",
-            "version_normalized": "0.11.9999999.9999999-dev",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-theme.git",
-                "reference": "07753a8435c99af2e743294732c586247e69be03"
+                "reference": "ba4ebfcb14420c0754e0783d10236281076b554e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/07753a8435c99af2e743294732c586247e69be03",
-                "reference": "07753a8435c99af2e743294732c586247e69be03",
+                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/ba4ebfcb14420c0754e0783d10236281076b554e",
+                "reference": "ba4ebfcb14420c0754e0783d10236281076b554e",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-core": "0.11.*",
+                "aimeos/pagible-core": "0.12.*",
+                "ext-zlib": "*",
                 "league/commonmark": "^2.6",
                 "php": "^8.2"
             },
             "require-dev": {
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-07-08T16:43:54+00:00",
+            "time": "2026-08-07T10:20:55+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -678,7 +686,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - Frontend theme and rendering",
             "homepage": "https://pagible.com",
@@ -690,30 +698,140 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-theme/issues",
-                "source": "https://github.com/aimeos/pagible-theme/tree/0.11"
+                "source": "https://github.com/aimeos/pagible-theme/tree/0.12"
             },
             "install-path": "../aimeos/pagible-theme"
         },
         {
-            "name": "aimeos/pagible-themes-glass",
-            "version": "0.11.x-dev",
-            "version_normalized": "0.11.9999999.9999999-dev",
+            "name": "aimeos/pagible-themes-bold",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
             "source": {
                 "type": "git",
-                "url": "https://github.com/aimeos/pagible-themes-glass.git",
-                "reference": "0d6d4613883cd175b732534222ecca4909fad42c"
+                "url": "https://github.com/aimeos/pagible-themes-bold.git",
+                "reference": "d9cc654ba975ae9f08595e23bc1a17e3045acc10"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-glass/zipball/0d6d4613883cd175b732534222ecca4909fad42c",
-                "reference": "0d6d4613883cd175b732534222ecca4909fad42c",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-bold/zipball/d9cc654ba975ae9f08595e23bc1a17e3045acc10",
+                "reference": "d9cc654ba975ae9f08595e23bc1a17e3045acc10",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-theme": "0.11.*",
+                "aimeos/pagible-theme": "0.12.*",
                 "php": "^8.2"
             },
-            "time": "2026-07-08T16:22:00+00:00",
+            "time": "2026-08-07T10:20:55+00:00",
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aimeos\\Cms\\BoldServiceProvider"
+                    ]
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Pagible CMS - Bold theme with brutalist design, heavyweight typography, and high-contrast layouts",
+            "homepage": "https://pagible.com",
+            "keywords": [
+                "bold",
+                "brutalist",
+                "cms",
+                "laravel",
+                "theme"
+            ],
+            "support": {
+                "issues": "https://github.com/aimeos/pagible-themes-bold/issues",
+                "source": "https://github.com/aimeos/pagible-themes-bold/tree/0.12"
+            },
+            "install-path": "../aimeos/pagible-themes-bold"
+        },
+        {
+            "name": "aimeos/pagible-themes-estate",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aimeos/pagible-themes-estate.git",
+                "reference": "9fe6116f45ffd64cbba8b5b0881a3a6e596e0f36"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-estate/zipball/9fe6116f45ffd64cbba8b5b0881a3a6e596e0f36",
+                "reference": "9fe6116f45ffd64cbba8b5b0881a3a6e596e0f36",
+                "shasum": ""
+            },
+            "require": {
+                "aimeos/pagible-theme": "0.12.*",
+                "php": "^8.2"
+            },
+            "time": "2026-08-07T10:20:58+00:00",
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aimeos\\Cms\\EstateServiceProvider"
+                    ]
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Pagible CMS - Estate theme for premium residential and commercial real-estate showcases.",
+            "homepage": "https://pagible.com",
+            "keywords": [
+                "agency",
+                "cms",
+                "estate",
+                "laravel",
+                "property",
+                "real-estate",
+                "theme"
+            ],
+            "support": {
+                "issues": "https://github.com/aimeos/pagible-themes-estate/issues",
+                "source": "https://github.com/aimeos/pagible-themes-estate/tree/0.12"
+            },
+            "install-path": "../aimeos/pagible-themes-estate"
+        },
+        {
+            "name": "aimeos/pagible-themes-glass",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aimeos/pagible-themes-glass.git",
+                "reference": "a05e873f1b92ab357e23798713b596bec13f671e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-glass/zipball/a05e873f1b92ab357e23798713b596bec13f671e",
+                "reference": "a05e873f1b92ab357e23798713b596bec13f671e",
+                "shasum": ""
+            },
+            "require": {
+                "aimeos/pagible-theme": "0.12.*",
+                "php": "^8.2"
+            },
+            "time": "2026-08-07T10:21:01+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -725,12 +843,13 @@
             "installation-source": "dist",
             "autoload": {
                 "psr-4": {
-                    "Aimeos\\Cms\\": "src/"
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - Glass theme with dark glassmorphism design",
             "homepage": "https://pagible.com",
@@ -743,30 +862,140 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-themes-glass/issues",
-                "source": "https://github.com/aimeos/pagible-themes-glass/tree/0.11"
+                "source": "https://github.com/aimeos/pagible-themes-glass/tree/0.12"
             },
             "install-path": "../aimeos/pagible-themes-glass"
         },
         {
-            "name": "aimeos/pagible-themes-pagible",
-            "version": "0.11.x-dev",
-            "version_normalized": "0.11.9999999.9999999-dev",
+            "name": "aimeos/pagible-themes-journal",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
             "source": {
                 "type": "git",
-                "url": "https://github.com/aimeos/pagible-themes-pagible.git",
-                "reference": "56a79ac2b69dbdfcc9e34753c9e57db21d2ca981"
+                "url": "https://github.com/aimeos/pagible-themes-journal.git",
+                "reference": "c143dc9037cd020649599c1ef7b831113fc0ce68"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/56a79ac2b69dbdfcc9e34753c9e57db21d2ca981",
-                "reference": "56a79ac2b69dbdfcc9e34753c9e57db21d2ca981",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-journal/zipball/c143dc9037cd020649599c1ef7b831113fc0ce68",
+                "reference": "c143dc9037cd020649599c1ef7b831113fc0ce68",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-theme": "0.11.*",
+                "aimeos/pagible-theme": "0.12.*",
                 "php": "^8.2"
             },
-            "time": "2026-07-08T16:21:54+00:00",
+            "time": "2026-08-07T10:20:55+00:00",
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aimeos\\Cms\\JournalServiceProvider"
+                    ]
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Pagible CMS - Journal theme for editorial and business publications",
+            "homepage": "https://pagible.com",
+            "keywords": [
+                "cms",
+                "editorial",
+                "journal",
+                "laravel",
+                "magazine",
+                "theme"
+            ],
+            "support": {
+                "issues": "https://github.com/aimeos/pagible-themes-journal/issues",
+                "source": "https://github.com/aimeos/pagible-themes-journal/tree/0.12"
+            },
+            "install-path": "../aimeos/pagible-themes-journal"
+        },
+        {
+            "name": "aimeos/pagible-themes-luxury",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aimeos/pagible-themes-luxury.git",
+                "reference": "d3266dfce6000ebbeb612b890e06e999567465a7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-luxury/zipball/d3266dfce6000ebbeb612b890e06e999567465a7",
+                "reference": "d3266dfce6000ebbeb612b890e06e999567465a7",
+                "shasum": ""
+            },
+            "require": {
+                "aimeos/pagible-theme": "0.12.*",
+                "php": "^8.2"
+            },
+            "time": "2026-08-07T10:20:52+00:00",
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aimeos\\Cms\\LuxuryServiceProvider"
+                    ]
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Pagible CMS - Luxury theme with minimalist high-fashion design",
+            "homepage": "https://pagible.com",
+            "keywords": [
+                "cms",
+                "editorial",
+                "fashion",
+                "laravel",
+                "luxury",
+                "theme"
+            ],
+            "support": {
+                "issues": "https://github.com/aimeos/pagible-themes-luxury/issues",
+                "source": "https://github.com/aimeos/pagible-themes-luxury/tree/0.12"
+            },
+            "install-path": "../aimeos/pagible-themes-luxury"
+        },
+        {
+            "name": "aimeos/pagible-themes-pagible",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aimeos/pagible-themes-pagible.git",
+                "reference": "b07572f67be6c6c417f86ce5a437eb7768894b1d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/b07572f67be6c6c417f86ce5a437eb7768894b1d",
+                "reference": "b07572f67be6c6c417f86ce5a437eb7768894b1d",
+                "shasum": ""
+            },
+            "require": {
+                "aimeos/pagible-theme": "0.12.*",
+                "php": "^8.2"
+            },
+            "time": "2026-08-07T10:21:11+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -778,12 +1007,13 @@
             "installation-source": "dist",
             "autoload": {
                 "psr-4": {
-                    "Aimeos\\Cms\\": "src/"
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - Pagible theme",
             "homepage": "https://pagible.com",
@@ -795,30 +1025,30 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-themes-pagible/issues",
-                "source": "https://github.com/aimeos/pagible-themes-pagible/tree/0.11"
+                "source": "https://github.com/aimeos/pagible-themes-pagible/tree/0.12"
             },
             "install-path": "../aimeos/pagible-themes-pagible"
         },
         {
             "name": "aimeos/pagible-themes-paper",
-            "version": "0.11.x-dev",
-            "version_normalized": "0.11.9999999.9999999-dev",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-paper.git",
-                "reference": "aa38a960fe25349f8713d888d15e462be2fc3381"
+                "reference": "d88735ac3d5a358865cd6d39d756b4aea81cb701"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-paper/zipball/aa38a960fe25349f8713d888d15e462be2fc3381",
-                "reference": "aa38a960fe25349f8713d888d15e462be2fc3381",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-paper/zipball/d88735ac3d5a358865cd6d39d756b4aea81cb701",
+                "reference": "d88735ac3d5a358865cd6d39d756b4aea81cb701",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-theme": "0.11.*",
+                "aimeos/pagible-theme": "0.12.*",
                 "php": "^8.2"
             },
-            "time": "2026-07-08T16:21:52+00:00",
+            "time": "2026-08-07T10:20:53+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -830,12 +1060,13 @@
             "installation-source": "dist",
             "autoload": {
                 "psr-4": {
-                    "Aimeos\\Cms\\": "src/"
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - Paper theme with warm, minimal design",
             "homepage": "https://pagible.com",
@@ -847,30 +1078,30 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-themes-paper/issues",
-                "source": "https://github.com/aimeos/pagible-themes-paper/tree/0.11"
+                "source": "https://github.com/aimeos/pagible-themes-paper/tree/0.12"
             },
             "install-path": "../aimeos/pagible-themes-paper"
         },
         {
             "name": "aimeos/pagible-themes-premium",
-            "version": "0.11.x-dev",
-            "version_normalized": "0.11.9999999.9999999-dev",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-premium.git",
-                "reference": "eeb8f0d07c4919fc707b66dd111098ec43349253"
+                "reference": "3acd0d88b07d426a02825275c0255d44e8b98de5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-premium/zipball/eeb8f0d07c4919fc707b66dd111098ec43349253",
-                "reference": "eeb8f0d07c4919fc707b66dd111098ec43349253",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-premium/zipball/3acd0d88b07d426a02825275c0255d44e8b98de5",
+                "reference": "3acd0d88b07d426a02825275c0255d44e8b98de5",
                 "shasum": ""
             },
             "require": {
-                "aimeos/pagible-theme": "0.11.*",
+                "aimeos/pagible-theme": "0.12.*",
                 "php": "^8.2"
             },
-            "time": "2026-07-08T16:21:51+00:00",
+            "time": "2026-08-07T10:20:53+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -882,12 +1113,13 @@
             "installation-source": "dist",
             "autoload": {
                 "psr-4": {
-                    "Aimeos\\Cms\\": "src/"
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0-only"
+                "MIT"
             ],
             "description": "Pagible CMS - Premium theme with modern, product-focused design",
             "homepage": "https://pagible.com",
@@ -899,23 +1131,79 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-themes-premium/issues",
-                "source": "https://github.com/aimeos/pagible-themes-premium/tree/0.11"
+                "source": "https://github.com/aimeos/pagible-themes-premium/tree/0.12"
             },
             "install-path": "../aimeos/pagible-themes-premium"
         },
         {
-            "name": "aimeos/prisma",
-            "version": "0.5.0",
-            "version_normalized": "0.5.0.0",
+            "name": "aimeos/pagible-themes-style",
+            "version": "0.12.x-dev",
+            "version_normalized": "0.12.9999999.9999999-dev",
             "source": {
                 "type": "git",
-                "url": "https://github.com/aimeos/prisma.git",
-                "reference": "cc2f440f7e8a32b14c7019d4134b062fc843c935"
+                "url": "https://github.com/aimeos/pagible-themes-style.git",
+                "reference": "2fbaca2521893815e1226f9100e3620407bd9b11"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/prisma/zipball/cc2f440f7e8a32b14c7019d4134b062fc843c935",
-                "reference": "cc2f440f7e8a32b14c7019d4134b062fc843c935",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-style/zipball/2fbaca2521893815e1226f9100e3620407bd9b11",
+                "reference": "2fbaca2521893815e1226f9100e3620407bd9b11",
+                "shasum": ""
+            },
+            "require": {
+                "aimeos/pagible-theme": "0.12.*",
+                "php": "^8.2"
+            },
+            "time": "2026-08-07T10:21:00+00:00",
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Aimeos\\Cms\\StyleServiceProvider"
+                    ]
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Aimeos\\Cms\\": "src/",
+                    "Database\\Seeders\\": "database/seeders/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Pagible CMS - Style theme with fashion-commerce editorial design",
+            "homepage": "https://pagible.com",
+            "keywords": [
+                "cms",
+                "commerce",
+                "editorial",
+                "fashion",
+                "laravel",
+                "style",
+                "theme"
+            ],
+            "support": {
+                "issues": "https://github.com/aimeos/pagible-themes-style/issues",
+                "source": "https://github.com/aimeos/pagible-themes-style/tree/0.12"
+            },
+            "install-path": "../aimeos/pagible-themes-style"
+        },
+        {
+            "name": "aimeos/prisma",
+            "version": "dev-master",
+            "version_normalized": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aimeos/prisma.git",
+                "reference": "38711dbca0038eaa2bfa3ec8bce48120fcc630d6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aimeos/prisma/zipball/38711dbca0038eaa2bfa3ec8bce48120fcc630d6",
+                "reference": "38711dbca0038eaa2bfa3ec8bce48120fcc630d6",
                 "shasum": ""
             },
             "require": {
@@ -930,7 +1218,8 @@
                 "phpunit/phpunit": "^11.5||^12.4",
                 "vlucas/phpdotenv": "^5.6"
             },
-            "time": "2026-06-30T08:28:35+00:00",
+            "time": "2026-07-27T16:49:06+00:00",
+            "default-branch": true,
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -945,7 +1234,7 @@
             "description": "A powerful PHP package for integrating media related Large Language Models (LLMs) into your applications",
             "support": {
                 "issues": "https://github.com/aimeos/prisma/issues",
-                "source": "https://github.com/aimeos/prisma/tree/0.5.0"
+                "source": "https://github.com/aimeos/prisma/tree/master"
             },
             "install-path": "../aimeos/prisma"
         },

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
@@ -192,6 +192,10 @@ class JsonSchema
 
             case 'number':
                 $schema = ['type' => 'number'];
+
+                if( isset( $field['step'] ) && is_numeric( $field['step'] ) && (float) $field['step'] > 0 ) {
+                    $schema['multipleOf'] = (float) $field['step'];
+                }
                 break;
 
             case 'images':
@@ -241,6 +245,10 @@ class JsonSchema
                 } ) {
                     $schema['description'] = $desc;
                 }
+        }
+
+        if( $schema['type'] === 'string' && isset( $field['pattern'] ) ) {
+            $schema['pattern'] = (string) $field['pattern'];
         }
 
         return self::bounds( $schema, $field );

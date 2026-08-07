@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import gql from 'graphql-tag'
@@ -13,6 +13,7 @@ import {
   useSideStore
 } from '../stores'
 import { changedState } from '../merge'
+import { FILE_FIELDS, normalizeFile } from '../files'
 import { debounce, frozenParse, itemTitle, safeParse, uid } from '../utils'
 import {
   mdiMenuDown,
@@ -47,6 +48,7 @@ const REFINE_CONTENT = gql`
 `
 
 const ADD_ELEMENT = gql`
+  ${FILE_FIELDS}
   mutation ($input: ElementInput!) {
     addElement(input: $input) {
       id
@@ -57,15 +59,7 @@ const ADD_ELEMENT = gql`
       editor
       updated_at
       files {
-        id
-        lang
-        mime
-        name
-        path
-        previews
-        description
-        updated_at
-        editor
+        ...CmsFileFields
       }
     }
   }
@@ -158,6 +152,10 @@ export default {
         : { id: uid(), group: this.section, type: item.type, data: {} }
 
       if (item.id) {
+        for (const file of item.files || []) {
+          this.assets[file.id] = file
+        }
+
         this.elements[item.id] = item
       }
 
@@ -251,7 +249,10 @@ export default {
     },
 
     error(el, value) {
-      el._error = value
+      if (el) {
+        el._error = value
+      }
+
       const has = this.content.some((el) => el._error)
       if (has !== this.lastError) {
         this.lastError = has
@@ -335,10 +336,7 @@ export default {
         }
       }
 
-      this.$emit(
-        'error',
-        this.content.some((el) => el._error)
-      )
+      this.error()
       this.$emit('update:content', this.content)
     },
 
@@ -429,6 +427,7 @@ export default {
 
     remove(idx) {
       this.content.splice(idx, 1)
+      this.error()
       this.$emit('update:content', this.content)
     },
 
@@ -500,13 +499,14 @@ export default {
 
           const element = result.data.addElement
 
-          for (const file of element.files || []) {
-            file.previews = frozenParse(file.previews)
+          const files = (element.files || []).map(normalizeFile)
+
+          for (const file of files) {
             this.assets[file.id] = file
           }
 
           element.data = frozenParse(element.data)
-          element.files = Object.freeze(element.files.map((file) => file.id))
+          element.files = Object.freeze(files)
 
           this.elements[element.id] = element
           this.content[idx] = {

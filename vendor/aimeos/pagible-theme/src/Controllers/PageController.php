@@ -1,26 +1,27 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Controllers;
 
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
-use Illuminate\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Routing\Controller;
 use Aimeos\Cms\Models\Element;
 use Aimeos\Cms\Models\File;
-use Aimeos\Cms\Models\Version;
+use Aimeos\Cms\Models\Nav;
 use Aimeos\Cms\Models\Page;
 use Aimeos\Cms\Permission;
+use Aimeos\Cms\Navigation;
 use Aimeos\Cms\Scopes\Status;
 use Aimeos\Cms\Theme;
 
@@ -28,15 +29,28 @@ use Aimeos\Cms\Theme;
 class PageController extends Controller
 {
     /**
+     * Issues a CSRF token and starts the session on demand.
+     *
+     * Cacheable pages can omit the per-session token from their HTML and fetch it
+     * only when a visitor actually submits a form. See theme/public/csrf.js.
+     *
+     * @return JsonResponse JSON response containing the CSRF token
+     */
+    public function csrf() : JsonResponse
+    {
+        return response()->json( ['token' => csrf_token()] );
+    }
+
+
+    /**
      * Show the page for a given URL.
      *
      * For logged-in used with editor privileges, the latest version of the page is shown,
      * for all other users, the published version of the page is shown.
      *
-     * If the page has no GET/POST parameters, the HTML is cached for the duration of the
-     * page's cache time. Otherwise, the page is not cached to ensure that dynamic content
-     * is always up-to-date. Proxy servers are allowed to cache pages with GET parameters
-     * nevertheless because using the same parameters must always return the same content.
+     * Pages without query parameters can also be cached by the application. Proxy servers
+     * may cache pages with query parameters because repeated requests with the same URL
+     * must return the same content.
      *
      * @param Request $request The current HTTP request instance
      * @param string $path Page URL segment
@@ -45,78 +59,77 @@ class PageController extends Controller
      */
     public function index( Request $request, string $path, string $domain = '' )
     {
-        if( Permission::can( 'page:view', $request->user() ) ) {
-            return $this->latest( $path, $domain );
+        $user = $request->user();
+
+        if( Permission::can( 'page:view', $user ) ) {
+            return $this->latest( $path, $domain, $user );
         }
 
-        $cache = Cache::store( config( 'cms.theme.cache', 'file' ) );
-        $key = Page::key( $path, $domain );
-        $np = empty( $request->input() );
+        $route = $request->attributes->get( 'cms.page' );
 
-        if( $np && $request->isMethod( 'GET' ) && ( $html = $cache->get( $key ) ) )
-        {
-            return response( $this->inject( $html ), 200 )
-                ->header( 'Content-Type', 'text/html' )
-                ->header( 'Expires', substr( $html, -29 ) );
+        if( !$route instanceof Nav && !$user ) {
+            $route = Nav::page( $path, $domain );
         }
 
-        $page = Page::with( [
-            'files' => fn( $q ) => $q->select( File::SELECT_COLS ),
-            'elements' => fn( $q ) => $q->select( [...Element::SELECT_COLS, 'name'] ),
-        ] )
-            ->withGlobalScope('status', new Status)
-            ->where( 'domain', $domain )
-            ->where( 'path', $path )
-            ->firstOrFail();
+        if( !$route && !$user ) {
+            abort( 404 );
+        }
+
+        if( $route?->access_exists && !$user ) {
+            throw new AuthenticationException();
+        }
+
+        if( $route && !$route->access_exists && ( $to = $route->to ) ) {
+            return str_starts_with( $to, 'http' ) ? redirect()->away( $to ) : redirect()->to( $to );
+        }
+
+        $page = $this->published( $path, $domain, $user, $route );
+
+        if( $page->access_exists && !$page->access_allowed ) {
+            if( !$user ) {
+                throw new AuthenticationException();
+            }
+
+            abort( 403 );
+        }
 
         if( $to = $page->to ) {
             return str_starts_with( $to, 'http' ) ? redirect()->away( $to ) : redirect()->to( $to );
         }
 
-        App::setLocale( $page->lang );
-        Paginator::useBootstrap(); // Use Bootstrap CSS classes for pagination links
-
-        $content = collect( (array) ($page->content ?? []) )->groupBy( 'group' );
-        $theme = Theme::views( cms( $page, 'theme' ) ?: 'cms' );
-        $type = cms( $page, 'type' ) ?: 'page';
-
-        $views = [$theme . '::layouts.' . $type, 'cms::layouts.' . $type, 'cms::layouts.page'];
-        $html = view()->first( $views, ['page' => $page, 'content' => $content, 'theme' => $theme] )->render();
-
-        $expires = gmdate( 'D, d M Y H:i:s', time() + (int) $page->cache * 60 ) . ' GMT';
-
-        if( $np && $request->isMethod( 'GET' ) && $page->cache ) {
-            $cache->put( $key, $html . '<!-- ' . $expires, now()->addMinutes( (int) $page->cache ) );
-        }
-
-        $response = ( new Response( $this->inject( $html ), 200 ) )->header( 'Content-Type', 'text/html' );
-
-        if( $request->isMethod( 'GET' ) ) {
-            $response->header( 'Expires', $expires );
-        }
-
-        return $response;
-    }
-
-
-    /**
-     * Replaces the cache-safe CSRF token and CSP nonce placeholders with fresh per-request values.
-     *
-     * The rendered page HTML is cached verbatim and served to every visitor, so it must not embed
-     * a session-bound CSRF token or a reusable CSP nonce. The layout/forms emit placeholders and
-     * this injects a unique nonce and the current request's CSRF token into each response (on both
-     * cache miss and cache hit).
-     *
-     * @param string $html Rendered HTML containing the placeholders
-     * @return string HTML with per-request token and nonce
-     */
-    protected function inject( string $html ) : string
-    {
-        return str_replace(
-            ['%%CMS_NONCE%%', '%%CMS_CSRF%%'],
-            [base64_encode( random_bytes( 16 ) ), (string) csrf_token()],
-            $html
+        $request->attributes->set(
+            'cms.asset-token-page',
+            $page->access_exists ? (string) $page->id : null,
         );
+
+        $html = $this->render( $page, $page->content ?? [], $page->lang, $user );
+
+        // Database-first transition safety: re-read the rule after rendering so a
+        // concurrent insert or permission change cannot expose or cache the response.
+        $access = Page::query()
+            ->select( 'id' )
+            ->withAccess( $user )
+            ->findOrFail( $page->id );
+
+        if( $access->access_exists && !$access->access_allowed ) {
+            if( !$user ) {
+                throw new AuthenticationException();
+            }
+
+            abort( 403 );
+        }
+
+        $response = new Response( $html, 200, ['Content-Type' => 'text/html'] );
+
+        if( $user || $access->access_exists || !$page->cache ) {
+            return $response->header( 'Cache-Control', 'no-store, private' );
+        }
+
+        $maxage = (int) $page->cache * 60;
+
+        return $response
+            ->header( 'Cache-Control', "public, s-maxage={$maxage}, max-age=0, must-revalidate" )
+            ->setExpires( now()->addSeconds( $maxage ) );
     }
 
 
@@ -128,17 +141,18 @@ class PageController extends Controller
      *
      * @param string $path Page URL segment
      * @param string $domain Requested domain
+     * @param Authenticatable|null $user Authenticated editor
      * @return Response|RedirectResponse Response of the controller action
      */
-    protected function latest( string $path, string $domain )
+    protected function latest( string $path, string $domain, ?Authenticatable $user )
     {
         $with = [
             'latest',
-            'latest.files' => fn( $q ) => $q->select( File::SELECT_COLS ),
+            'latest.files' => fn( $q ) => $q->select( File::SELECT_COLUMNS ),
             'latest.files.latest',
-            'latest.elements' => fn( $q ) => $q->select( [...Element::SELECT_COLS, 'name'] ),
+            'latest.elements' => fn( $q ) => $q->select( [...Element::SELECT_COLUMNS, 'name'] ),
             'latest.elements.latest',
-            'latest.elements.files' => fn( $q ) => $q->select( File::SELECT_COLS ),
+            'latest.elements.files' => fn( $q ) => $q->select( File::SELECT_COLUMNS ),
             'latest.elements.files.latest',
         ];
 
@@ -163,19 +177,63 @@ class PageController extends Controller
 
         $page->cache = 0; // don't cache sub-parts in preview requests
 
-        App::setLocale( $version?->data->lang ?? $page->lang );
-        Paginator::useBootstrap();
+        $html = $this->render(
+            $page,
+            $version->aux->content ?? $page->content ?? [],
+            $version?->data->lang ?? $page->lang,
+            $user,
+        );
 
-        $theme = Theme::views( cms( $page, 'theme' ) ?: 'cms' );
-        $type = cms( $page, 'type', 'page' );
-
-        $content = collect( (array) ($version->aux->content ?? $page->content ?? []) )->groupBy( 'group' );
-
-        $views = [$theme . '::layouts.' . $type, 'cms::layouts.' . $type, 'cms::layouts.page'];
-        $html = view()->first( $views, ['page' => $page, 'content' => $content, 'theme' => $theme] )->render();
-
-        return ( new Response( $this->inject( $html ), 200 ) )
+        return ( new Response( $html, 200 ) )
             ->header( 'Content-Type', 'text/html' )
             ->header( 'Cache-Control', 'private, max-age=0' );
+    }
+
+
+    /**
+     * Loads the published page and its access decision in the same query.
+     *
+     * @param string $path Page URL segment
+     * @param string $domain Requested domain
+     * @param Authenticatable|null $user Frontend user
+     * @param Nav|null $route Preloaded anonymous route projection
+     * @return Page Published page with access decision attributes
+     */
+    protected function published( string $path, string $domain, ?Authenticatable $user, ?Nav $route ) : Page
+    {
+        $query = Page::with( [
+            'files' => fn( $q ) => $q->select( File::SELECT_COLUMNS ),
+            'elements' => fn( $q ) => $q->select( [...Element::SELECT_COLUMNS, 'name'] ),
+        ] )
+            ->withGlobalScope( 'status', new Status() )
+            ->withAccess( $user );
+
+        if( $route ) {
+            return $query->findOrFail( $route->id );
+        }
+
+        return $query->where( 'domain', $domain )->where( 'path', $path )->firstOrFail();
+    }
+
+
+    /**
+     * Renders published and preview pages through the same view preparation path.
+     *
+     * @param mixed $value Structured page content
+     * @param Authenticatable|null $user Frontend user
+     * @return string Rendered HTML
+     */
+    protected function render( Page $page, mixed $value, string $locale, ?Authenticatable $user ) : string
+    {
+        App::setLocale( $locale );
+        Paginator::useBootstrap();
+
+        $content = collect( (array) $value )->groupBy( 'group' );
+        $theme = Theme::views( cms( $page, 'theme' ) ?: 'cms' );
+        $type = cms( $page, 'type' ) ?: 'page';
+        $views = [$theme . '::layouts.' . $type, 'cms::layouts.' . $type, 'cms::layouts.page'];
+        $nav = new Navigation( $page, $user );
+
+        return view()->first( $views, compact( 'page', 'content', 'theme', 'nav' ) )->render();
     }
 }

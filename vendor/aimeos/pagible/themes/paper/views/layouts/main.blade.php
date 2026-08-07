@@ -3,7 +3,9 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="%%CMS_CSRF%%">
+        @auth
+            <meta name="csrf-token" content="{{ csrf_token() }}">
+        @endauth
         @if(!config('app.debug'))
             <meta http-equiv="Content-Security-Policy" content="
                 base-uri 'self';
@@ -12,8 +14,8 @@
                 connect-src 'self' {{ config('cms.theme.csp.connect-src') }};
                 img-src 'self' data: blob: {{ config('cms.theme.csp.media-src') }};
                 media-src 'self' data: blob: {{ config('cms.theme.csp.media-src') }};
-                style-src 'self' 'nonce-%%CMS_NONCE%%' {{ config('cms.theme.csp.style-src') }};
-                script-src 'self' 'nonce-%%CMS_NONCE%%' {{ config('cms.theme.csp.script-src') }};
+                style-src 'self' {{ config('cms.theme.csp.style-src') }} {!! cmshashes($page, 'config.styles.data.text') !!};
+                script-src 'self' {{ config('cms.theme.csp.script-src') }} {!! cmshashes($page, 'config.javascript.data.text') !!};
                 font-src 'self';
             ">
         @endif
@@ -32,7 +34,7 @@
 
         @foreach($page->ancestorsAndSelf->reverse() as $navItem)
             @if($fileId = cms($navItem, 'config.icon.data.file.id'))
-                <link rel="icon" type="{{ cmsfile($navItem, $fileId)?->mime }}" href="{{ cmsurl(cmsfile($navItem, $fileId)?->path) }}">
+                <link rel="icon" type="{{ cmsfile($navItem, $fileId)?->mime }}" href="{{ cmsasset($navItem, cmsfile($navItem, $fileId)) }}">
                 @break
             @endif
         @endforeach
@@ -43,15 +45,7 @@
         <link href="{{ cmstheme($page, 'cms.css') }}" rel="stylesheet">
         @stack('head')
 
-        @foreach($page->ancestorsAndSelf as $navItem)
-            @if($text = cms($navItem, 'config.styles.data.text'))
-                <style nonce="%%CMS_NONCE%%">
-                    {!! $text !!}
-                </style>
-            @endif
-        @endforeach
-
-        <script type="application/ld+json" nonce="%%CMS_NONCE%%">
+        <script type="application/ld+json">
             [{
                 "@@context": "https://schema.org",
                 "@@type": "WebSite",
@@ -64,12 +58,12 @@
                 "name": {!! cmsjson(cms($page, 'title')) !!},
                 "url": {!! cmsjson(cmsroute($page)) !!}
             }
-            @if($page->ancestors->count() > 1)
+            @if($nav->ancestors()->count() > 1)
             ,{
                 "@@context": "https://schema.org",
                 "@@type": "BreadcrumbList",
                 "itemListElement": [
-                    @foreach($page->ancestors->skip(1)->filter(fn($item) => cms($item, 'status') == 1)->values() as $item)
+                    @foreach($nav->ancestors()->skip(1)->values() as $item)
                     {
                         "@@type": "ListItem",
                         "position": {{ $loop->iteration }},
@@ -79,7 +73,7 @@
                     @endforeach
                     {
                         "@@type": "ListItem",
-                        "position": {{ $page->ancestors->skip(1)->filter(fn($item) => cms($item, 'status') == 1)->count() + 1 }},
+                        "position": {{ $nav->ancestors()->skip(1)->count() + 1 }},
                         "name": {!! cmsjson(cms($page, 'name')) !!}
                     }
                 ]
@@ -88,13 +82,13 @@
             ]
         </script>
     </head>
-    <body class="theme-paper type-{{ cms($page, 'type', 'page') }}">
+    <body class="theme-paper type-{{ cms($page, 'type') ?: 'page' }}">
         <a href="#main" class="skip-link">{{ __('Skip to main content') }}</a>
         <dialog id="modal-search" class="search">
             <article>
                 <header>
-                    <form action="{{ route('cms.search', ['q' => '_term_']) }}">
-                        <input id="modal-search-input" placeholder="{{ __('Search website') }}" aria-label="{{ __('Search website') }}" name="q" required>
+                    <form action="{{ route('cms.search', ['q' => '_term_']) }}" toolname="search" tooldescription="{{ __('Search the website and return matching pages with their titles and links') }}" toolautosubmit>
+                        <input id="modal-search-input" placeholder="{{ __('Search website') }}" aria-label="{{ __('Search website') }}" name="q" minlength="{{ config('cms.theme.min-search') }}" required toolparamdescription="{{ __('Words or phrase to search for in the website content') }}">
                         <button type="reset" aria-label="{{ __('Close') }}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
                                 <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>
@@ -124,10 +118,10 @@
                         </button>
                     </li>
                     <li class="brand">
-                        <a href="{{ cmsroute($page->ancestors?->first() ?? $page) }}" title="{{ config('app.name') }}" aria-label="{{ config('app.name') }}">
+                        <a href="{{ cmsroute($nav->ancestors()->first() ?? $page) }}" title="{{ config('app.name') }}" aria-label="{{ config('app.name') }}">
                             @forelse($page->ancestorsAndSelf->reverse() as $navItem)
                                 @if($fileId = cms($navItem, 'config.logo.data.file.id'))
-                                    <img src="{{ cmsurl(cmsfile($navItem, $fileId)?->path) }}" alt="{{ config('app.name') }}">
+                                    <img src="{{ cmsasset($navItem, cmsfile($navItem, $fileId)) }}" alt="{{ config('app.name') }}">
                                     @break
                                 @endif
                             @empty
@@ -151,32 +145,37 @@
                             </svg>
                         </a>
                     </li>
-                    @foreach($page->nav() as $item)
-                        @if(cms($item, 'status') == 1)
-                            <li>
-                                @if($item->children->count())
-                                    <details class="dropdown is-menu">
-                                        <summary>{{ cms($item, 'name') }}</summary>
-                                        <ul class="align">
-                                            @foreach($item->children as $subItem)
-                                                @if(cms($subItem, 'status') == 1)
-                                                    <li>
-                                                        <a href="{{ cmsroute($subItem) }}" class="{{ $page->isSelfOrDescendantOf($subItem) ? 'active' : '' }}">
-                                                            {{ cms($subItem, 'name') }}
-                                                        </a>
-                                                    </li>
-                                                @endif
-                                            @endforeach
-                                        </ul>
-                                    </details>
-                                @else
-                                    <a href="{{ cmsroute($item) }}" class="{{ $page->isSelfOrDescendantOf($item) ? 'active' : '' }}">
-                                        {{ cms($item, 'name') }}
-                                    </a>
-                                @endif
-                            </li>
-                        @endif
+                    @foreach($nav->items() as $item)
+                        <li>
+                            @if($item->children->count())
+                                <details class="dropdown is-menu">
+                                    <summary>{{ cms($item, 'name') }}</summary>
+                                    <ul class="align">
+                                        @foreach($item->children as $subItem)
+                                            <li>
+                                                <a href="{{ cmsroute($subItem) }}" class="{{ $page->isSelfOrDescendantOf($subItem) ? 'active' : '' }}">
+                                                    {{ cms($subItem, 'name') }}
+                                                </a>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </details>
+                            @else
+                                <a href="{{ cmsroute($item) }}" class="{{ $page->isSelfOrDescendantOf($item) ? 'active' : '' }}">
+                                    {{ cms($item, 'name') }}
+                                </a>
+                            @endif
+                        </li>
                     @endforeach
+                    @if(Route::has('login'))
+                        <li class="login">
+                            <a href="{{ route('login') }}" title="{{ __('Login') }}" aria-label="{{ __('Login') }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
+                                </svg>
+                            </a>
+                        </li>
+                    @endif
                 </ul>
                 <ul class="menu-open show">
                     <li>
@@ -190,17 +189,13 @@
             </nav>
         </header>
 
-        @if($page->ancestors->count() > 1)
+        @if($nav->ancestors()->count() > 1)
             <nav class="breadcrumb" aria-label="{{ __('Breadcrumb navigation') }}">
                 <ul>
-                    @foreach($page->ancestors->skip(1) as $item)
-                        @if(cms($item, 'status') == 1)
-                            <li>
-                                <a role="button" href="{{ cmsroute($item) }}">{{ cms($item, 'name') }}</a>
-                            </li>
-                        @else
-                            @break
-                        @endif
+                    @foreach($nav->ancestors()->skip(1) as $item)
+                        <li>
+                            <a role="button" href="{{ cmsroute($item) }}">{{ cms($item, 'name') }}</a>
+                        </li>
                     @endforeach
                     <li>{{ cms($page, 'name') }}</li>
                 </ul>
@@ -218,7 +213,7 @@
                 @foreach($page->ancestorsAndSelf->reverse() as $navItem)
                     @if($fileId = cms($navItem, 'config.logo.data.file.id'))
                         <span class="brand">
-                            <img src="{{ cmsurl(cmsfile($navItem, $fileId)?->path) }}" alt="{{ config('app.name') }}">
+                            <img src="{{ cmsasset($navItem, cmsfile($navItem, $fileId)) }}" alt="{{ config('app.name') }}">
                         </span>
                         @break
                     @endif
@@ -230,24 +225,6 @@
         </footer>
 
 
-        <link href="{{ cmstheme($page, 'pico.modal.min.css') }}" rel="preload" as="style">
-        <link href="{{ cmstheme($page, 'cms-lazy.css') }}" rel="preload" as="style">
-        <script defer src="{{ cmstheme($page, 'cms.js') }}"></script>
-        @stack('foot')
-
-        @foreach($page->ancestorsAndSelf as $navItem)
-            @if($text = cms($navItem, 'config.javascript.data.text'))
-                <script nonce="%%CMS_NONCE%%">
-                    {!! $text !!}
-                </script>
-            @endif
-        @endforeach
-
-        @if(\Aimeos\Cms\Permission::can('page:save', auth()->user()))
-            <link href="{{ cmsasset('vendor/cms/admin/editor.css') }}" rel="stylesheet">
-            <script defer src="{{ cmsasset('vendor/cms/admin/editor.js') }}"></script>
-        @else
-            <script defer src="{{ cmstheme($page, 'stats.js') }}"></script>
-        @endif
+        @include('cms::layouts.foot')
     </body>
 </html>

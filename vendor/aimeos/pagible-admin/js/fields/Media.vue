@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import gql from 'graphql-tag'
@@ -69,7 +69,7 @@ export default {
         }
         image.onload = () => { cleanup(); resolve() }
         image.onerror = (err) => { cleanup(); reject(err) }
-        image.src = this.url(Object.values(data.previews).shift() || data.path)
+        image.src = this.fileurl(data, Object.values(data.previews).shift() || data.path)
       })
         .then(() => {
           return File.methods.handle.call(this, data, path)
@@ -84,6 +84,18 @@ export default {
 </script>
 
 <template>
+  <FileProtect
+    :disabled="protecting"
+    :labelled="!!label || !!$slots.label"
+    :loading="protecting"
+    :model-value="protect"
+    :name="label"
+    :readonly="readonly"
+    @update:model-value="setProtect($event)"
+  >
+    <slot name="label" />
+  </FileProtect>
+
   <v-row>
     <v-col cols="12" md="6">
       <div class="files" :class="{ readonly: readonly }">
@@ -104,11 +116,11 @@ export default {
             indeterminate
             rounded
           />
-          <video v-if="isVideo && file.path" :src="url(file.path)" :draggable="false" controls />
+          <video v-if="isVideo && file.path" :src="fileurl(file)" :draggable="false" controls />
           <v-img
             v-else-if="file.path"
-            :srcset="srcset(file.previews)"
-            :src="url(Object.values(file.previews)[0] ?? file.path)"
+            :srcset="filesrcset(file)"
+            :src="fileurl(file, Object.values(file.previews)[0] ?? file.path)"
             :alt="file.name"
             :draggable="false"
           />
@@ -184,7 +196,7 @@ export default {
         <v-col cols="12" md="9">{{ description }}</v-col>
       </v-row>
       <v-row>
-        <v-col cols="12" md="3" class="name">{{ $gettext('mime') }}:</v-col>
+        <v-col cols="12" md="3" class="name">{{ $gettext('MIME') }}:</v-col>
         <v-col cols="12" md="9">{{ file.mime }}</v-col>
       </v-row>
       <v-row>

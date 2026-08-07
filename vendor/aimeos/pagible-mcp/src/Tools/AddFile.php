@@ -1,16 +1,16 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
 use Aimeos\Cms\Utils;
+use Aimeos\Cms\Resource;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Models\File;
-use Aimeos\Cms\Models\Version;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Title;
@@ -26,7 +26,10 @@ use Laravel\Mcp\Request;
 class AddFile extends Tool
 {
     /**
-     * Handle the tool request.
+     * Validates, ingests, and stores the remote File requested by the MCP client.
+     *
+     * @param Request $request Authorized MCP tool request
+     * @return \Laravel\Mcp\ResponseFactory Structured File data or validation error
      */
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
@@ -36,6 +39,7 @@ class AddFile extends Tool
 
         $v = $request->validate([
             'url' => 'required|string|max:500',
+            'disk' => 'sometimes|string|in:public,private',
             'name' => 'string|max:255',
             'lang' => 'nullable|string|max:5',
             'description' => 'array',
@@ -49,62 +53,29 @@ class AddFile extends Tool
             return Response::structured( ['error' => sprintf( 'The URL "%s" must be a valid "http" or "https" URL.', $url )] );
         }
 
-        $editor = Utils::editor( $request->user() );
-        $versionId = ( new Version )->newUniqueId();
-
         $file = new File();
+        $file->disk = $v['disk'] ?? 'public';
         $file->fill( array_intersect_key( $v, array_flip( ['name', 'lang'] ) ) );
 
         if( isset( $v['description'] ) ) {
             $file->description = $v['description'];
         }
 
-        $file->tenant_id = \Aimeos\Cms\Tenancy::value();
-        $file->path = $url;
-        $file->name = $file->name ?: substr( $url, 0, 255 );
-        $file->latest_id = $versionId;
-        $file->editor = $editor;
-
         // Fetch the file and generate previews outside the transaction to keep
         // slow network and image work off the database connection.
         try {
-            $file->addPreviews( $url );
-        } catch( \Throwable $t ) {
-            $file->removePreviews();
-            throw $t;
+            $file->ingest( $url );
+        } catch( \Aimeos\Cms\Exception $e ) {
+            if( str_starts_with( $e->getMessage(), 'File type ' ) ) {
+                return Response::structured( ['error' => sprintf( 'File type "%s" is not allowed.', $file->mime )] );
+            }
+
+            throw $e;
         }
 
-        if( !Utils::isValidMimetype( $file->mime ) )
-        {
-            $file->removePreviews();
-            return Response::structured( ['error' => sprintf( 'File type "%s" is not allowed.', $file->mime )] );
-        }
+        $file = Resource::addFile( $file, $request->user() );
 
-        return Utils::transaction( function() use ( $file, $versionId, $v, $editor ) {
-
-            $file->save();
-
-            $version = $file->versions()->forceCreate( [
-                'id' => $versionId,
-                'lang' => $v['lang'] ?? null,
-                'editor' => $editor,
-                'data' => [
-                    'lang' => $file->lang,
-                    'name' => $file->name,
-                    'mime' => $file->mime,
-                    'path' => $file->path,
-                    'previews' => $file->previews,
-                    'description' => $file->description,
-                    'transcription' => $file->transcription,
-                ],
-            ] );
-
-            // Re-index with the latest version loaded so the draft (latest=true)
-            // row is written; on $file->save() above the version did not exist yet.
-            $file->setRelation( 'latest', $version )->searchable();
-
-            return Response::structured( ['id' => $file->id, 'latest_id' => $file->latest_id] + $file->toArray() );
-        } );
+        return Response::structured( ['id' => $file->id, 'latest_id' => $file->latest_id] + $file->toArray() );
     }
 
 
@@ -119,6 +90,9 @@ class AddFile extends Tool
             'url' => $schema->string()
                 ->description('The URL of the file to add, e.g., "https://example.com/photo.jpg".')
                 ->required(),
+            'disk' => $schema->string()
+                ->enum( ['public', 'private'] )
+                ->description('Storage visibility. Defaults to "public"; use "private" to protect it with page access.'),
             'name' => $schema->string()
                 ->description('Display name for the file. If omitted, the URL is used as the name.'),
             'lang' => $schema->string()

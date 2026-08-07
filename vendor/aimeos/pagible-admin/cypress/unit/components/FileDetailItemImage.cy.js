@@ -38,6 +38,7 @@ describe('FileDetailItemImage', () => {
     mountImage()
     cy.get('img.element').should('exist')
     cy.get('img.element').should('have.attr', 'src', '/storage/files/photo.jpg')
+    cy.get('img.element').should('not.have.class', 'checkered')
   })
 
   it('shows toolbar when not readonly', () => {
@@ -129,6 +130,21 @@ describe('FileDetailItemImage', () => {
 
   it('renders image element for SVG', () => {
     mountImage({ item: { ...item, name: 'logo.svg', path: 'files/logo.svg', mime: 'image/svg+xml' } })
-    cy.get('img.element').should('exist')
+    cy.get('img.element')
+      .should('exist')
+      .and('have.class', 'checkered')
+      .should(($image) => {
+        const style = getComputedStyle($image[0])
+        const image = $image[0].getBoundingClientRect()
+        const preview = $image[0].parentElement.getBoundingClientRect()
+
+        expect($image[0].complete).to.equal(true)
+        expect($image[0].naturalWidth).to.be.greaterThan(0)
+        expect(style.backgroundImage).to.contain('conic-gradient')
+        expect(style.backgroundRepeat).to.equal('repeat')
+        expect(style.minHeight).to.equal('180px')
+        expect(image.width).to.equal(preview.width)
+        expect(image.height).to.be.at.least(180)
+      })
   })
 })

@@ -1,13 +1,12 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
-use Aimeos\Cms\Utils;
 use Aimeos\Cms\Resource;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Models\File;
@@ -41,7 +40,7 @@ class RestoreFile extends Tool
         ] );
 
         /** @var File|null $file */
-        $file = File::withTrashed()->select( 'id', 'deleted_at' )->find( $v['id'] );
+        $file = File::withTrashed()->select( 'id', 'tenant_id', 'deleted_at' )->find( $v['id'] );
 
         if( !$file ) {
             return Response::structured( ['error' => 'File not found.'] );
@@ -51,7 +50,7 @@ class RestoreFile extends Tool
             return Response::structured( ['error' => 'File is not deleted.'] );
         }
 
-        $items = Resource::restore( File::class, [$v['id']], Utils::editor( $request->user() ) );
+        $items = Resource::restore( File::class, [$v['id']], $request->user() );
 
         $item = $items->firstOrFail();
 

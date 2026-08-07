@@ -1,10 +1,10 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import gql from 'graphql-tag'
 import { markRaw } from 'vue'
 import { useUserStore, useMessageStore } from '../stores'
-import { toBlob, url } from '../utils'
+import { fileurl, toBlob } from '../utils'
 import {
   mdiClose,
   mdiCropFree,
@@ -95,8 +95,8 @@ export default {
     return {
       user,
       messages,
+      fileurl,
       toBlob,
-      url,
       mdiClose,
       mdiCropFree,
       mdiCrop,
@@ -241,7 +241,7 @@ export default {
         return Promise.resolve(this.images[0]?.blob)
       }
 
-      return fetch(this.url(this.item.path, true), {credentials: 'include'}).then((response) => {
+      return fetch(this.fileurl(this.item, this.item.path, true), {credentials: 'same-origin'}).then((response) => {
         if (!response.ok) {
           throw new Error('Network error: ' + response.statusText)
         }
@@ -260,7 +260,7 @@ export default {
 
         // destroy() restores the <img> to cropperjs' originalUrl, so point it
         // back at the current path before re-initialising the cropper
-        this.$refs.image.src = this.url(this.item.path, !this.svg)
+        this.$refs.image.src = this.fileurl(this.item, this.item.path, !this.svg)
       }
 
       const self = this
@@ -594,7 +594,7 @@ export default {
         return
       }
 
-      this.cropper.replace(this.url(items[0].path, true))
+      this.cropper.replace(this.fileurl(items[0], items[0].path, true))
       this.$emit('update:file', null)
       this.$emit('use', items)
       this.reset()
@@ -623,9 +623,10 @@ export default {
   <div ref="editorContainer" class="editor-container">
     <img
       ref="image"
-      :src="url(item.path, !svg)"
+      :src="fileurl(item, item.path, !svg)"
       :alt="item.name"
       class="element"
+      :class="{ checkered: svg }"
       :crossorigin="svg ? undefined : 'anonymous'"
     />
 
@@ -1025,7 +1026,7 @@ export default {
               />
             </v-list-item>
             <v-list-item>
-              <v-img :src="url(item.path)" :alt="$gettext('Original')" @click="use([item])" />
+              <v-img :src="fileurl(item)" :alt="$gettext('Original')" @click="use([item])" />
             </v-list-item>
           </v-list>
         </v-card>
@@ -1044,6 +1045,16 @@ export default {
   max-height: 100%;
   display: block;
   margin: auto;
+}
+
+.element.checkered {
+  width: 100%;
+  min-height: 180px;
+  object-fit: contain;
+  background-color: #fff;
+  background-image: conic-gradient(#ccc 25%, #fff 0 50%, #ccc 0 75%, #fff 0);
+  background-repeat: repeat;
+  background-size: 16px 16px;
 }
 
 :deep(.cropper-bg) {

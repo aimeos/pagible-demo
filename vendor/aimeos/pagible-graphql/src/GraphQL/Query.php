@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
@@ -13,6 +13,8 @@ use Aimeos\Cms\Models\File;
 use Aimeos\Cms\Models\Page;
 use Aimeos\Nestedset\NestedSet;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Nuwave\Lighthouse\Execution\ResolveInfo;
+use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 
 /**
@@ -38,7 +40,7 @@ final class Query
 
         Filter::elements( $search, $filter + $args );
 
-        $allowed = ['id', 'lang', 'name', 'type', 'editor'];
+        $allowed = ['id', 'latest_id', 'lang', 'name', 'type', 'editor'];
         $this->sort( $search, $args['sort'] ?? [], $allowed, 'id', 'desc' );
 
         return $search->paginate( $limit, 'page', $page );
@@ -50,22 +52,42 @@ final class Query
      *
      * @param  null  $rootValue
      * @param  array<string, mixed>  $args
+     * @param GraphQLContext|null $context GraphQL request context
+     * @param ResolveInfo|null $resolveInfo Requested fields
      * @return LengthAwarePaginator<int, File>
      */
-    public function files( $rootValue, array $args ) : LengthAwarePaginator
+    public function files( $rootValue, array $args, ?GraphQLContext $context = null,
+        ?ResolveInfo $resolveInfo = null ) : LengthAwarePaginator
     {
         $filter = $args['filter'] ?? [];
         $limit = min( max( (int) ( $args['first'] ?? 100 ), 1 ), 100 );
         $page = max( (int) ( $args['page'] ?? 1 ), 1 );
+        $available = ['disk', 'lang', 'name', 'mime', 'path', 'previews', 'description', 'transcription', 'editor',
+            'created_at', 'updated_at', 'deleted_at'];
+        $fields = $resolveInfo
+            ? (array) ( $resolveInfo->getFieldSelection( 1 )['data'] ?? [] )
+            : array_fill_keys( [...$available, 'latest', 'byversions_count'], true );
+        $columns = array_map( fn( $column ) => 'cms_files.' . $column, array_intersect( $available, array_keys( $fields ) ) );
+        $columns[] = 'cms_files.id';
+
+        if( isset( $fields['latest'] ) ) {
+            $columns[] = 'cms_files.latest_id';
+        }
 
         $search = File::search( mb_substr( trim( (string) ( $filter['any'] ?? '' ) ), 0, 200 ) )
             ->searchFields( 'draft' );
 
-        $search->query( fn( $q ) => $q->withCount( 'byversions' ) );
+        $search->query( function( $query ) use ( $args, $columns, $fields ) {
+            $query->select( array_values( array_unique( $columns ) ) );
+
+            if( isset( $fields['byversions_count'] ) || in_array( 'byversions_count', array_column( $args['sort'] ?? [], 'column' ), true ) ) {
+                $query->withCount( 'byversions' );
+            }
+        } );
 
         Filter::files( $search, $filter + $args );
 
-        $allowed = ['id', 'name', 'mime', 'lang', 'editor', 'byversions_count'];
+        $allowed = ['id', 'latest_id', 'name', 'mime', 'lang', 'editor', 'byversions_count'];
         $this->sort( $search, $args['sort'] ?? [], $allowed, 'id', 'desc' );
 
         return $search->paginate( $limit, 'page', $page );
@@ -90,7 +112,7 @@ final class Query
 
         Filter::pages( $search, $filter + $args );
 
-        $allowed = ['id', 'name', 'title', 'editor', NestedSet::LFT];
+        $allowed = ['id', 'latest_id', 'name', 'title', 'editor', NestedSet::LFT];
         $this->sort( $search, $args['sort'] ?? [], $allowed, NestedSet::LFT, 'asc' );
 
         return $search->paginate( $limit, 'page', $page );

@@ -1,31 +1,26 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Models;
 
-use Aimeos\Cms\Concerns\HasChanged;
-use Aimeos\Cms\Concerns\Tenancy;
+use Aimeos\Cms\Validation;
 use Aimeos\Nestedset\NodeTrait;
 use Aimeos\Nestedset\NestedSet;
 use Aimeos\Nestedset\AncestorsRelation;
 use Aimeos\Nestedset\DescendantsRelation;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
-use Laravel\Scout\Searchable;
 
 
 /**
@@ -55,31 +50,36 @@ use Laravel\Scout\Searchable;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  * @property \Aimeos\Nestedset\Collection<int, Nav>|null $subtree
+ * @property bool $access_allowed
+ * @property bool $access_exists
  * @property-read Collection<int, Page> $ancestors
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, PageAccess> $access
  * @method static \Illuminate\Database\Eloquent\Builder<static> withoutTenancy()
  */
 class Page extends Base
 {
-    use HasChanged;
-    use HasUuids;
     use NodeTrait;
-    use SoftDeletes;
-    use Prunable;
-    use Tenancy;
-    use Searchable {
-        NodeTrait::usesSoftDelete insteadof Searchable;
-    }
 
+
+    /** @var list<string> Columns required for Page lifecycle operations */
+    public const REQUIRED_COLUMNS = [
+        'id', 'tenant_id', 'parent_id', 'path', 'domain', 'editor', 'latest_id', 'deleted_at',
+        NestedSet::LFT, NestedSet::RGT, NestedSet::DEPTH,
+    ];
+
+    /** @var list<string> Optional columns available for selective Page responses */
+    public const RESPONSE_COLUMNS = [
+        'related_id', 'name', 'title', 'tag', 'lang', 'to', 'type', 'theme', 'meta', 'config',
+        'content', 'status', 'cache', 'created_at', 'updated_at',
+    ];
 
     /** @var list<string> Columns needed for memory-efficient Page queries */
     public const SELECT_COLUMNS = [
         'id', 'tenant_id', 'parent_id', 'related_id', 'path', 'domain', 'name', 'title',
-        'tag', 'to', 'type', 'theme', 'meta', 'content', 'status', 'cache',
+        'tag', 'lang', 'to', 'type', 'theme', 'meta', 'content', 'status', 'cache',
         'editor', 'latest_id', 'created_at', 'updated_at', 'deleted_at',
         NestedSet::LFT, NestedSet::RGT, NestedSet::DEPTH
     ];
-
-
 
     /**
      * The model's default values for attributes.
@@ -126,9 +126,6 @@ class Page extends Base
         'meta' => 'object',
         'config' => 'object',
         'content' => 'object', // for object access in templates
-        'created_at' => 'datetime:Y-m-d H:i:s',
-        'updated_at' => 'datetime:Y-m-d H:i:s',
-        'deleted_at' => 'datetime:Y-m-d H:i:s',
     ];
 
     /**
@@ -201,7 +198,7 @@ class Page extends Base
         $depth = NestedSet::DEPTH;
 
         $builder = Nav::withTrashed()
-            ->select( 'id', 'parent_id', 'name', 'title', 'tag', 'type', 'path', 'domain', 'lang', 'to', 'status', 'latest_id', $lft, $rgt, $depth )
+            ->select( 'id', 'tenant_id', 'parent_id', 'name', 'title', 'tag', 'type', 'path', 'domain', 'lang', 'to', 'status', 'latest_id', $lft, $rgt, $depth )
             ->orderBy( $lft );
 
         if( $root ) {
@@ -223,33 +220,15 @@ class Page extends Base
      */
     public function __toString() : string
     {
-        $content = ( $this->tag ?? '' ) . "\n"
-            . ( $this->name ?? '' ) . "\n"
-            . ( $this->title ?? '' ) . "\n"
-            . ( $this->meta->{'meta-tags'}->data->description ?? '' ) . "\n";
+        $items = collect( (array) $this->content )->merge( $this->elements );
 
-        $config = \Aimeos\Cms\Schema::schemas( section: 'content' );
-
-        foreach( collect( (array) $this->content )->merge( $this->elements ) as $el )
-        {
-            $fields = (array) ( $config[$el->type ?? '']['fields'] ?? [] );
-
-            if( empty( $fields ) ) {
-                continue;
-            }
-
-            foreach( (array) ( $el->data ?? [] ) as $name => $value )
-            {
-                if( is_string( $value ) && isset( $fields[$name] )
-                    && ( $fields[$name]['searchable'] ?? true )
-                    && in_array( $fields[$name]['type'], ['markdown', 'plaintext', 'string', 'text'] )
-                ) {
-                    $content .= $value . "\n";
-                }
-            }
-        }
-
-        return trim( $content );
+        return trim( implode( "\n", [
+            $this->tag ?? '',
+            $this->name ?? '',
+            $this->title ?? '',
+            $this->meta->{'meta-tags'}->data->description ?? '',
+            ...\Aimeos\Cms\Scout::text( $items ),
+        ] ) );
     }
 
 
@@ -261,8 +240,7 @@ class Page extends Base
     public function ancestors() : AncestorsRelation
     {
         $builder = $this->newScopedQuery()
-            ->select(
-                'id', 'parent_id', $this->getLftName(), $this->getRgtName(), $this->getDepthName(), 'name', 'title', 'tag', 'path', 'domain', 'lang', 'to', 'status', 'config', 'latest_id' )
+            ->select( Nav::SELECT_COLUMNS )
             ->setModel( new Nav() )
             ->defaultOrder();
 
@@ -278,9 +256,48 @@ class Page extends Base
     public function children() : HasMany
     {
         return $this->hasMany( Nav::class, $this->getParentIdName() )
-            ->select( 'id', 'parent_id', $this->getLftName(), $this->getRgtName(), $this->getDepthName(), 'name', 'title', 'tag', 'path', 'domain', 'lang', 'to', 'status', 'config', 'latest_id' )
+            ->select( Nav::SELECT_COLUMNS )
             ->setModel( new Nav() )
             ->defaultOrder();
+    }
+
+
+    /**
+     * Explicit frontend access rules for this page.
+     *
+     * @return HasMany<PageAccess, $this>
+     */
+    public function access() : HasMany
+    {
+        return $this->hasMany( PageAccess::class, 'page_id' );
+    }
+
+
+    /**
+     * Returns the canonical immediate frontend access state.
+     *
+     * @return list<string>|null
+     */
+    public function accessValues() : ?array
+    {
+        return PageAccess::values( $this->access );
+    }
+
+
+    /**
+     * Returns whether the page has explicit frontend access rules.
+     */
+    public function restricted() : bool
+    {
+        if( $this->relationLoaded( 'access' ) ) {
+            return $this->getRelation( 'access' )->isNotEmpty();
+        }
+
+        $count = $this->getAttribute( 'access_count' );
+
+        return $count !== null
+            ? (int) $count > 0
+            : $this->access()->exists();
     }
 
 
@@ -303,19 +320,6 @@ class Page extends Base
     public function files() : BelongsToMany
     {
         return $this->belongsToMany( File::class, 'cms_page_file', 'page_id' );
-    }
-
-
-    /**
-     * Enforce JSON columns to return object.
-     *
-     * @param string $key Attribute name
-     * @return mixed Attribute value
-     */
-    public function getAttribute( $key )
-    {
-        $value = parent::getAttribute( $key );
-        return is_null( $value ) && in_array( $key, ['meta', 'config', 'content'] ) ? new \stdClass() : $value;
     }
 
 
@@ -355,30 +359,19 @@ class Page extends Base
 
 
     /**
-     * Tests if node has children.
+     * Returns the number of descendants below this node.
      *
-     * @return bool TRUE if node has children, FALSE if not
-     */
-    public function getHasAttribute() : bool
-    {
-        return $this->getRgt() > $this->getLft() + 1;
-    }
-
-
-    /**
-     * Returns the cache key for the page.
+     * Derived from the nested set bounds without a query: the range [lft, rgt] spans the node
+     * and all its descendants at two slots each, so the count excludes the node itself. Zero for
+     * a leaf, so it still reads as "no children" where a boolean was expected, while a recursive
+     * bulk edit can size itself ("apply to N pages") from it. An unsaved node (null bounds) has no
+     * descendants - the ?? 0 keeps that case from doing null arithmetic.
      *
-     * @param Page|string $page Page object or URL path
-     * @param string $domain Domain name
-     * @return string Cache key
+     * @return int Number of descendant pages
      */
-    public static function key( $page, string $domain = '' ) : string
+    public function getHasAttribute() : int
     {
-        if( $page instanceof Page ) {
-            return md5( \Aimeos\Cms\Tenancy::value() . '/' . $page->domain . '/' . $page->path );
-        }
-
-        return md5( \Aimeos\Cms\Tenancy::value() . '/' . $domain . '/' . $page );
+        return intdiv( ( $this->getRgt() ?? 0 ) - ( $this->getLft() ?? 0 ) - 1, 2 );
     }
 
 
@@ -394,36 +387,6 @@ class Page extends Base
 
 
     /**
-     * Get the navigation for the page.
-     *
-     * @param int $level Starting level for the navigation (default: 0 for root page)
-     * @return \Aimeos\Nestedset\Collection Collection of ancestor pages
-     */
-    public function nav( $level = 0 ) : \Aimeos\Nestedset\Collection
-    {
-        if( !$start = collect( $this->ancestors )->push( $this )->skip( $level )->first() ) {
-            return new \Aimeos\Nestedset\Collection();
-        }
-
-        $lft = $this->getLftName();
-        $rgt = $this->getRgtName();
-        $depth = $this->getDepthName();
-
-        $builder = Nav::select( 'id', 'parent_id', 'name', 'title', 'tag', 'path', 'domain', 'lang', 'to', 'status', 'config', 'latest_id', $lft, $rgt, $depth )
-            ->where( $lft, '>', $start->getLft() )
-            ->where( $rgt, '<', $start->getRgt() )
-            ->whereIn( $depth, range( (int) $start->getDepth(), ( $start->getDepth() ?? 0 ) + config( 'cms.navdepth', 2 ) ) )
-            ->orderBy( $lft );
-
-        if( \Aimeos\Cms\Permission::can( 'page:view', Auth::user() ) ) {
-            $builder->with( ['latest' => fn( $q ) => $q->select( 'id', 'data' )] );
-        }
-
-        return $builder->get()->toTree();
-    }
-
-
-    /**
      * Relation to the parent.
      *
      * @return BelongsTo<Nav, $this>
@@ -432,9 +395,59 @@ class Page extends Base
     {
         return $this->belongsTo( Nav::class, $this->getParentIdName() )
             ->select(
-                'id', 'parent_id', 'name', 'title', 'tag', 'path', 'domain', 'lang', 'to', 'status',
+                'id', 'tenant_id', 'parent_id', 'name', 'title', 'tag', 'path', 'domain', 'lang', 'to', 'status',
                 'config', 'latest_id', $this->getDepthName(), $this->getLftName(), $this->getRgtName()
             )->setModel( new Nav() );
+    }
+
+
+    /**
+     * Limits a query to pages visible to the frontend user.
+     *
+     * @param Builder<static> $query
+     */
+    public function scopeAccess( Builder $query, ?Authenticatable $user ) : void
+    {
+        PageAccess::apply( $query, $user );
+    }
+
+
+    /**
+     * Adds frontend access decisions to the page query without loading rule rows.
+     *
+     * @param Builder<static> $query
+     */
+    public function scopeWithAccess( Builder $query, ?Authenticatable $user ) : void
+    {
+        PageAccess::flags( $query, $user );
+    }
+
+
+    /**
+     * Limits a query to pages without an explicit frontend access rule.
+     *
+     * @param Builder<static> $query
+     */
+    public function scopeWherePublic( Builder $query ) : void
+    {
+        $query->whereDoesntHave( 'access' );
+    }
+
+
+    /**
+     * Positions the page relative to a sibling or parent.
+     */
+    public function position( ?string $beforeId = null, ?string $parentId = null ) : void
+    {
+        $columns = ['id', 'tenant_id', 'parent_id', NestedSet::LFT, NestedSet::RGT, NestedSet::DEPTH];
+
+        if( $beforeId !== null ) {
+            $this->beforeNode( static::withTrashed()->select( $columns )->findOrFail( $beforeId ) );
+        } elseif( $parentId !== null ) {
+            $this->appendToNode( static::withTrashed()->select( $columns )->findOrFail( $parentId ) );
+        } elseif( $this->exists ) {
+            $this->makeRoot();
+        }
     }
 
 
@@ -448,60 +461,6 @@ class Page extends Base
         return static::withoutTenancy()
             ->select( 'id', 'tenant_id', 'parent_id', 'deleted_at', NestedSet::LFT, NestedSet::RGT, NestedSet::DEPTH )
             ->where( 'deleted_at', '<=', now()->subDays( config( 'cms.prune', 30 ) ) );
-    }
-
-
-    /**
-     * Publish the given version of the page.
-     *
-     * @param Version $version Version to publish
-     * @return self Returns the page object for method chaining
-     */
-    public function publish( Version $version ) : self
-    {
-        $fileIds = $version->files()->pluck( 'cms_files.id' )->all();
-        $elementIds = $version->elements()->pluck( 'cms_elements.id' )->all();
-
-        $this->files()->sync( $fileIds );
-        $this->elements()->sync( $elementIds );
-
-        if( $fileIds ) {
-            File::whereIn( 'id', $fileIds )->with( 'latest' )->get()
-                ->each( fn( $f ) => $f->latest && !$f->latest->published ? $f->publish( $f->latest ) : null );
-        }
-        if( $elementIds ) {
-            Element::whereIn( 'id', $elementIds )->with( 'latest' )->get()
-                ->each( fn( $e ) => $e->latest && !$e->latest->published ? $e->publish( $e->latest ) : null );
-        }
-
-        $this->forceFill( array_intersect_key( (array) $version->data, array_flip( $this->getFillable() ) ) );
-        $this->content = $version->aux->content ?? [];
-        $this->config = $version->aux->config ?? new \stdClass();
-        $this->meta = $version->aux->meta ?? new \stdClass();
-        $this->editor = $version->editor;
-        $this->setRelation( 'latest', $version );
-        $this->save();
-
-        if( !$version->published ) {
-            $version->published = true;
-            $version->save();
-        }
-
-        Cache::forget( static::key( $this ) );
-
-        return $this;
-    }
-
-
-    /**
-    /**
-     * Don't fire model events for each descendant for performance reasons.
-      *
-      * @return bool FALSE to disable firing events for descendants
-     */
-    protected function shouldFireDescendantEvents(): bool
-    {
-        return false;
     }
 
 
@@ -521,7 +480,7 @@ class Page extends Base
         $maxDepth = ( $this->getDepth() ?? 0 ) + config( 'cms.navdepth', 2 );
 
         $builder = $this->newScopedQuery()
-            ->select( 'id', 'parent_id', 'name', 'title', 'tag', 'path', 'domain', 'lang', 'to', 'status', 'config', 'latest_id', $lft, $rgt, $depth )
+            ->select( 'id', 'tenant_id', 'parent_id', 'name', 'title', 'tag', 'path', 'domain', 'lang', 'to', 'status', 'config', 'latest_id', $lft, $rgt, $depth )
             ->whereIn( $depth, range( 0, $maxDepth ) )
             ->whereNotExists( function( $query ) use ( $table, $lft, $rgt ) {
                 $query->select( DB::raw( 1 ) )
@@ -535,7 +494,7 @@ class Page extends Base
             ->defaultOrder();
 
         if( \Aimeos\Cms\Permission::can( 'page:view', Auth::user() ) ) {
-            $builder->with( ['latest' => fn( $q ) => $q->select( 'id', 'data' )] );
+            $builder->with( ['latest' => fn( $q ) => $q->select( 'id', 'tenant_id', 'data' )] );
         }
 
         return new DescendantsRelation( $builder->setModel( new Nav() ), $this );
@@ -549,7 +508,7 @@ class Page extends Base
      */
     public function toSearchableArray(): array
     {
-        $attrs = ['path', 'to', 'tag', 'name', 'title', 'meta', 'content', 'deleted_at', 'latest_id'];
+        $attrs = ['domain', 'lang', 'path', 'to', 'tag', 'name', 'title', 'meta', 'content', 'deleted_at', 'latest_id'];
 
         // bulk index + changed content check for performance reasons
         if( !empty( $this->getChanges() ) && !$this->wasChanged( $attrs ) ) {
@@ -560,7 +519,7 @@ class Page extends Base
 
         if( $version = $this->latest )
         {
-            $data = $version->data ?? new \stdClass();
+            $data = $version->data;
             $draft = mb_strtolower( trim(
                 ( $data->path ?? '' ) . "\n"
                 . ( $data->to ?? '' ) . "\n"
@@ -583,23 +542,43 @@ class Page extends Base
         $data = $version?->data;
 
         return [
-            'content' => $content,
             'draft' => $draft,
-            'domain' => $data->domain ?? '',
-            'lang' => $version->lang ?? '',
+            'content' => $content,
             'tenant_id' => $this->tenant_id ?? '',
             'parent_id' => $this->parent_id,
+
+            // published values for frontend search
+            'lang' => $this->lang ?? '',
+            'path' => $this->path ?? '',
+            'domain' => $this->domain ?? '',
+
+            // draft values for backend search
             'editor' => $version->editor ?? '',
             'status' => (int) ( $data->status ?? 0 ),
             'cache' => (int) ( $data->cache ?? 0 ),
             'to' => $data->to ?? '',
-            'path' => $data->path ?? '',
             'tag' => $data->tag ?? '',
             'theme' => $data->theme ?? '',
             'type' => $data->type ?? '',
             'published' => (bool) ( $version->published ?? false ),
             'scheduled' => (int) ( $data->scheduled ?? 0 ),
+
+            // frontend access hint for fast filtering
+            'restricted' => $this->relationLoaded( 'access' )
+                ? $this->getRelation( 'access' )->isNotEmpty()
+                : $this->access()->exists(),
         ];
+    }
+
+
+    /**
+     * Don't fire model events for each descendant for performance reasons.
+     *
+     * @return bool FALSE to disable firing events for descendants
+     */
+    protected function shouldFireDescendantEvents(): bool
+    {
+        return false;
     }
 
 
@@ -611,22 +590,33 @@ class Page extends Base
      */
     protected function makeAllSearchableUsing( $query )
     {
-        return $query->select( self::SELECT_COLUMNS )->with( [
-            'elements' => fn( $q ) => $q->select( Element::SELECT_COLS ),
-            'latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'data', 'aux', 'lang', 'editor', 'published' ),
-            'latest.elements' => fn( $q ) => $q->select( Element::SELECT_COLS ),
+        return $query->select( self::SELECT_COLUMNS )->withCount( 'access' )->with( [
+            'elements' => fn( $q ) => $q->select( Element::SELECT_COLUMNS ),
+            'latest' => fn( $q ) => $q->select( [...Version::SELECT_COLUMNS, 'aux'] ),
+            'latest.elements' => fn( $q ) => $q->select( Element::SELECT_COLUMNS ),
         ] );
     }
 
 
     /**
-     * Prepare the model for pruning.
+     * Whether one explicit frontend access rule allows the current user.
+     *
+     * @return Attribute<bool, never>
      */
-    protected function pruning() : void
+    protected function accessAllowed() : Attribute
     {
-        Version::where( 'versionable_id', $this->id )
-            ->where( 'versionable_type', static::class )
-            ->delete();
+        return Attribute::get( fn( $value ) => (bool) $value );
+    }
+
+
+    /**
+     * Whether the page has explicit frontend access rules.
+     *
+     * @return Attribute<bool, never>
+     */
+    protected function accessExists() : Attribute
+    {
+        return Attribute::get( fn( $value ) => (bool) $value );
     }
 
 
@@ -651,7 +641,7 @@ class Page extends Base
     protected function config(): Attribute
     {
         return Attribute::make(
-            set: fn( $value ) => json_encode( $value ?? new \stdClass() ),
+            set: fn( $value ) => json_encode( Validation::structured( $value, 'config' ) ),
         );
     }
 
@@ -703,7 +693,7 @@ class Page extends Base
     protected function meta(): Attribute
     {
         return Attribute::make(
-            set: fn( $value ) => json_encode( $value ?? new \stdClass() ),
+            set: fn( $value ) => json_encode( Validation::structured( $value, 'meta' ) ),
         );
     }
 
@@ -717,19 +707,6 @@ class Page extends Base
     {
         return Attribute::make(
             set: fn( $value ) => (string) $value,
-        );
-    }
-
-
-    /**
-     * Interact with the "related_id" property.
-     *
-     * @return Attribute<mixed, mixed> Eloquent attribute for the "related_id" property
-     */
-    protected function relatedId(): Attribute
-    {
-        return Attribute::make(
-            set: fn( $value ) => !empty( $value) ? (string) $value : null,
         );
     }
 
@@ -796,5 +773,20 @@ class Page extends Base
         return Attribute::make(
             set: fn( $value ) => (string) $value,
         );
+    }
+
+
+    /**
+     * Returns page-specific publication values.
+     *
+     * @return array<string, mixed>
+     */
+    protected function values( Version $version ) : array
+    {
+        return [
+            'content' => $version->aux->content ?? [],
+            'config' => $version->aux->config ?? new \stdClass(),
+            'meta' => $version->aux->meta ?? new \stdClass(),
+        ];
     }
 }

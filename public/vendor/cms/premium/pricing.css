@@ -18,50 +18,30 @@
 }
 
 .pricing .pricing-toggle {
-    position: relative;
     display: flex;
     width: fit-content;
+    max-width: 100%;
     margin: 0 auto 3rem;
     padding: 0.25rem;
     background: var(--pico-muted-border-color);
     border-radius: var(--pico-border-radius);
+    overflow-x: auto;
 }
 
 .pricing .pricing-toggle > span {
-    position: relative;
-    z-index: 1;
     padding: 0.5rem 1.25rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--pico-muted-color);
     cursor: pointer;
+    white-space: nowrap;
 }
 
-.pricing .pricing-toggle > span:first-child {
+.pricing .pricing-toggle > span.active {
     color: var(--pico-color);
-}
-
-.pricing .pricing-toggle.alt > span:first-child {
-    color: var(--pico-muted-color);
-}
-
-.pricing .pricing-toggle.alt > span:last-child {
-    color: var(--pico-color);
-}
-
-.pricing .pricing-toggle::before {
-    content: "";
-    position: absolute;
-    inset: 0.25rem;
-    width: calc(50% - 0.25rem);
     background-color: var(--pico-background-color);
     border-radius: calc(var(--pico-border-radius) * 1.5);
     box-shadow: var(--pico-box-shadow);
-    transition: transform 0.2s;
-}
-
-.pricing .pricing-toggle.alt::before {
-    transform: translateX(100%);
 }
 
 .pricing .pricing-list {
@@ -105,13 +85,25 @@
     box-shadow: 0 1.5rem 4rem -1rem var(--pico-muted-border-color);
 }
 
+.pricing .pricing-item picture.pricing-image {
+    aspect-ratio: 5 / 3;
+    display: block;
+    overflow: hidden;
+}
+
+.pricing .pricing-item picture.pricing-image img {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+
 .pricing .badge {
     position: absolute;
     top: -0.75rem;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--pico-secondary);
-    color: var(--pico-secondary-inverse);
+    background: var(--pico-contrast-inverse);
+    color: var(--pico-contrast);
     border-radius: var(--pico-border-radius);
     font-weight: 500;
     font-size: 0.75rem;
@@ -146,11 +138,13 @@
     letter-spacing: -0.03em;
 }
 
+.pricing .currency,
 .pricing .unit {
     font-size: 0.875rem;
     color: var(--pico-muted-color);
 }
 
+.pricing .highlight .currency,
 .pricing .highlight .unit {
     color: var(--pico-contrast-hover-background);
 }
@@ -162,7 +156,7 @@
     margin: 0 0 0.25rem;
 }
 
-.pricing .pricing-header .text {
+.pricing .pricing-header .cms-text {
     font-size: 0.875rem;
     color: var(--pico-muted-color);
     font-weight: 400;
@@ -170,7 +164,7 @@
     margin: 0 0 0.75rem;
 }
 
-.pricing .highlight .pricing-header .text {
+.pricing .highlight .pricing-header .cms-text {
     color: var(--pico-contrast-hover-background);
 }
 

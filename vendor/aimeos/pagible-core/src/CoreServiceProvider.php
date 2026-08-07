@@ -2,6 +2,17 @@
 
 namespace Aimeos\Cms;
 
+use Aimeos\Cms\Events\Added;
+use Aimeos\Cms\Events\Bulk;
+use Aimeos\Cms\Events\Dropped;
+use Aimeos\Cms\Events\Moved;
+use Aimeos\Cms\Events\Published;
+use Aimeos\Cms\Events\Purged;
+use Aimeos\Cms\Events\Restored;
+use Aimeos\Cms\Events\Saved;
+use Aimeos\Cms\Listeners\BulkListener;
+use Aimeos\Cms\Listeners\ContentListener;
+use Aimeos\Cms\Models\Version;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Broadcast;
@@ -17,11 +28,15 @@ class CoreServiceProvider extends Provider
         $basedir = dirname( __DIR__ );
 
         $this->loadMigrationsFrom( $basedir . '/database/migrations' );
+        $this->loadRoutesFrom( $basedir . '/routes/core.php' );
         $this->publishes( [
             $basedir . '/config/cms.php' => config_path( 'cms.php' ),
         ], 'cms-config' );
 
+        Watch::registerChannel();
         $this->broadcast();
+        $this->watch();
+        $this->flush();
         $this->rateLimiter();
         $this->userCasts();
         $this->schedule();
@@ -38,6 +53,26 @@ class CoreServiceProvider extends Provider
             $callback = \Aimeos\Cms\Tenancy::$callback;
             return new \Aimeos\Cms\Tenancy( $callback ? $callback() : '' );
         } );
+
+        $this->app->scoped( \Aimeos\Cms\Access::class );
+    }
+
+
+    /**
+     * Flushes Permission state after each queued job and each Octane request,
+     * so long-running workers never honor stale in-memory permission caches.
+     */
+    protected function flush() : void
+    {
+        \Illuminate\Support\Facades\Queue::after( fn() => \Aimeos\Cms\Permission::flush() );
+        \Illuminate\Support\Facades\Queue::failing( fn() => \Aimeos\Cms\Permission::flush() );
+
+        if( class_exists( \Laravel\Octane\Events\RequestTerminated::class ) ) {
+            \Illuminate\Support\Facades\Event::listen(
+                \Laravel\Octane\Events\RequestTerminated::class,
+                fn() => \Aimeos\Cms\Permission::flush(),
+            );
+        }
     }
 
     protected function broadcast() : void
@@ -46,14 +81,57 @@ class CoreServiceProvider extends Provider
             return;
         }
 
-        Broadcast::routes( ['middleware' => ['web', 'auth']] );
+        Broadcast::routes( ['middleware' => config( 'cms.broadcast-middleware', ['web', 'auth'] )] );
 
         foreach( ['page', 'element', 'file'] as $type )
         {
-            Broadcast::channel( "cms.{$type}.{id}", fn( $user ) =>
-                Permission::can( "{$type}:view", $user )
+            // Single-tenant only: the tenant-less channel is authorized solely when no tenancy is
+            // configured at all. Requiring Tenancy::$callback === null fails closed - in a
+            // multi-tenant deployment whose /broadcasting/auth route lacks the tenancy-init
+            // middleware, Tenancy::value() would be '' and would otherwise open this channel to
+            // every tenant.
+            Broadcast::channel( Channel::type( '', $type ), fn( $user ) =>
+                Tenancy::value() === '' && Tenancy::$callback === null && Permission::can( "{$type}:view", $user )
+            );
+
+            // Multi-tenant: the channel's tenant segment must match the request's tenant; the
+            // permission check also binds the user to the current tenant.
+            Broadcast::channel( Channel::type( '{tenant}', $type ), fn( $user, string $tenant ) =>
+                $tenant === Tenancy::value() && Permission::can( "{$type}:view", $user )
             );
         }
+    }
+
+
+    /**
+     * Subscribes the content audit listener to the per-action events when watch logging is enabled.
+     *
+     * Gated on "cms.watch.channel" so nothing listens when logging is off, which keeps
+     * Broadcasts::announce() short-circuiting (no event built, no latest version loaded).
+     */
+    protected function watch() : void
+    {
+        $listener = ContentListener::class;
+
+        Watch::listen( [
+            Added::class => $listener,
+            Saved::class => $listener,
+            Published::class => $listener,
+            Dropped::class => $listener,
+            Restored::class => $listener,
+            Purged::class => $listener,
+            Moved::class => $listener,
+            Bulk::class => BulkListener::class,
+        ] );
+
+        // Permission grants are security-relevant and must always be audited, so this
+        // listener is registered unconditionally — NOT through the watch-channel-gated
+        // Watch::listen() above. The listener itself falls back to the default log
+        // channel when no cms.watch.channel is configured.
+        \Illuminate\Support\Facades\Event::listen(
+            \Aimeos\Cms\Events\PermissionChanged::class,
+            [\Aimeos\Cms\Listeners\PermissionLogListener::class, 'handle'],
+        );
     }
 
 
@@ -75,8 +153,6 @@ class CoreServiceProvider extends Provider
         if( !\Laravel\Scout\Builder::hasMacro( 'searchFields' ) )
         {
             \Laravel\Scout\Builder::macro( 'searchFields', function( string ...$fields ) {
-                $this->where( 'tenant_id', Tenancy::value() );
-
                 match( config( 'scout.driver' ) ) {
                     'collection' => $this->callback = fn( $query, $builder ) => Scout::collection( $query, $builder, $fields ),
                     'algolia' => $this->options( ['restrictSearchableAttributes' => $fields] ),
@@ -119,44 +195,21 @@ class CoreServiceProvider extends Provider
     protected function schedule() : void
     {
         $this->app->afterResolving( Schedule::class, function( Schedule $schedule ) {
-            $schedule->command( 'cms:publish' )->everyThirtyMinutes();
-            $schedule->command( 'model:prune', ['--model' => [
-                \Aimeos\Cms\Models\Element::class,
-                \Aimeos\Cms\Models\File::class,
-                \Aimeos\Cms\Models\Page::class,
-            ]] )->daily();
+            $schedule->command( 'cms:publish' )->everyThirtyMinutes()
+                ->withoutOverlapping()->onOneServer();
+            $schedule->command( 'model:prune', ['--model' => Version::TYPES] )->daily();
         } );
     }
 
 
     protected function rateLimiter(): void
     {
-        RateLimiter::for( 'cms-admin', fn( $request ) =>
+        RateLimiter::for( 'cms-asset', fn( $request ) =>
+            Limit::perMinute( 300 )->by( $request->user()?->getAuthIdentifier() ?: $request->ip() )
+        );
+
+        RateLimiter::for( 'cms-broadcast', fn( $request ) =>
             Limit::perMinute( 120 )->by( $request->user()?->getAuthIdentifier() ?: $request->ip() )
-        );
-
-        RateLimiter::for( 'cms-ai', fn( $request ) =>
-            Limit::perMinute( 10 )->by( $request->user()?->getAuthIdentifier() ?: $request->ip() )
-        );
-
-        RateLimiter::for( 'cms-contact', fn( $request ) =>
-            Limit::perMinute( 2 )->by( $request->ip() )
-        );
-
-        RateLimiter::for( 'cms-jsonapi', fn( $request ) =>
-            Limit::perMinute( 60 )->by( $request->ip() )
-        );
-
-        RateLimiter::for( 'cms-login', fn( $request ) =>
-            Limit::perMinute( 10 )->by( $request->ip() )
-        );
-
-        RateLimiter::for( 'cms-proxy', fn( $request ) =>
-            Limit::perMinute( 30 )->by( $request->ip() )
-        );
-
-        RateLimiter::for( 'cms-search', fn( $request ) =>
-            Limit::perMinute( 60 )->by( $request->ip() )
         );
     }
 }

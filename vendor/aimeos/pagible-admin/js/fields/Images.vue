@@ -1,7 +1,6 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
-import gql from 'graphql-tag'
 import {
   mdiDotsVertical,
   mdiPencil,
@@ -9,35 +8,25 @@ import {
   mdiButtonCursor,
   mdiLinkVariantPlus,
   mdiCreation,
+  mdiTrayArrowDown,
   mdiUpload
 } from '@mdi/js'
 import { VueDraggable } from 'vue-draggable-plus'
-import { useAppStore, useUserStore, useMessageStore, useViewStack } from '../stores'
-import { frozenParse, IMAGE_MIME_FILTER, url, srcset } from '../utils'
+import { ADD_FILE, FETCH_FILE_DISKS, RELOCATE_FILE, normalizeFile } from '../files'
+import { useUserStore, useMessageStore, useViewStack } from '../stores'
+import { fileurl, filesrcset, IMAGE_MIME_FILTER } from '../utils'
 import { defineAsyncComponent } from 'vue'
-import FileDetail from '../views/FileDetail.vue'
+import FileProtect from '../components/FileProtect.vue'
 
 const FileAiDialog = defineAsyncComponent(() => import('../components/FileAiDialog.vue'))
 const FileUrlDialog = defineAsyncComponent(() => import('../components/FileUrlDialog.vue'))
 const FileDialog = defineAsyncComponent(() => import('../components/FileDialog.vue'))
 
-const ADD_FILE = gql`
-  mutation ($file: Upload!) {
-    addFile(file: $file) {
-      id
-      mime
-      name
-      path
-      previews
-    }
-  }
-`
-
 export default {
   inheritAttrs: false,
 
   components: {
-    FileDetail, // eslint-disable-line vue/no-unused-components -- used programmatically via openView()
+    FileProtect,
     FileDialog,
     FileAiDialog,
     FileUrlDialog,
@@ -48,6 +37,7 @@ export default {
     modelValue: { type: Array, default: () => [] },
     config: { type: Object, default: () => {} },
     assets: { type: Object, default: () => {} },
+    label: { type: String, default: '' },
     readonly: { type: Boolean, default: false },
     context: { type: Object }
   },
@@ -55,22 +45,20 @@ export default {
   emits: ['update:modelValue', 'error', 'addFile', 'removeFile'],
 
   inject: {
-    reload: { default: null }
+    update: { default: null }
   },
 
   setup() {
     const viewStack = useViewStack()
     const messages = useMessageStore()
     const user = useUserStore()
-    const app = useAppStore()
 
     return {
-      app,
       messages,
       user,
       viewStack,
-      url,
-      srcset,
+      fileurl,
+      filesrcset,
       IMAGE_MIME_FILTER,
       mdiDotsVertical,
       mdiPencil,
@@ -78,15 +66,18 @@ export default {
       mdiButtonCursor,
       mdiLinkVariantPlus,
       mdiCreation,
+      mdiTrayArrowDown,
       mdiUpload
     }
   },
 
   data() {
     return {
+      dragging: false,
       images: [],
       index: Math.floor(Math.random() * 100000),
-      selected: null,
+      protect: false,
+      protecting: false,
       vcreate: false,
       vfiles: false,
       vurls: false
@@ -94,6 +85,10 @@ export default {
   },
 
   computed: {
+    isPrivate() {
+      return this.images.some((item) => item.disk === 'private')
+    },
+
     rules() {
       return [
         (v) =>
@@ -134,12 +129,14 @@ export default {
         const path = URL.createObjectURL(file)
         const idx = this.images.length
 
-        this.images[idx] = { path: path, uploading: true }
+        const disk = this.protect ? 'private' : 'public'
+        this.images[idx] = { disk, path: path, uploading: true }
 
         const promise = this.$apollo
           .mutate({
             mutation: ADD_FILE,
             variables: {
+              disk,
               file: file
             },
             context: {
@@ -151,15 +148,13 @@ export default {
               throw response.errors
             }
 
-            const data = response.data?.addFile || {}
-            data.previews = frozenParse(data.previews)
-            delete data.__typename
+            const data = normalizeFile(response.data?.addFile)
 
             return new Promise((resolve, reject) => {
               const image = new Image()
               image.onload = resolve
               image.onerror = reject
-              image.src = this.url(Object.values(data.previews)[0])
+              image.src = this.fileurl(data, Object.values(data.previews)[0])
             }).then(() => {
               this.images[idx] = data
               this.$emit('addFile', data)
@@ -183,8 +178,6 @@ export default {
           this.images.map((item) => ({ id: item.id, type: 'file' }))
         )
       })
-
-      this.selected = null
     },
 
     addFromAi(event) {
@@ -203,14 +196,26 @@ export default {
       return Object.values(file.description || {}).shift()
     },
 
-    open(item) {
+    drop(event) {
+      this.dragging = false
+
+      const files = event.dataTransfer?.files
+
+      if (files?.length) {
+        this.add(files)
+      }
+    },
+
+    async open(item) {
       // Editing an image in the stacked FileDetail only updates the file's own
       // (already persisted) draft, not the page content, so just refresh the
       // preview when FileDetail saves.
+      const { default: FileDetail } = await import('../views/FileDetail.vue')
+
       this.viewStack.openView(FileDetail, {
         item: item,
         stacked: true,
-        onSaved: () => this.reload?.()
+        onSaved: () => this.update?.()
       })
     },
 
@@ -242,6 +247,84 @@ export default {
       )
       this.vfiles = false
       this.vurls = false
+
+      if (this.protect) {
+        this.setProtect(true)
+      } else {
+        this.protect = this.images.length > 0 && this.images.every((item) => item.disk === 'private')
+      }
+    },
+
+    async setProtect(value) {
+      const protect = Boolean(value)
+      const files = this.images.filter(
+        (item) => item.id && (item.disk === 'private') !== protect
+      )
+
+      this.protect = protect
+
+      if (!files.length) {
+        return
+      }
+
+      this.protecting = true
+
+      try {
+        const response = await this.$apollo.mutate({
+          mutation: RELOCATE_FILE,
+          variables: {
+            id: files.map((item) => item.id),
+            disk: protect ? 'private' : 'public'
+          }
+        })
+        if (response.errors) {
+          throw response.errors
+        }
+
+        this.sync(files, response.data?.relocateFile)
+      } catch (error) {
+        try {
+          const response = await this.$apollo.query({
+            query: FETCH_FILE_DISKS,
+            variables: { id: files.map((item) => item.id) },
+            fetchPolicy: 'no-cache'
+          })
+
+          if (response.errors) {
+            throw response.errors
+          }
+
+          this.sync(files, response.data?.files?.data)
+        } catch (reloadError) {
+          this.$log(`Images::setProtect(): Error reloading files`, reloadError)
+        }
+
+        this.protect =
+          this.images.length > 0 &&
+          this.images.every((item) => item.disk === 'private')
+        this.messages.add(this.$gettext(`Error saving file`) + ':\n' + error, 'error')
+        this.$log(`Images::setProtect(): Error relocating files`, error)
+      } finally {
+        this.protecting = false
+      }
+    },
+
+    sync(files, entries) {
+      const map = new Map(files.map((item) => [item.id, item]))
+      const updated = []
+
+      for (const data of entries || []) {
+        const item = map.get(data.id)
+
+        if (item) {
+          Object.assign(item, data)
+          updated.push(item)
+        }
+      }
+
+      if (updated.length) {
+        this.$emit('addFile', updated)
+      }
     }
   },
 
@@ -255,6 +338,8 @@ export default {
               this.images.push(this.assets[entry.id])
             }
           }
+
+          this.protect = this.images.length > 0 && this.images.every((item) => item.disk === 'private')
         }
 
         this.$emit(
@@ -270,6 +355,19 @@ export default {
 </script>
 
 <template>
+  <FileProtect
+    :disabled="protecting"
+    :labelled="!!label || !!$slots.label"
+    :loading="protecting"
+    :model-value="protect"
+    :name="label"
+    :locked="isPrivate"
+    :readonly="readonly"
+    @update:model-value="setProtect($event)"
+  >
+    <slot name="label" />
+  </FileProtect>
+
   <VueDraggable
     v-model="images"
     :disabled="readonly"
@@ -290,8 +388,8 @@ export default {
       <v-progress-linear v-if="item.uploading" color="primary" height="5" indeterminate rounded />
       <v-img
         v-if="item.path"
-        :srcset="srcset(item.previews)"
-        :src="url(Object.values(item.previews)[0] ?? item.path)"
+        :srcset="filesrcset(item)"
+        :src="fileurl(item, Object.values(item.previews || {})[0] ?? item.path)"
         :alt="description(item)"
         draggable="false"
       />
@@ -322,56 +420,90 @@ export default {
     </div>
 
     <div v-if="!readonly" class="add">
-      <div class="icon-group">
-        <v-btn
-          v-if="user.can('file:view')"
-          @click="vfiles = true"
-          :title="$gettext('Add files')"
-          :icon="mdiButtonCursor"
-          class="btn-add"
-          variant="text"
-        />
-        <v-btn
-          @click="vurls = true"
-          :title="$gettext('Add files from URLs')"
-          :icon="mdiLinkVariantPlus"
-          class="btn-add-urls"
-          variant="text"
-        />
-      </div>
-      <div class="icon-group">
-        <v-btn
-          v-if="user.can('image:imagine')"
-          @click="vcreate = true"
-          :title="$gettext('Create file')"
-          :icon="mdiCreation"
-          class="btn-create"
-          variant="text"
-        />
-        <v-btn :title="$gettext('Add files')" :icon="mdiUpload" class="btn-upload" variant="text"
-          ><v-file-input
-            v-model="selected"
-            @update:modelValue="add($event)"
-            :accept="config.accept || 'image/*'"
-            :hide-input="true"
-            :prepend-icon="mdiUpload"
-            multiple
+      <div class="actions">
+        <div class="icon-group">
+          <v-btn
+            v-if="user.can('file:view')"
+            @click="vfiles = true"
+            :title="$gettext('Add files')"
+            :icon="mdiButtonCursor"
+            class="btn-add"
+            variant="text"
           />
-        </v-btn>
+          <v-btn
+            @click="vurls = true"
+            :title="$gettext('Add files from URLs')"
+            :icon="mdiLinkVariantPlus"
+            class="btn-add-urls"
+            variant="text"
+          />
+        </div>
+        <div class="icon-group">
+          <v-btn
+            v-if="user.can('image:imagine')"
+            @click="vcreate = true"
+            :title="$gettext('Create file')"
+            :icon="mdiCreation"
+            class="btn-create"
+            variant="text"
+          />
+          <v-btn
+            @click="$refs.upload.click()"
+            :title="$gettext('Add files')"
+            :icon="mdiUpload"
+            class="btn-upload"
+            variant="text"
+          />
+        </div>
+      </div>
+
+      <div
+        class="dropzone"
+        :class="{ dragover: dragging }"
+        @dragenter.prevent="dragging = true"
+        @dragover.prevent="dragging = true"
+        @dragleave.prevent="dragging = false"
+        @drop.prevent="drop($event)"
+      >
+        <v-icon :icon="mdiTrayArrowDown" />
+        <span>{{ $gettext('Drop files here') }}</span>
       </div>
     </div>
   </VueDraggable>
+
+  <!-- Kept outside <VueDraggable> on purpose: a Vuetify input nested in the
+       draggable's persistent "add" tile loses its ref owner context when
+       vue-draggable-plus re-patches the tile on model changes. -->
+  <input
+    ref="upload"
+    type="file"
+    :accept="config.accept || 'image/*'"
+    multiple
+    hidden
+    @change="add($event.target.files); $event.target.value = null"
+  />
 
   <Teleport to="body">
     <FileDialog v-model="vfiles" @add="select($event)" :filter="IMAGE_MIME_FILTER" grid />
   </Teleport>
 
   <Teleport to="body">
-    <FileAiDialog v-model="vcreate" @add="addFromAi" :context="context" />
+    <FileAiDialog
+      v-model="vcreate"
+      :context="context"
+      :disk="protect ? 'private' : 'public'"
+      @add="addFromAi"
+    />
   </Teleport>
 
   <Teleport to="body">
-    <FileUrlDialog v-model="vurls" @add="select($event)" mime="image/" multiple />
+    <FileUrlDialog
+      v-model="vurls"
+      :disk="protect ? 'private' : 'public'"
+      @add="select($event)"
+      mime="image/"
+      multiple
+    />
   </Teleport>
 </template>
 
@@ -404,7 +536,45 @@ export default {
 .images .add {
   border: 1px dashed rgba(var(--v-border-color), var(--v-medium-emphasis-opacity));
   flex-flow: column;
-  flex-wrap: wrap;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Upper half: the add/url/create/upload buttons. */
+.images .add .actions {
+  flex: 1 1 50%;
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Lower half: the drop target, filling the remaining 50% of the tile. */
+.images .add .dropzone {
+  flex: 1 1 50%;
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  width: 100%;
+  font-size: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  border-top: 1px dashed rgba(var(--v-border-color), var(--v-medium-emphasis-opacity));
+  cursor: copy;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.images .add .dropzone.dragover {
+  border-color: rgb(var(--v-theme-primary));
+  background-color: rgba(var(--v-theme-primary), 0.08);
+  color: rgb(var(--v-theme-primary));
+}
+
+.images .add .dropzone * {
+  pointer-events: none;
 }
 
 .images .add :deep(.v-icon) {

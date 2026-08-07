@@ -1,13 +1,12 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
-use Aimeos\Cms\Utils;
 use Aimeos\Cms\Resource;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Models\Page;
@@ -41,7 +40,7 @@ class RestorePage extends Tool
         ] );
 
         /** @var Page|null $page */
-        $page = Page::withTrashed()->select( 'id', 'deleted_at' )->find( $v['id'] );
+        $page = Page::withTrashed()->select( 'id', 'tenant_id', 'deleted_at' )->find( $v['id'] );
 
         if( !$page ) {
             return Response::structured( ['error' => 'Page not found.'] );
@@ -51,7 +50,7 @@ class RestorePage extends Tool
             return Response::structured( ['error' => 'Page is not deleted.'] );
         }
 
-        $items = Resource::restore( Page::class, [$v['id']], Utils::editor( $request->user() ) );
+        $items = Resource::restore( Page::class, [$v['id']], $request->user() );
 
         /** @var Page $restored */
         $restored = $items->firstOrFail();

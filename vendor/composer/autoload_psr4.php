@@ -116,7 +116,7 @@ return array(
     'Doctrine\\Inflector\\' => array($vendorDir . '/doctrine/inflector/src'),
     'Doctrine\\Common\\Lexer\\' => array($vendorDir . '/doctrine/lexer/src'),
     'Dflydev\\DotAccessData\\' => array($vendorDir . '/dflydev/dot-access-data/src'),
-    'Database\\Seeders\\' => array($baseDir . '/database/seeders', $vendorDir . '/aimeos/pagible-theme/database/seeders', $vendorDir . '/aimeos/pagible-core/database/seeders'),
+    'Database\\Seeders\\' => array($baseDir . '/database/seeders', $vendorDir . '/aimeos/pagible-themes-style/database/seeders', $vendorDir . '/aimeos/pagible-themes-premium/database/seeders', $vendorDir . '/aimeos/pagible-themes-paper/database/seeders', $vendorDir . '/aimeos/pagible-themes-pagible/database/seeders', $vendorDir . '/aimeos/pagible-themes-luxury/database/seeders', $vendorDir . '/aimeos/pagible-themes-journal/database/seeders', $vendorDir . '/aimeos/pagible-themes-glass/database/seeders', $vendorDir . '/aimeos/pagible-themes-estate/database/seeders', $vendorDir . '/aimeos/pagible-themes-bold/database/seeders', $vendorDir . '/aimeos/pagible-theme/database/seeders', $vendorDir . '/aimeos/pagible-core/database/seeders'),
     'Database\\Factories\\' => array($baseDir . '/database/factories'),
     'Cron\\' => array($vendorDir . '/dragonmantank/cron-expression/src/Cron'),
     'Clue\\Redis\\Protocol\\' => array($vendorDir . '/clue/redis-protocol/src'),
@@ -127,7 +127,7 @@ return array(
     'App\\' => array($baseDir . '/app'),
     'Aimeos\\Prisma\\' => array($vendorDir . '/aimeos/prisma/src'),
     'Aimeos\\Nestedset\\' => array($vendorDir . '/aimeos/laravel-nestedset/src'),
-    'Aimeos\\Cms\\' => array($vendorDir . '/aimeos/pagible-themes-premium/src', $vendorDir . '/aimeos/pagible-themes-paper/src', $vendorDir . '/aimeos/pagible-themes-pagible/src', $vendorDir . '/aimeos/pagible-themes-glass/src', $vendorDir . '/aimeos/pagible/src', $vendorDir . '/aimeos/pagible-search/src', $vendorDir . '/aimeos/pagible-jsonapi/src', $vendorDir . '/aimeos/pagible-ai/src', $vendorDir . '/aimeos/pagible-admin/src', $vendorDir . '/aimeos/pagible-mcp/src', $vendorDir . '/aimeos/pagible-theme/src', $vendorDir . '/aimeos/pagible-graphql/src', $vendorDir . '/aimeos/pagible-core/src'),
+    'Aimeos\\Cms\\' => array($vendorDir . '/aimeos/pagible-themes-style/src', $vendorDir . '/aimeos/pagible-themes-premium/src', $vendorDir . '/aimeos/pagible-themes-paper/src', $vendorDir . '/aimeos/pagible-themes-pagible/src', $vendorDir . '/aimeos/pagible-themes-luxury/src', $vendorDir . '/aimeos/pagible-themes-journal/src', $vendorDir . '/aimeos/pagible-themes-glass/src', $vendorDir . '/aimeos/pagible-themes-estate/src', $vendorDir . '/aimeos/pagible-themes-bold/src', $vendorDir . '/aimeos/pagible/src', $vendorDir . '/aimeos/pagible-search/src', $vendorDir . '/aimeos/pagible-jsonapi/src', $vendorDir . '/aimeos/pagible-ai/src', $vendorDir . '/aimeos/pagible-admin/src', $vendorDir . '/aimeos/pagible-mcp/src', $vendorDir . '/aimeos/pagible-graphql/src', $vendorDir . '/aimeos/pagible-theme/src', $vendorDir . '/aimeos/pagible-core/src'),
     'Aimeos\\AnalyticsBridge\\Drivers\\' => array($vendorDir . '/aimeos/laravel-analytics-matomo/src'),
     'Aimeos\\AnalyticsBridge\\' => array($vendorDir . '/aimeos/laravel-analytics-bridge/src'),
 );

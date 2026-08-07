@@ -1,5 +1,5 @@
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 import gettext from './i18n'
@@ -10,22 +10,25 @@ export const IMAGE_MIME_FILTER = { mime: ['image/gif', 'image/jpeg', 'image/png'
 
 export const MEDIA_MIME_FILTER = { mime: ['image/gif', 'image/jpeg', 'image/png', 'image/svg+xml', 'image/webp', 'video/mp4', 'video/webm', 'video/ogg'] }
 
+export const PAGE_BULK_LIMIT = 1000
+
 /**
  * Keys that can pollute object prototypes when merged into existing objects
  */
 const UNSAFE_KEYS = ['__proto__', 'constructor', 'prototype']
 
 /**
- * Creates a debounced version of a function that returns a Promise
+ * Creates a debounced version of a function that returns a Promise. The returned function
+ * exposes a cancel() method that clears any pending invocation.
  *
  * @param {Function} func Function to debounce
  * @param {number} delay Delay in milliseconds
- * @returns {Function} Debounced function that returns a Promise
+ * @returns {Function} Debounced function (with a cancel() method) that returns a Promise
  */
 export function debounce(func, delay) {
   let timer
 
-  return function (...args) {
+  function debounced(...args) {
     return new Promise((resolve, reject) => {
       const context = this
 
@@ -39,6 +42,10 @@ export function debounce(func, delay) {
       }, delay)
     })
   }
+
+  debounced.cancel = () => clearTimeout(timer)
+
+  return debounced
 }
 
 /**
@@ -77,13 +84,15 @@ export function frozenParse(str) {
  * Object.assign) without altering their prototype chain.
  *
  * @param {string} str JSON string to parse
- * @param {*} fallback Value returned when parsing fails (default: {})
+ * @param {*} fallback Value returned when the string is empty or parsing fails (default: {})
  * @returns {*} Parsed value with unsafe keys removed
  */
 export function safeParse(str, fallback = {}) {
   try {
+    // Empty input parses to null so it yields the caller's fallback (e.g. ['en']) rather
+    // than {}; for the default {} fallback this is identical (null ?? {} === {}).
     return (
-      JSON.parse(str || '{}', (key, value) =>
+      JSON.parse(str || 'null', (key, value) =>
         UNSAFE_KEYS.includes(key) ? undefined : value
       ) ?? fallback
     )
@@ -394,6 +403,31 @@ const uid = (function () {
 export { uid }
 
 /**
+ * Returns the CSRF header derived from Laravel's XSRF-TOKEN cookie for cookie-authenticated
+ * requests, or an empty object when the cookie is absent. Used directly by Apollo's csrfLink and
+ * (via postHeaders) by raw fetch POSTs, so the cookie/header contract lives in one place.
+ *
+ * @returns {Object} { 'X-XSRF-TOKEN': token } or {}
+ */
+export function xsrfHeaders() {
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
+
+  return match ? { 'X-XSRF-TOKEN': decodeURIComponent(match[1]) } : {}
+}
+
+/**
+ * Returns the request headers for a cookie-authenticated JSON POST: content negotiation plus the
+ * CSRF token header. Keeps the header contract for raw fetch() calls in one place (builds on
+ * xsrfHeaders so a future CSRF-contract change is made once).
+ *
+ * @param {string} accept Value for the Accept header (e.g. 'text/plain' for a streamed response)
+ * @returns {Object} request headers
+ */
+export function postHeaders(accept = 'application/json') {
+  return { 'Content-Type': 'application/json', Accept: accept, ...xsrfHeaders() }
+}
+
+/**
  * Resolves a file path to a full URL using the app's file or proxy URL
  *
  * @param {string} path Relative path, absolute URL, or blob URL
@@ -418,4 +452,40 @@ export function url(path, proxy = false) {
   }
 
   return app.urlfile.replace(/\/+$/g, '') + '/' + path
+}
+
+/**
+ * Resolves a public or private File URL for the admin editor.
+ *
+ * @param {Object} file File data including id, disk, path and previews
+ * @param {string|null} path Original or preview path
+ * @param {boolean} proxy Route a public remote URL through the media proxy
+ * @returns {string} Resolved URL
+ */
+export function fileurl(file, path = null, proxy = false) {
+  path ??= file?.path
+
+  if (!file || file.disk !== 'private') {
+    return url(path, proxy)
+  }
+
+  const preview = Object.entries(file.previews || {}).find((entry) => entry[1] === path)
+  const variant = preview?.[0] || ''
+
+  return useAppStore()
+    .urlasset.replace(/_file_/, encodeURIComponent(file.id))
+    .replace(/_variant_/, encodeURIComponent(variant))
+    .replace(/\/+$/g, '')
+}
+
+/**
+ * Generates a srcset for a public or private File.
+ *
+ * @param {Object} file File data including previews
+ * @returns {string} Responsive image srcset
+ */
+export function filesrcset(file) {
+  return Object.entries(file?.previews || {})
+    .map(([width, path]) => `${fileurl(file, path)} ${width}w`)
+    .join(',')
 }

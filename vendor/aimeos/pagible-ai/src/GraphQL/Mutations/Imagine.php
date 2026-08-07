@@ -1,22 +1,28 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\GraphQL\Mutations;
 
-use Aimeos\Cms\Models\File;
+use Aimeos\Cms\Concerns\ObservesPrisma;
+use Aimeos\Cms\Permission;
 use Aimeos\Prisma\Prisma;
+use Aimeos\Cms\Models\File;
 use Aimeos\Prisma\Files\Image;
 use Aimeos\Prisma\Exceptions\PrismaException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use GraphQL\Error\Error;
 
 
 final class Imagine
 {
+    use ObservesPrisma;
+
+
     /**
      * @param  null  $rootValue
      * @param  array<string, mixed>  $args
@@ -34,7 +40,7 @@ final class Imagine
 
         try
         {
-            return Prisma::image()
+            return Prisma::image()->observe( $this->observer() )
                 ->using( $provider, $config )
                 ->model( $model )
                 ->ensure( 'imagine' )
@@ -44,7 +50,7 @@ final class Imagine
         catch( PrismaException $e )
         {
             Log::error( 'AI service error', ['mutation' => 'Imagine', 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()] );
-            throw new Error( config( 'app.debug' ) ? $e->getMessage() : 'AI service error', null, null, null, null, $e );
+            throw new Error( $e->getMessage(), null, null, null, null, $e );
         }
     }
 
@@ -59,9 +65,11 @@ final class Imagine
             return [];
         }
 
-        $disk = config( 'cms.disk', 'public' );
+        if( !Permission::can( 'file:view', Auth::user() ) ) {
+            throw new Error( 'Insufficient permissions' );
+        }
 
-        return File::whereIn( 'id', $ids )->select( 'id', 'path', 'mime' )->get()->map( function( $file ) use ( $disk ) {
+        return File::whereIn( 'id', $ids )->select( 'id', 'tenant_id', 'disk', 'path', 'mime' )->get()->map( function( $file ) {
 
             if( !str_starts_with( $file->mime, 'image/' ) ) {
                 return null;
@@ -71,7 +79,7 @@ final class Imagine
                 return Image::fromUrl( (string) $file->path, $file->mime );
             }
 
-            return Image::fromStoragePath( (string) $file->path, $disk );
+            return Image::fromStoragePath( (string) $file->path, File::diskName( (string) $file->disk ) );
 
         } )->filter()->values()->toArray();
     }

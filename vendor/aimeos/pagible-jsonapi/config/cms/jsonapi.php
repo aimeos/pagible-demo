@@ -13,4 +13,16 @@ return [
     |
     */
     'maxdepth' => env( 'CMS_JSONAPI_MAXDEPTH', 1 ),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Request logging
+    |--------------------------------------------------------------------------
+    |
+    | When enabled together with "cms.watch.channel", each read-only JSON:API
+    | request dispatches a rich audit event containing its request shape. Pulse
+    | observations are listener-driven and don't require this flag.
+    |
+    */
+    'watch' => env( 'CMS_JSONAPI_WATCH', false ),
 ];

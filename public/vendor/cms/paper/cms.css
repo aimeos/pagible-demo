@@ -158,7 +158,7 @@ header nav > ul:not(.menu) > li {
     padding: 0;
 }
 
-header nav > ul > li:last-of-type a {
+header nav ul.menu > li:has(+ li.login) > a {
     color: var(--pico-primary-inverse);
     background-color: var(--pico-primary);
     border-radius: calc(var(--pico-border-radius) * 4);
@@ -167,7 +167,7 @@ header nav > ul > li:last-of-type a {
 }
 
 header nav a,
-header nav details.dropdown summary:not([role]) {
+header nav details.dropdown > summary:not([role]) {
     display: flex;
     align-items: center;
     list-style: none;
@@ -178,8 +178,10 @@ header nav details.dropdown summary:not([role]) {
     transition: color 0.15s ease;
     text-decoration: none;
     margin: 0;
-    background: none;
-    border: none;
+    height: auto;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
 }
 
 header nav a:not([role]):hover,
@@ -188,19 +190,22 @@ header nav a:not([role]):active {
     text-decoration: none;
 }
 
-header nav ul.menu > li:not(:last-of-type) > a:hover,
-header nav ul.menu > li:not(:last-of-type) > a:focus,
-header nav details.dropdown summary:not([role]):hover,
-header nav details.dropdown summary:not([role]):focus,
-header nav details.dropdown summary:not([role]):active {
+header nav ul.menu > li:not(:has(+ li.login)):not(.login) > a:hover,
+header nav ul.menu > li:not(:has(+ li.login)):not(.login) > a:focus,
+header nav details.dropdown > summary:not([role]):hover,
+header nav details.dropdown > summary:not([role]):focus,
+header nav details.dropdown > summary:not([role]):focus-visible,
+header nav details.dropdown > summary:not([role]):active,
+header nav details.dropdown[open] > summary:not([role]) {
     color: var(--pico-primary-hover);
-    background: none;
+    background: transparent;
     box-shadow: none;
+    border: 0;
 }
 
-header nav ul.menu > li:last-of-type > a:hover,
-header nav ul.menu > li:last-of-type > a:focus,
-header nav ul.menu > li:last-of-type > a:active {
+header nav ul.menu > li:has(+ li.login) > a:hover,
+header nav ul.menu > li:has(+ li.login) > a:focus,
+header nav ul.menu > li:has(+ li.login) > a:active {
     color: var(--pico-primary-inverse);
 }
 
@@ -342,11 +347,6 @@ nav.breadcrumb ul li {
 
 nav.breadcrumb ul li:not(:first-child) {
     margin-inline-start: 0;
-}
-
-nav.breadcrumb ul li:not(:last-child)::after {
-    color: var(--pico-muted-color);
-    width: auto;
 }
 
 nav.breadcrumb ul li a {

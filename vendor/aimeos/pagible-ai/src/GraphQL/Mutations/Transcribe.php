@@ -1,23 +1,27 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\GraphQL\Mutations;
 
-use Aimeos\Cms\Utils;
+use Aimeos\Cms\Concerns\ObservesPrisma;
 use Aimeos\Prisma\Prisma;
+use Aimeos\Cms\Utils;
 use Aimeos\Prisma\Files\Audio;
 use Aimeos\Prisma\Exceptions\PrismaException;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Http\UploadedFile;
 use GraphQL\Error\Error;
 
 
 final class Transcribe
 {
+    use ObservesPrisma;
+    use ValidatesInputs;
+
+
     /**
      * @param null $rootValue
      * @param array<string, mixed> $args
@@ -25,11 +29,7 @@ final class Transcribe
      */
     public function __invoke( $rootValue, array $args ): array
     {
-        $upload = $args['file'];
-
-        if( !$upload instanceof UploadedFile || !$upload->isValid() ) {
-            throw new Error( 'Invalid file upload' );
-        }
+        $upload = $this->upload( $args['file'], 'audio' );
 
         $provider = config( 'cms.ai.transcribe.provider' );
         $config = config( 'cms.ai.transcribe', [] );
@@ -37,9 +37,9 @@ final class Transcribe
 
         try
         {
-            $file = Audio::fromBinary( $upload->getContent(), $upload->getClientMimeType() );
+            $file = Audio::fromBinary( $upload->getContent(), (string) $upload->getMimeType() );
 
-            $data = Prisma::audio()
+            $data = Prisma::audio()->observe( $this->observer() )
                 ->using( $provider, $config )
                 ->model( $model )
                 ->ensure( 'transcribe' )
@@ -55,7 +55,7 @@ final class Transcribe
         catch( PrismaException $e )
         {
             Log::error( 'AI service error', ['mutation' => 'Transcribe', 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()] );
-            throw new Error( config( 'app.debug' ) ? $e->getMessage() : 'AI service error', null, null, null, null, $e );
+            throw new Error( $e->getMessage(), null, null, null, null, $e );
         }
     }
 }

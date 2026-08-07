@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import gql from 'graphql-tag'
@@ -6,12 +6,13 @@ import AsideMeta from '../components/AsideMeta.vue'
 import DetailAppBar from '../components/DetailAppBar.vue'
 import FileDetailRefs from '../components/FileDetailRefs.vue'
 import FileDetailItem from '../components/FileDetailItem.vue'
-import { useDirtyStore, useSideStore, useUserStore, useMessageStore, useViewStack, useChangeStore } from '../stores'
+import { useDirtyStore, useSideStore, useUserStore, useMessageStore, usePluginStore, useViewStack, useChangeStore } from '../stores'
 import { applyResult, hasUnresolved } from '../merge'
 import { publishDate, publishItem } from '../publish'
 import { defineAsyncComponent, markRaw } from 'vue'
-import { setupEcho, cleanEcho } from '../echo'
-import { frozenParse, safeParse, sanitize } from '../utils'
+import { setupReload, cleanEcho } from '../echo'
+import { reloadVersion } from '../version'
+import { safeParse } from '../utils'
 
 const ChangesDialog = defineAsyncComponent(() => import('../components/ChangesDialog.vue'))
 const HistoryDialog = defineAsyncComponent(() => import('../components/HistoryDialog.vue'))
@@ -19,10 +20,12 @@ const HistoryDialog = defineAsyncComponent(() => import('../components/HistoryDi
 const FETCH_FILE = gql`
   query ($id: ID!) {
     file(id: $id) {
+      disk
       id
       latest {
         id
         published
+        aux
         data
         editor
         created_at
@@ -34,9 +37,11 @@ const FETCH_FILE = gql`
 const SAVE_FILE = gql`
   mutation ($id: ID!, $input: FileInput!, $file: Upload, $latestId: ID) {
     saveFile(id: $id, input: $input, file: $file, latestId: $latestId) {
+      disk
       id
       latest {
         id
+        aux
         data
         published
         publish_at
@@ -51,11 +56,13 @@ const SAVE_FILE = gql`
 const FETCH_FILE_VERSIONS = gql`
   query ($id: ID!) {
     file(id: $id) {
+      disk
       id
       versions {
         id
         published
         publish_at
+        aux
         data
         editor
         created_at
@@ -117,8 +124,12 @@ export default {
   },
 
   computed: {
+    subpanels() {
+      return usePluginStore().subpanels.file || {}
+    },
+
     hasConflict() {
-      return hasUnresolved(this.changed)
+      return hasUnresolved(this.changed, ['data', 'aux'])
     },
 
     historyCurrent() {
@@ -146,48 +157,13 @@ export default {
       return
     }
 
-    this.$apollo
-      .query({
-        query: FETCH_FILE,
-        fetchPolicy: 'no-cache',
-        variables: {
-          id: this.item.id
-        }
-      })
-      .then((result) => {
-        if (this.destroyed) return
+    this.reload().then((ok) => {
+      if (!ok) return
 
-        if (result.errors || !result.data.file) {
-          throw result
-        }
-
-        if (!result.data.file.latest) {
-          throw new Error('No version data available')
-        }
-
-        const latest = result.data.file.latest
-
-        this.reset()
-        Object.assign(this.item, safeParse(latest?.data))
-        this.item.latestId = latest?.id
-        this.item.published = latest?.published
-        this.item.updated_at = latest?.created_at
-        this.item.editor = latest?.editor
-
-        setupEcho(this, 'file', this.item.id, (event) => {
-          if (!this.dirty && this.user.can('file:view') && event.editor !== this.user.me?.email) {
-            this.item.latestId = event.versionId
-            Object.assign(this.item, sanitize(event.data))
-          }
-        })
-
-        this.loading = false
-      })
-      .catch((error) => {
-        this.loading = false
-        this.messages.add(this.$gettext('Error fetching file') + ':\n' + error, 'error')
-        this.$log(`FileDetail::created(): Error fetching file`, error)
-      })
+      // reload the open file when its own item is saved elsewhere or after a reconnect that may
+      // have missed a save, unless the user has unsaved edits
+      setupReload(this, 'file', this.item.id, () => this.reload(), () => !this.dirty && this.user.can('file:view'))
+    })
   },
 
   beforeUnmount() {
@@ -200,6 +176,21 @@ export default {
   },
 
   methods: {
+    // loads the latest version into the open editor; resolves true on success so the caller
+    // can defer the websocket subscription until the initial load completed
+    reload() {
+      return reloadVersion(this, FETCH_FILE, 'file', this.$gettext('Error fetching file'), (file) => {
+        const latest = file.latest
+
+        Object.assign(this.item, safeParse(latest?.data), safeParse(latest?.aux))
+        this.item.disk = file.disk
+        this.item.latestId = latest?.id
+        this.item.published = latest?.published
+        this.item.updated_at = latest?.created_at
+        this.item.editor = latest?.editor
+      }, () => !this.dirty)
+    },
+
     apply(changes) {
       Object.assign(this.item, changes)
       this.dirty = true
@@ -231,6 +222,7 @@ export default {
 
       return Object.freeze({
         [data.path]: Object.freeze({
+          disk: this.item.disk,
           id: data.path,
           name: data.name,
           mime: data.mime,
@@ -312,7 +304,7 @@ export default {
           const latest = file?.latest
           const changed = file?.changed ? markRaw(safeParse(file.changed)) : null
 
-          Object.assign(this.item, safeParse(latest?.data))
+          Object.assign(this.item, safeParse(latest?.data), safeParse(latest?.aux))
           this.item.updated_at = latest?.created_at
           this.item.latestId = latest?.id
 
@@ -364,11 +356,10 @@ export default {
             throw result
           }
 
-          const keys = ['previews', 'description', 'transcription']
-
           return (result.data.file.versions || []).map((v) => {
-            const item = { ...v, data: frozenParse(v.data) }
-            keys.forEach((key) => (item[key] = Object.freeze(item[key] ?? {})))
+            const data = Object.assign(safeParse(v.data), safeParse(v.aux))
+            const item = { ...v, data: Object.freeze(data) }
+            delete item.aux
             item.files = this.media(item.data)
             return Object.freeze(item)
           })
@@ -419,6 +410,9 @@ export default {
           $gettext('File')
         }}</v-tab>
         <v-tab value="refs">{{ $gettext('Used by') }}</v-tab>
+        <v-tab v-for="(sp, key) in subpanels" :key="key" :value="'ext-' + key">
+          {{ sp.label }}
+        </v-tab>
       </v-tabs>
 
       <v-window v-model="tab" :touch="false">
@@ -433,6 +427,10 @@ export default {
 
         <v-window-item value="refs">
           <FileDetailRefs :item="item" />
+        </v-window-item>
+
+        <v-window-item v-for="(sp, key) in subpanels" :key="key" :value="'ext-' + key">
+          <component :is="sp.component" :item="item" />
         </v-window-item>
       </v-window>
     </v-form>
@@ -451,7 +449,7 @@ export default {
       @use="use($event)"
     />
     <ChangesDialog v-model="vchanged" :changed="changed"
-      :targets="{ data: item }"
+      :targets="{ data: item, aux: item }"
       @resolve="dirty = true"
     />
   </Teleport>

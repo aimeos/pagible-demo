@@ -1,17 +1,14 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
 use Aimeos\Cms\Resource;
-use Aimeos\Cms\Tenancy;
-use Aimeos\Cms\Utils;
 use Aimeos\Cms\Models\File;
-use Aimeos\Cms\Models\Version;
 use Aimeos\Prisma\Files\Image;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\UploadedFile;
@@ -34,7 +31,7 @@ trait HandlesMedia
     protected function image( string $id ) : ?Image
     {
         /** @var File|null $file */
-        $file = File::select( 'id', 'path', 'mime' )->find( $id );
+        $file = File::select( 'id', 'disk', 'path', 'mime' )->find( $id );
 
         return $file ? $this->toImage( $file ) : null;
     }
@@ -54,14 +51,14 @@ trait HandlesMedia
             return [];
         }
 
-        return File::whereIn( 'id', $ids )->select( 'id', 'path', 'mime' )->get()
+        return File::whereIn( 'id', $ids )->select( 'id', 'tenant_id', 'disk', 'path', 'mime' )->get()
             ->map( fn( File $file ) => $this->toImage( $file ) )
             ->filter()->values()->all();
     }
 
 
     /**
-     * Stores a base64 encoded image as a new draft media file.
+     * Ingests and stores a base64 encoded image as a new draft media file.
      *
      * @param string $base64 Base64 encoded image data
      * @param string $name Display name for the new file (without extension)
@@ -74,16 +71,10 @@ trait HandlesMedia
     {
         return $this->upload( $base64, $name, function( UploadedFile $upload ) use ( $lang, $description, $user ) {
 
-            $editor = Utils::editor( $user );
-            $versionId = ( new Version )->newUniqueId();
-
             $file = new File();
-            $file->tenant_id = Tenancy::value();
             $file->lang = $lang;
             $file->mime = $upload->getClientMimeType();
             $file->name = $upload->getClientOriginalName();
-            $file->latest_id = $versionId;
-            $file->editor = $editor;
 
             if( $description ) {
                 $file->description = $description;
@@ -92,48 +83,26 @@ trait HandlesMedia
             // Store the file and generate previews outside the transaction to
             // keep slow disk and image work off the database connection.
             try {
-                $file->addFile( $upload );
-                $file->addPreviews( $upload );
-            } catch( \Throwable $t ) {
-                $file->removePreviews();
-                throw $t;
+                $file->ingest( $upload );
+            } catch( \Aimeos\Cms\Exception $e ) {
+                if( str_starts_with( $e->getMessage(), 'File type ' ) ) {
+                    return ['error' => sprintf( 'File type "%s" is not allowed.', $file->mime )];
+                }
+
+                throw $e;
             }
 
-            if( !Utils::isValidMimetype( (string) $file->mime ) )
-            {
-                $file->removePreviews();
-                return ['error' => sprintf( 'File type "%s" is not allowed.', $file->mime )];
-            }
+            $file = Resource::addFile( $file, $user );
 
-            return Utils::transaction( function() use ( $file, $versionId, $lang, $editor ) {
-
-                $file->save();
-
-                $file->versions()->forceCreate( [
-                    'id' => $versionId,
-                    'lang' => $lang,
-                    'editor' => $editor,
-                    'data' => [
-                        'lang' => $file->lang,
-                        'name' => $file->name,
-                        'mime' => $file->mime,
-                        'path' => $file->path,
-                        'previews' => $file->previews,
-                        'description' => $file->description,
-                        'transcription' => $file->transcription,
-                    ],
-                ] );
-
-                return [
-                    'id' => $file->id,
-                    'name' => $file->name,
-                    'mime' => $file->mime,
-                    'lang' => $file->lang,
-                    'path' => $file->path,
-                    'previews' => $file->previews,
-                    'description' => $file->description,
-                ];
-            } );
+            return [
+                'id' => $file->id,
+                'name' => $file->name,
+                'mime' => $file->mime,
+                'lang' => $file->lang,
+                'path' => $file->path,
+                'previews' => $file->previews,
+                'description' => $file->description,
+            ];
         } );
     }
 
@@ -154,7 +123,11 @@ trait HandlesMedia
             return Image::fromUrl( (string) $file->path, $file->mime );
         }
 
-        return Image::fromStoragePath( (string) $file->path, config( 'cms.disk', 'public' ), $file->mime );
+        return Image::fromStoragePath(
+            (string) $file->path,
+            File::diskName( (string) $file->disk ),
+            $file->mime,
+        );
     }
 
 
@@ -173,6 +146,7 @@ trait HandlesMedia
 
             $file = Resource::saveFile( $id, [], $user, $latestId, $upload );
             $data = (array) ( $file->latest->data ?? [] );
+            $aux = (array) ( $file->latest->aux ?? [] );
 
             return [
                 'id' => $file->id,
@@ -181,7 +155,7 @@ trait HandlesMedia
                 'lang' => $data['lang'] ?? $file->lang,
                 'path' => $data['path'] ?? $file->path,
                 'previews' => $data['previews'] ?? $file->previews,
-                'description' => $data['description'] ?? $file->description,
+                'description' => $aux['description'] ?? $file->description,
                 'changed' => $file->changed,
             ];
         } );

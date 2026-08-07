@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import gql from 'graphql-tag'
@@ -8,6 +8,7 @@ import {
   mdiTrashCan,
   mdiButtonCursor,
   mdiLinkVariantPlus,
+  mdiTrayArrowDown,
   mdiUpload
 } from '@mdi/js'
 import File from './File.vue'
@@ -24,6 +25,7 @@ export default {
       mdiTrashCan,
       mdiButtonCursor,
       mdiLinkVariantPlus,
+      mdiTrayArrowDown,
       mdiUpload
     }
   }
@@ -31,6 +33,18 @@ export default {
 </script>
 
 <template>
+  <FileProtect
+    :disabled="protecting"
+    :labelled="!!label || !!$slots.label"
+    :loading="protecting"
+    :model-value="protect"
+    :name="label"
+    :readonly="readonly"
+    @update:model-value="setProtect($event)"
+  >
+    <slot name="label" />
+  </FileProtect>
+
   <v-row>
     <v-col cols="12" md="6">
       <div class="files" :class="{ readonly: readonly }">
@@ -51,7 +65,7 @@ export default {
             indeterminate
             rounded
           />
-          <audio v-if="file.path" :src="url(file.path)" :draggable="false" controls />
+          <audio v-if="file.path" :src="fileurl(file)" :draggable="false" controls />
 
           <v-menu v-if="file.id && !readonly" location="start">
             <template v-slot:activator="{ props }">
@@ -78,31 +92,45 @@ export default {
           </v-menu>
         </div>
 
-        <div v-else-if="!readonly" class="file">
-          <v-btn
-            v-if="user.can('file:view')"
-            @click="vfiles = true"
-            :title="$gettext('Add file')"
-            :icon="mdiButtonCursor"
-            class="btn-add"
-            variant="text"
-          ></v-btn>
-          <v-btn
-            @click="vurls = true"
-            :title="$gettext('Add file from URL')"
-            :icon="mdiLinkVariantPlus"
-            class="btn-add-url"
-            variant="text"
-          ></v-btn>
-          <v-btn :title="$gettext('Upload file')" :icon="mdiUpload" class="btn-upload" variant="text">
-            <v-file-input
-              v-model="selected"
-              @update:modelValue="add($event)"
-              :accept="config.accept || 'audio/*'"
-              :hide-input="true"
-              :prepend-icon="mdiUpload"
-            />
-          </v-btn>
+        <div v-else-if="!readonly" class="file file-empty">
+          <div class="actions">
+            <v-btn
+              v-if="user.can('file:view')"
+              @click="vfiles = true"
+              :title="$gettext('Add file')"
+              :icon="mdiButtonCursor"
+              class="btn-add"
+              variant="text"
+            ></v-btn>
+            <v-btn
+              @click="vurls = true"
+              :title="$gettext('Add file from URL')"
+              :icon="mdiLinkVariantPlus"
+              class="btn-add-url"
+              variant="text"
+            ></v-btn>
+            <v-btn :title="$gettext('Upload file')" :icon="mdiUpload" class="btn-upload" variant="text">
+              <v-file-input
+                v-model="selected"
+                @update:modelValue="add($event)"
+                :accept="config.accept || 'audio/*'"
+                :hide-input="true"
+                :prepend-icon="mdiUpload"
+              />
+            </v-btn>
+          </div>
+
+          <div
+            class="dropzone"
+            :class="{ dragover: dragging }"
+            @dragenter.prevent="dragging = true"
+            @dragover.prevent="dragging = true"
+            @dragleave.prevent="dragging = false"
+            @drop.prevent="drop($event)"
+          >
+            <v-icon :icon="mdiTrayArrowDown" />
+            <span>{{ $gettext('Drop file here to upload') }}</span>
+          </div>
         </div>
       </div>
     </v-col>
@@ -116,7 +144,7 @@ export default {
         <v-col cols="12" md="9">{{ description }}</v-col>
       </v-row>
       <v-row>
-        <v-col cols="12" md="3" class="name">{{ $gettext('mime') }}:</v-col>
+        <v-col cols="12" md="3" class="name">{{ $gettext('MIME') }}:</v-col>
         <v-col cols="12" md="9">{{ file.mime }}</v-col>
       </v-row>
       <v-row>

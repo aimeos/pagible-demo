@@ -1,16 +1,14 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
-use Aimeos\Cms\Utils;
-use Aimeos\Cms\Resource;
+use Aimeos\Cms\Publication;
 use Aimeos\Cms\Permission;
-use Aimeos\Cms\Validation;
 use Aimeos\Cms\Models\Element;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Server\Attributes\Description;
@@ -43,11 +41,9 @@ class PublishElement extends Tool
             'id.required' => 'You must specify the ID (string) or IDs (array of up to 50) of the elements to publish.',
         ] );
 
-        Validation::publishAt( $v['at'] ?? null );
-
         $ids = (array) $v['id'];
-        $editor = Utils::editor( $request->user() );
-        $items = Resource::publish( Element::class, $ids, $editor, $v['at'] ?? null );
+        $at = $v['at'] ?? null;
+        $items = Publication::publish( Element::class, $ids, $request->user(), $at );
 
         $published = $skipped = [];
 
@@ -56,8 +52,10 @@ class PublishElement extends Tool
             /** @var Element $item */
             if( !$item->latest ) {
                 $skipped[] = ['id' => $item->id, 'reason' => 'No draft version'];
-            } elseif( !empty( $v['at'] ) ) {
-                $published[] = ['id' => $item->id, 'name' => $item->name, 'scheduled_at' => $v['at']];
+            } elseif( $at && $item->latest->published ) {
+                $skipped[] = ['id' => $item->id, 'reason' => 'Already published'];
+            } elseif( $at ) {
+                $published[] = ['id' => $item->id, 'name' => $item->name, 'scheduled_at' => $at];
             } else {
                 $published[] = ['id' => $item->id, 'name' => $item->name];
             }

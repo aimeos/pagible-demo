@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import { markRaw } from 'vue'
@@ -12,14 +12,17 @@ import {
   mdiDeleteForever,
   mdiPlus,
   mdiMagnify,
-  mdiMenuDown,
-  mdiSort,
   mdiClockOutline,
-  mdiRefresh
+  mdiRefresh,
+  mdiPencil
 } from '@mdi/js'
 import SchemaItems from './SchemaItems.vue'
+import EditBulkDialog from './EditBulkDialog.vue'
+import ListSort from './ListSort.vue'
+import { FILE_FIELDS, normalizeFile } from '../files'
 import { useUserStore, useMessageStore, useChangeStore } from '../stores'
 import { debounce, frozenParse, safeParse } from '../utils'
+import { setupEcho, cleanEcho, listEcho } from '../echo'
 
 const ADD_ELEMENT = gql`
   mutation ($input: ElementInput!) {
@@ -69,7 +72,16 @@ const PURGE_ELEMENT = gql`
   }
 `
 
+const SAVE_ELEMENTS = gql`
+  mutation ($id: [ID!]!, $input: ElementInput!) {
+    bulkElement(id: $id, input: $input) {
+      ids
+    }
+  }
+`
+
 const FETCH_ELEMENTS = gql`
+  ${FILE_FIELDS}
   query (
     $filter: ElementFilter
     $sort: [QueryElementsSortOrderByClause!]
@@ -96,6 +108,9 @@ const FETCH_ELEMENTS = gql`
         created_at
         updated_at
         deleted_at
+        files {
+          ...CmsFileFields
+        }
         latest {
           id
           published
@@ -103,6 +118,9 @@ const FETCH_ELEMENTS = gql`
           data
           editor
           created_at
+          files {
+            ...CmsFileFields
+          }
         }
       }
       paginatorInfo {
@@ -112,9 +130,21 @@ const FETCH_ELEMENTS = gql`
   }
 `
 
+const SORT_OPTIONS = Object.freeze([
+  { column: 'ID', order: 'DESC', label: 'Latest' },
+  { column: 'ID', order: 'ASC', label: 'Oldest' },
+  { column: 'LATEST_ID', order: 'DESC', label: 'Latest edit' },
+  { column: 'LATEST_ID', order: 'ASC', label: 'Oldest edit' },
+  { column: 'NAME', order: 'ASC', label: 'Name' },
+  { column: 'TYPE', order: 'ASC', label: 'Type' },
+  { column: 'EDITOR', order: 'ASC', label: 'Editor' }
+])
+
 export default {
   components: {
-    SchemaItems
+    SchemaItems,
+    EditBulkDialog,
+    ListSort
   },
 
   props: {
@@ -136,8 +166,15 @@ export default {
       limit: 100,
       vschemas: false,
       actions: false,
+      editDialog: false,
+      editIds: [],
+      editSelected: false,
       loading: true,
-      trash: false
+      trash: false,
+      destroyed: false,
+      echoCleanup: null,
+      echoPromise: null,
+      outdated: false
     }
   },
 
@@ -158,10 +195,10 @@ export default {
       mdiDeleteForever,
       mdiPlus,
       mdiMagnify,
-      mdiMenuDown,
-      mdiSort,
       mdiClockOutline,
       mdiRefresh,
+      mdiPencil,
+      sortOptions: SORT_OPTIONS,
       debounce
     }
   },
@@ -169,9 +206,20 @@ export default {
   created() {
     this.search()
     this.searchd = this.debounce(this.search, 500)
+
+    if (!this.embed) {
+      // patch the matching row when another user changes an element; subscribe
+      // for the whole lifetime (not per activation) so the list keeps patching
+      // in the background while the editor is in a detail or another view and is
+      // up to date when they return
+      setupEcho(this, 'element', (event, name) => listEcho(this, event, name))
+    }
   },
 
   beforeUnmount() {
+    this.destroyed = true
+    cleanEcho(this)
+
     this.items = null
     this.menu = null
     this.checked = null
@@ -269,6 +317,7 @@ export default {
     },
 
     reload() {
+      this.outdated = false
       this.items = []
       this.loading = true
       this.invalidate()
@@ -289,6 +338,23 @@ export default {
       }
 
       return true
+    },
+
+    patchItems(items) {
+      // index the patches by id so the bulk update is a single pass over the loaded rows
+      const byId = new Map(items.map((item) => [item.id, item]))
+
+      this.items?.forEach((node) => {
+        const item = byId.get(node.id)
+
+        if (item) {
+          for (const key in item) {
+            if (key in node) {
+              node[key] = item[key]
+            }
+          }
+        }
+      })
     },
 
     sync() {
@@ -414,8 +480,56 @@ export default {
         })
     },
 
-    setSort(column, order) {
-      this.sort = { column, order }
+    edit(item = null) {
+      this.editIds = item ? [item.id] : [...this.checked]
+      this.editSelected = !item
+      this.actions = false
+      this.editDialog = this.editIds.length > 0
+    },
+
+    save(lang) {
+      if (!this.user.can('element:save')) {
+        this.messages.add(this.$gettext('Permission denied'), 'error')
+        return
+      }
+
+      const ids = this.editIds
+      const selected = this.editSelected ? null : new Set(this.checked)
+
+      if (!ids.length || lang === null) {
+        return
+      }
+
+      return this.$apollo
+        .mutate({
+          mutation: SAVE_ELEMENTS,
+          variables: {
+            id: ids,
+            input: { lang: lang }
+          }
+        })
+        .then((result) => {
+          if (result.errors) {
+            throw result.errors
+          }
+
+          this.editIds = []
+          if (this.editSelected) {
+            this.checked = new Set()
+          }
+          this.editSelected = false
+          this.invalidate()
+
+          return this.search().then(() => {
+            if (selected) {
+              this.checked = selected
+            }
+          })
+        })
+        .catch((error) => {
+          this.messages.add(this.$gettext('Error saving shared element') + ':\n' + error, 'error')
+          this.$log(`ElementListItems::save(): Error saving shared elements`, ids, lang, error)
+        })
     },
 
     search() {
@@ -465,8 +579,9 @@ export default {
 
           this.last = elements.paginatorInfo?.lastPage || 1
           this.items = [...(elements.data || [])].map((entry) => {
-            const item = entry.latest?.data
-              ? safeParse(entry.latest?.data)
+            const latest = entry.latest
+            const item = latest?.data
+              ? safeParse(latest.data)
               : {
                   ...entry,
                   data: safeParse(entry.data)
@@ -484,7 +599,8 @@ export default {
               editor: entry.latest?.editor || entry.editor,
               published: entry.latest?.published ?? true,
               publish_at: entry.latest?.publish_at || null,
-              latestId: entry.latest?.id || null
+              latest_id: entry.latest?.id || null,
+              files: Object.freeze((latest?.files || entry.files || []).map(normalizeFile))
             })
           })
 
@@ -599,6 +715,11 @@ export default {
                   $gettext('Publish')
                 }}</v-btn>
               </v-list-item>
+              <v-list-item v-show="isChecked && user.can('element:save')">
+                <v-btn :prepend-icon="mdiPencil" variant="text" @click="edit()">{{
+                  $gettext('Edit properties')
+                }}</v-btn>
+              </v-list-item>
               <v-list-item v-show="canTrash && user.can('element:drop')">
                 <v-btn :prepend-icon="mdiDelete" variant="text" @click="drop()">{{
                   $gettext('Delete')
@@ -644,6 +765,18 @@ export default {
 
     <div class="layout">
       <v-btn
+        v-if="outdated"
+        @click="reload()"
+        :prepend-icon="mdiRefresh"
+        :title="$gettext('Updated by another user')"
+        color="primary"
+        variant="tonal"
+        size="small"
+        rounded="lg"
+        class="btn-outdated"
+      >{{ $gettext('Refresh') }}</v-btn>
+
+      <v-btn
         @click="reload()"
         :title="$gettext('Reload elements')"
         :icon="mdiRefresh"
@@ -651,54 +784,7 @@ export default {
         variant="text"
       />
 
-      <span class="btn-sort">
-        <v-menu>
-          <template #activator="{ props }">
-            <v-btn
-              v-bind="props"
-              :title="$gettext('Sort by')"
-              :append-icon="mdiMenuDown"
-              :prepend-icon="mdiSort"
-              variant="text"
-            >
-              {{
-                sort?.column === 'ID'
-                  ? sort?.order === 'DESC'
-                    ? $gettext('latest')
-                    : $gettext('oldest')
-                  : sort?.column || ''
-              }}
-            </v-btn>
-          </template>
-          <v-list>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('ID', 'DESC')">{{
-                $gettext('latest')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('ID', 'ASC')">{{
-                $gettext('oldest')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('NAME', 'ASC')">{{
-                $gettext('name')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('TYPE', 'ASC')">{{
-                $gettext('type')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('EDITOR', 'ASC')">{{
-                $gettext('editor')
-              }}</v-btn>
-            </v-list-item>
-          </v-list>
-        </v-menu>
-      </span>
+      <ListSort v-model="sort" :options="sortOptions" />
     </div>
   </div>
 
@@ -743,6 +829,24 @@ export default {
                     $gettext('Publish')
                   }}</v-btn>
                 </v-list-item>
+
+                <v-divider
+                  v-if="
+                    !item.deleted_at &&
+                    !item.published &&
+                    user.can('element:publish') &&
+                    user.can('element:save')
+                  "
+                ></v-divider>
+
+                <v-list-item v-if="user.can('element:save')">
+                  <v-btn :prepend-icon="mdiPencil" variant="text" @click="edit(item)">{{
+                    $gettext('Edit properties')
+                  }}</v-btn>
+                </v-list-item>
+
+                <v-divider v-if="user.can('element:save')"></v-divider>
+
                 <v-list-item v-if="!item.deleted_at && this.user.can('element:drop')">
                   <v-btn :prepend-icon="mdiDelete" variant="text" @click="drop(item)">{{
                     $gettext('Delete')
@@ -832,6 +936,8 @@ export default {
       </v-card>
     </v-dialog>
   </Teleport>
+
+  <EditBulkDialog v-model="editDialog" :count="editIds.length" @apply="save" />
 </template>
 
 <style scoped>

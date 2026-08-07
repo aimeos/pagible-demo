@@ -1,0 +1,77 @@
+<?php
+
+namespace Tests\Integration;
+
+use Aimeos\Prisma\Files\Audio;
+use Aimeos\Prisma\Files\Image;
+use Aimeos\Prisma\Prisma;
+use PHPUnit\Framework\TestCase;
+
+
+class ZTest extends TestCase
+{
+    protected function setUp() : void
+    {
+        \Dotenv\Dotenv::createImmutable( dirname( __DIR__, 2 ) )->load();
+
+        if( empty( $_ENV['Z_API_KEY'] ) ) {
+            $this->markTestSkipped( 'Z_API_KEY is not defined in the environment' );
+        }
+    }
+
+    public function testImagine() : void
+    {
+        $image = Image::fromLocalPath( __DIR__ . '/assets/cat.png' );
+        $response = Prisma::image()
+            ->using( 'z', ['api_key' => $_ENV['Z_API_KEY']] )
+            ->ensure( 'imagine' )
+            ->imagine( 'a cartoon dog', [$image] );
+
+        $this->assertGreaterThan( 0, strlen( $response->binary() ) );
+
+        file_put_contents( __DIR__ . '/results/z_imagine.png', $response->binary() );
+    }
+
+
+    public function testStream() : void
+    {
+        $deltas = [];
+
+        $response = Prisma::text()
+            ->using( 'z', ['api_key' => $_ENV['Z_API_KEY']] )
+            ->ensure( 'stream' )
+            ->stream( 'What is the capital of France? Reply with only the city name.' );
+
+        foreach( $response->stream() as $chunk ) {
+            if( is_string( $chunk ) ) {
+                $deltas[] = $chunk;
+            }
+        }
+
+        $this->assertNotEmpty( $deltas );
+        $this->assertStringContainsStringIgnoringCase( 'Paris', $response->text() );
+    }
+
+
+    public function testWrite() : void
+    {
+        $response = Prisma::text()
+            ->using( 'z', ['api_key' => $_ENV['Z_API_KEY']] )
+            ->ensure( 'write' )
+            ->write( 'Reply with just the word "hello" in lowercase, nothing else.' );
+
+        $this->assertStringContainsStringIgnoringCase( 'hello', $response->text() );
+    }
+
+
+    public function testTranscribe() : void
+    {
+        $audio = Audio::fromLocalPath( __DIR__ . '/assets/hello.mp3' );
+        $response = Prisma::audio()
+            ->using( 'z', ['api_key' => $_ENV['Z_API_KEY']])
+            ->ensure( 'transcribe' )
+            ->transcribe( $audio );
+
+        $this->assertStringContainsStringIgnoringCase( 'Hello', $response->text() );
+    }
+}

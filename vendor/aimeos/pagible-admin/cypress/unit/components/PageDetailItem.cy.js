@@ -1,6 +1,8 @@
 import PageDetailItem from '../../../js/components/PageDetailItem.vue'
+import { useUserStore } from '../../../js/stores'
 
 const stubs = {
+  PageAccess: { template: '<div class="access-stub" />' },
   PageDetailItemProps: { template: '<div class="props-stub" />' },
   PageDetailItemSection: { template: '<div class="section-stub" />' },
 }
@@ -22,6 +24,8 @@ function mountDetail(props = {}) {
       ...props,
     },
     global: { stubs },
+  }).then(() => {
+    useUserStore().me = { permission: {} }
   })
 }
 
@@ -86,5 +90,14 @@ describe('PageDetailItem', () => {
     })
     cy.contains('.v-tab', 'Meta').click()
     cy.get('@aside').should('have.been.calledWith', 'count')
+  })
+
+  it('shows immediate access management with page:access permission', () => {
+    mountDetail().then(() => {
+      useUserStore().me = { permission: { 'page:access': true } }
+    })
+
+    cy.contains('.v-tab', 'Access').click()
+    cy.get('.access-stub').should('exist')
   })
 })

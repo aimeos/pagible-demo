@@ -1,14 +1,16 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
-use Aimeos\Cms\Permission;
+use Aimeos\Cms\Concerns\ObservesPrisma;
 use Aimeos\Prisma\Prisma;
+use Aimeos\Cms\Permission;
+use Aimeos\Cms\Utils;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -24,6 +26,7 @@ use Laravel\Mcp\Request;
 class IsolateImage extends Tool
 {
     use HandlesMedia;
+    use ObservesPrisma;
 
 
     /**
@@ -31,7 +34,9 @@ class IsolateImage extends Tool
      */
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
-        if( !Permission::can( 'image:isolate', $request->user() ) ) {
+        if( !Permission::can( 'image:isolate', $request->user() )
+            || !Permission::can( 'file:save', $request->user() )
+            || !Permission::can( 'file:view', $request->user() ) ) {
             throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
@@ -50,7 +55,7 @@ class IsolateImage extends Tool
         $config = config( 'cms.ai.isolate', [] );
         $model = config( 'cms.ai.isolate.model' );
 
-        $base64 = Prisma::image()
+        $base64 = Prisma::image()->observe( $this->observer( Utils::editor( $request->user() ) ) )
             ->using( $provider, $config )
             ->model( $model )
             ->ensure( 'isolate' )
@@ -86,6 +91,8 @@ class IsolateImage extends Tool
      */
     public function shouldRegister( Request $request ) : bool
     {
-        return Permission::can( 'image:isolate', $request->user() );
+        return Permission::can( 'image:isolate', $request->user() )
+            && Permission::can( 'file:save', $request->user() )
+            && Permission::can( 'file:view', $request->user() );
     }
 }

@@ -111,7 +111,7 @@ In `./routes/ai.php`:
 
 ```php
 Mcp::oauthRoutes();
-Mcp::web('/mcp/cms', \Aimeos\Cms\Mcp\CmsServer::class)->middleware(['auth:api', 'throttle:cms-admin']);
+Mcp::web('/mcp/cms', \Aimeos\Cms\Mcp\CmsServer::class)->middleware(['auth:api', 'throttle:cms-mcp']);
 ```
 
 Setup for Passport:
@@ -200,6 +200,8 @@ In `.vscode/mcp.json` in your project root:
 
 **Draft/Publish workflow:** Creating or updating pages, elements, and files produces a draft version. Use the `publish-*` tools to make changes live. Scheduled publishing is supported via the `at` parameter (ISO 8601 datetime).
 
-**Permissions:** Each tool requires a specific permission (e.g. `page:view`, `page:add`, `file:publish`). The user's `cmsperms` JSON array column controls access. See `Permission.php` for the full list.
+**Frontend access:** Page access is immediate and independent from page versions. `get-page` always returns the `restricted` state; callers with `page:access` additionally receive `null` for public access, an empty access list for authenticated users, or named access values. Use `get-access` with `access:view` for general catalog discovery and `set-page-access` to replace page state, optionally for one complete subtree. Page restriction reads and changes require `page:access`; this fixed page permission is not part of `access:*`.
+
+**Permissions:** Each tool requires a specific permission (e.g. `page:view`, `page:add`, `file:relocate`). Mutation permissions authorize their result without a separate same-resource `*:view` permission. Cross-resource reads and publication dependencies retain their own permissions. The user's `cmsperms` JSON array column controls access. See `Permission.php` for the full list.
 
 **Multi-tenancy:** All operations are scoped to the authenticated user's tenant. Content from other tenants is never visible or modifiable.

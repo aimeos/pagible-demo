@@ -2,6 +2,7 @@ import FileField from '../../../js/fields/File.vue'
 import { useUserStore } from '../../../js/stores'
 
 const fileAsset = {
+  disk: 'public',
   id: '1',
   name: 'document.pdf',
   path: '/files/document.pdf',
@@ -19,10 +20,19 @@ const stubs = {
   FileDetail: { template: '<div />' },
 }
 
-function mountFile(props = {}, perms = {}) {
+function mountFile(props = {}, perms = {}, apollo = {}) {
   return cy.mount(FileField, {
     props: { config: {}, assets: {}, ...props },
-    global: { stubs },
+    global: {
+      stubs,
+      mocks: {
+        $apollo: {
+          query: () => Promise.resolve({ data: {} }),
+          mutate: () => Promise.resolve({ data: {} }),
+          ...apollo,
+        },
+      },
+    },
   }).then(() => {
     const user = useUserStore()
     user.me = { permission: perms }
@@ -39,6 +49,95 @@ describe('File', () => {
     mountFile()
     cy.get('button.btn-upload').should('exist')
     cy.get('button.btn-add-url').should('exist')
+  })
+
+  it('offers public-by-default page access protection', () => {
+    mountFile({}, { 'file:relocate': true }).then(({ wrapper }) => {
+      expect(wrapper.findComponent(FileField).vm.protect).to.equal(false)
+    })
+    cy.contains('Protect access').should('exist')
+  })
+
+  it('hides page access protection without file:relocate permission', () => {
+    mountFile({ label: 'Download' })
+
+    cy.get('.field-name').should('contain', 'Download')
+    cy.get('.protect').should('not.exist')
+    cy.contains('Protect access').should('not.exist')
+  })
+
+  it('places protection after the field name in the field label', () => {
+    mountFile({ label: 'Download' }, { 'file:relocate': true })
+
+    cy.get('.field-protect.label').within(() => {
+      cy.get('.field-name').should('contain', 'Download')
+      cy.get('.protect').should('contain', 'Protect access')
+    })
+    cy.get('.field-name').should('have.css', 'flex-basis', '50%')
+    cy.get('.protect').should('have.css', 'justify-content', 'flex-end')
+    cy.get('.protect > .protect-label + .v-switch').should('exist')
+  })
+
+  it('shows a lock before the label for protected files', () => {
+    mountFile({
+      label: 'Download',
+      modelValue: { id: '1', type: 'file' },
+      assets: { '1': { ...fileAsset, disk: 'private' } },
+    })
+
+    cy.get('.field-label > .field-lock + span').should('contain', 'Download')
+  })
+
+  it('replaces the protection switch with a spinner while loading', () => {
+    let width
+
+    mountFile({}, { 'file:relocate': true }).then(({ wrapper }) => {
+      cy.get('.protect .v-switch').then(($switch) => {
+        width = $switch[0].getBoundingClientRect().width
+        wrapper.findComponent(FileField).vm.protecting = true
+      })
+    })
+
+    cy.get('.protect').should('contain', 'Protect access')
+    cy.get('.protect .v-progress-circular').should(($spinner) => {
+      expect($spinner[0].getBoundingClientRect().width).to.equal(width)
+    })
+    cy.get('.protect .v-switch').should('not.exist')
+  })
+
+  it('relocates an existing file when protection is enabled', () => {
+    const mutate = cy.stub().resolves({
+      data: {
+        relocateFile: [{
+          id: fileAsset.id,
+          disk: 'private',
+          editor: 'admin',
+          updated_at: '2024-01-02T00:00:00Z',
+        }],
+      },
+    })
+
+    mountFile(
+      {
+        modelValue: { id: '1', type: 'file' },
+        assets: { '1': fileAsset },
+      },
+      { 'file:relocate': true },
+      { mutate },
+    ).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(FileField).vm
+
+      return vm.setProtect(true).then(() => {
+        expect(mutate).to.have.been.calledOnce
+        expect(mutate.firstCall.args[0].variables).to.deep.equal({
+          id: ['1'],
+          disk: 'private',
+        })
+        expect(vm.file.disk).to.equal('private')
+        expect(vm.file.path).to.equal(fileAsset.path)
+        expect(vm.file.previews).to.deep.equal(fileAsset.previews)
+      })
+    })
   })
 
   it('shows "Add file" button when user has file:view permission', () => {

@@ -121,25 +121,6 @@
                 }
             }
         },
-        "slideshow": {
-            "group": "media",
-            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M21,17H7V3H21M21,1H7A2,2 0 0,0 5,3V17A2,2 0 0,0 7,19H21A2,2 0 0,0 23,17V3A2,2 0 0,0 21,1M3,5H1V21A2,2 0 0,0 3,23H19V21H3M15.96,10.29L13.21,13.83L11.25,11.47L8.5,15H19.5L15.96,10.29Z\" /></svg>",
-            "fields": {
-                "title": {
-                    "type": "string"
-                },
-                "files": {
-                    "type": "images",
-                    "label": "images",
-                    "min": 2
-                },
-                "main": {
-                    "type": "switch",
-                    "label": "load immediately",
-                    "default": false
-                }
-            }
-        },
         "code": {
             "group": "basic",
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" fill=\"currentColor\"><path d=\"M2.114 8.063V7.9c1.005-.102 1.497-.615 1.497-1.6V4.503c0-1.094.39-1.538 1.354-1.538h.273V2h-.376C3.25 2 2.49 2.759 2.49 4.352v1.524c0 1.094-.376 1.456-1.49 1.456v1.299c1.114 0 1.49.362 1.49 1.456v1.524c0 1.593.759 2.352 2.372 2.352h.376v-.964h-.273c-.964 0-1.354-.444-1.354-1.538V9.663c0-.984-.492-1.497-1.497-1.6M13.886 7.9v.163c-1.005.103-1.497.616-1.497 1.6v1.798c0 1.094-.39 1.538-1.354 1.538h-.273v.964h.376c1.613 0 2.372-.759 2.372-2.352v-1.524c0-1.094.376-1.456 1.49-1.456V7.332c-1.114 0-1.49-.362-1.49-1.456V4.352C13.51 2.759 12.75 2 11.138 2h-.376v.964h.273c.964 0 1.354.444 1.354 1.538V6.3c0 .984.492 1.497 1.497 1.6\"/></svg>",
@@ -270,6 +251,25 @@
                 }
             }
         },
+        "slideshow": {
+            "group": "media",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M21,17H7V3H21M21,1H7A2,2 0 0,0 5,3V17A2,2 0 0,0 7,19H21A2,2 0 0,0 23,17V3A2,2 0 0,0 21,1M3,5H1V21A2,2 0 0,0 3,23H19V21H3M15.96,10.29L13.21,13.83L11.25,11.47L8.5,15H19.5L15.96,10.29Z\" /></svg>",
+            "fields": {
+                "title": {
+                    "type": "string"
+                },
+                "files": {
+                    "type": "images",
+                    "label": "images",
+                    "min": 2
+                },
+                "main": {
+                    "type": "switch",
+                    "label": "load immediately",
+                    "default": false
+                }
+            }
+        },
         "video": {
             "group": "media",
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M10,15L15.19,12L10,9V15M21.56,7.17C21.69,7.64 21.78,8.27 21.84,9.07C21.91,9.87 21.94,10.56 21.94,11.16L22,12C22,14.19 21.84,15.8 21.56,16.83C21.31,17.73 20.73,18.31 19.83,18.56C19.36,18.69 18.5,18.78 17.18,18.84C15.88,18.91 14.69,18.94 13.59,18.94L12,19C7.81,19 5.2,18.84 4.17,18.56C3.27,18.31 2.69,17.73 2.44,16.83C2.31,16.36 2.22,15.73 2.16,14.93C2.09,14.13 2.06,13.44 2.06,12.84L2,12C2,9.81 2.16,8.2 2.44,7.17C2.69,6.27 3.27,5.69 4.17,5.44C4.64,5.31 5.5,5.22 6.82,5.16C8.12,5.09 9.31,5.06 10.41,5.06L12,5C16.19,5 18.8,5.16 19.83,5.44C20.73,5.69 21.31,6.27 21.56,7.17Z\" /></svg>",
@@ -344,9 +344,9 @@
                         }
                     ]
                 },
-                "file": {
-                    "type": "media",
-                    "label": "media file"
+                "files": {
+                    "type": "images",
+                    "label": "images"
                 }
             }
         },
@@ -356,6 +356,31 @@
             "fields": {
                 "title": {
                     "type": "string"
+                },
+                "columns": {
+                    "type": "select",
+                    "options": [
+                        {
+                            "value": "auto",
+                            "label": "Auto"
+                        },
+                        {
+                            "value": "1",
+                            "label": "1"
+                        },
+                        {
+                            "value": "2",
+                            "label": "2"
+                        },
+                        {
+                            "value": "3",
+                            "label": "3"
+                        },
+                        {
+                            "value": "4",
+                            "label": "4"
+                        }
+                    ]
                 },
                 "cards": {
                     "type": "items",
@@ -375,6 +400,35 @@
                 }
             }
         },
+        "testimonial": {
+            "group": "content",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M9,7H5V11H8V17H2V7H9M22,7H18V11H21V17H15V7H22Z\" /></svg>",
+            "fields": {
+                "title": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "items",
+                    "item": {
+                        "text": {
+                            "type": "markdown",
+                            "min": 1
+                        },
+                        "name": {
+                            "type": "string",
+                            "min": 1
+                        },
+                        "role": {
+                            "type": "string"
+                        },
+                        "file": {
+                            "type": "image",
+                            "label": "image"
+                        }
+                    }
+                }
+            }
+        },
         "article": {
             "group": "content",
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M19 5V19H5V5H19M21 3H3V21H21V3M17 17H7V16H17V17M17 15H7V14H17V15M17 12H7V7H17V12Z\" /></svg>",
@@ -385,9 +439,10 @@
                     "min": 1,
                     "max": 1000
                 },
-                "file": {
-                    "type": "image",
-                    "label": "image"
+                "files": {
+                    "type": "images",
+                    "label": "Gallery",
+                    "min": 1
                 }
             }
         },
@@ -398,9 +453,19 @@
                 "title": {
                     "type": "string"
                 },
-                "action": {
-                    "type": "hidden",
-                    "value": "\\Aimeos\\Cms\\Actions\\Blog"
+                "layout": {
+                    "type": "select",
+                    "default": "cards",
+                    "options": [
+                        {
+                            "value": "cards",
+                            "label": "Cards"
+                        },
+                        {
+                            "value": "list",
+                            "label": "List"
+                        }
+                    ]
                 },
                 "parent-page": {
                     "type": "autocomplete",
@@ -432,6 +497,72 @@
                     "min": 1,
                     "max": 100,
                     "default": 10
+                },
+                "action": {
+                    "type": "hidden",
+                    "value": "\\Aimeos\\Cms\\Actions\\Blog"
+                }
+            }
+        },
+        "heros": {
+            "group": "content",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M2 14H8V20H2M16 8H10V10H16M2 10H8V4H2M10 4V6H22V4M10 20H16V18H10M10 16H22V14H10\" /></svg>",
+            "fields": {
+                "title": {
+                    "type": "string"
+                },
+                "layout": {
+                    "type": "select",
+                    "default": "default",
+                    "options": [
+                        {
+                            "value": "default",
+                            "label": "Default"
+                        },
+                        {
+                            "value": "cards",
+                            "label": "Cards"
+                        },
+                        {
+                            "value": "list",
+                            "label": "List"
+                        }
+                    ]
+                },
+                "parent-page": {
+                    "type": "autocomplete",
+                    "api-type": "GQL",
+                    "query": "query{pages(filter:{title: _term_}){\n  data {\n    id\n    title\n    latest {\n      data\n    }\n  }\n}}",
+                    "list-key": "pages/data",
+                    "item-title": "title",
+                    "item-value": "id"
+                },
+                "order": {
+                    "type": "select",
+                    "options": [
+                        {
+                            "value": "_lft",
+                            "label": "Position"
+                        },
+                        {
+                            "value": "-created_at",
+                            "label": "Latest"
+                        },
+                        {
+                            "value": "created_at",
+                            "label": "Oldest"
+                        }
+                    ]
+                },
+                "limit": {
+                    "type": "number",
+                    "min": 1,
+                    "max": 100,
+                    "default": 10
+                },
+                "action": {
+                    "type": "hidden",
+                    "value": "\\Aimeos\\Cms\\Actions\\Heros"
                 }
             }
         },
@@ -446,43 +577,76 @@
                     "type": "string",
                     "label": "Subtitle"
                 },
-                "label": {
-                    "type": "string",
-                    "label": "Switch label"
-                },
-                "label-alternative": {
-                    "type": "string",
-                    "label": "Alternative switch label"
-                },
                 "items": {
                     "type": "items",
+                    "identity": "id",
                     "item": {
                         "name": {
                             "type": "string",
                             "min": 1
                         },
-                        "price": {
-                            "type": "string",
-                            "min": 1
+                        "access": {
+                            "type": "autocomplete",
+                            "label": "Frontend access role",
+                            "api-type": "GQL",
+                            "query": "query{access(term:_term_,first:50)}",
+                            "list-key": "access",
+                            "item-value": "value"
                         },
-                        "unit": {
-                            "type": "string"
-                        },
-                        "priceid": {
-                            "type": "string",
-                            "label": "Price/Product Identifier"
-                        },
-                        "price-alternative": {
-                            "type": "string",
-                            "label": "Alternative Price"
-                        },
-                        "unit-alternative": {
-                            "type": "string",
-                            "label": "Alternative Unit"
-                        },
-                        "priceid-alternative": {
-                            "type": "string",
-                            "label": "Alternative price/product Identifier"
+                        "prices": {
+                            "type": "items",
+                            "label": "Payment prices",
+                            "min": 1,
+                            "max": 5,
+                            "identity": "id",
+                            "item": {
+                                "kind": {
+                                    "type": "select",
+                                    "label": "Payment type",
+                                    "options": [
+                                        {
+                                            "value": "subscription",
+                                            "label": "Subscription"
+                                        },
+                                        {
+                                            "value": "once",
+                                            "label": "One-time payment"
+                                        }
+                                    ]
+                                },
+                                "interval": {
+                                    "type": "number",
+                                    "label": "Billing interval",
+                                    "min": 0,
+                                    "max": 365
+                                },
+                                "currency": {
+                                    "type": "string",
+                                    "label": "Currency",
+                                    "placeholder": "EUR",
+                                    "pattern": "^[A-Z]{3}$",
+                                    "uppercase": true
+                                },
+                                "reference": {
+                                    "type": "string",
+                                    "label": "Payment reference",
+                                    "max": 255
+                                },
+                                "label": {
+                                    "type": "string",
+                                    "label": "Displayed price"
+                                },
+                                "amount": {
+                                    "type": "number",
+                                    "min": 0,
+                                    "precision": 2,
+                                    "step": 0.01
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "label": "Price unit"
+                                }
+                            }
                         },
                         "text": {
                             "type": "string",
@@ -491,13 +655,9 @@
                         "features": {
                             "type": "markdown"
                         },
-                        "success": {
-                            "type": "url",
-                            "label": "Target page after checkout"
-                        },
                         "url": {
                             "type": "url",
-                            "label": "Target link instead of checkout"
+                            "label": "Target page or link"
                         },
                         "button": {
                             "type": "string"
@@ -565,6 +725,11 @@
             "group": "basic",
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z\" /></svg>",
             "fields": {
+                "description": {
+                    "type": "string",
+                    "min": 1,
+                    "max": 160
+                },
                 "keywords": {
                     "type": "string",
                     "max": 255
@@ -579,6 +744,10 @@
                     "type": "string",
                     "min": 1,
                     "max": 60
+                },
+                "description": {
+                    "type": "string",
+                    "max": 160
                 },
                 "file": {
                     "type": "image",
@@ -642,7 +811,6 @@
         },
         "logo-alternative": {
             "group": "basic",
-            "label": "Logo (alternative)",
             "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z\" /></svg>",
             "fields": {
                 "file": {

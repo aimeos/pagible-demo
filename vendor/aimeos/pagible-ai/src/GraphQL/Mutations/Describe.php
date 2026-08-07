@@ -1,14 +1,15 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\GraphQL\Mutations;
 
-use Aimeos\Cms\Models\File;
+use Aimeos\Cms\Concerns\ObservesPrisma;
 use Aimeos\Prisma\Prisma;
+use Aimeos\Cms\Models\File;
 use Aimeos\Prisma\Exceptions\PrismaException;
 use Illuminate\Support\Facades\Log;
 use GraphQL\Error\Error;
@@ -16,6 +17,9 @@ use GraphQL\Error\Error;
 
 final class Describe
 {
+    use ObservesPrisma;
+
+
     /**
      * @param  null  $rootValue
      * @param  array<string, mixed>  $args
@@ -29,11 +33,10 @@ final class Describe
         $provider = config( 'cms.ai.describe.provider' );
         $config = config( 'cms.ai.describe', [] );
         $model = config( 'cms.ai.describe.model' );
-
         try
         {
             /** @var File $file */
-            $file = File::select( 'id', 'path', 'mime' )->findOrFail( $id );
+            $file = File::select( 'id', 'disk', 'path', 'mime' )->findOrFail( $id );
             $lang = $args['lang'] ?? null;
             $type = explode( '/', $file->mime, 2 )[0];
             $class = '\\Aimeos\\Prisma\\Files\\' . ucfirst( $type );
@@ -44,12 +47,16 @@ final class Describe
             }
 
             if( !str_starts_with( (string) $file->path, 'http' ) ) {
-                $doc = $class::fromStoragePath( $file->path, config( 'cms.disk', 'public' ), $file->mime );
+                $doc = $class::fromStoragePath(
+                    $file->path,
+                    File::diskName( (string) $file->disk ),
+                    $file->mime,
+                );
             } else {
                 $doc = $class::fromUrl( $file->path, $file->mime );
             }
 
-            return Prisma::type( $type )
+            return Prisma::type( $type )->observe( $this->observer() )
                 ->using( $provider, $config )
                 ->model( $model )
                 ->ensure( 'describe' )
@@ -59,7 +66,7 @@ final class Describe
         catch( PrismaException $e )
         {
             Log::error( 'AI service error', ['mutation' => 'Describe', 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()] );
-            throw new Error( config( 'app.debug' ) ? $e->getMessage() : 'AI service error', null, null, null, null, $e );
+            throw new Error( $e->getMessage(), null, null, null, null, $e );
         }
     }
 }

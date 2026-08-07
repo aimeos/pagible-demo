@@ -36,9 +36,8 @@ const ME_ADMIN = {
 /**
  * A minimal file entry as the GraphQL `files` query would return.
  *
- * The list transform (FileListItems) parses `latest.data` JSON as the base item,
- * then overrides id, deleted_at, timestamps, editor, published, publish_at, usage.
- * So name/lang/mime/path/previews/description/transcription must be in latest.data.
+ * The list transform parses `latest.data` as the base item, then overrides list
+ * metadata. Description/transcription live in latest.aux and aren't needed here.
  */
 function makeFile(overrides = {}) {
   return Object.assign({
@@ -65,8 +64,6 @@ function makeFile(overrides = {}) {
         mime: 'image/png',
         path: 'cms/test/test_1234.png',
         previews: { 180: 'cms/test/test_180.webp' },
-        description: { en: 'A test image' },
-        transcription: {},
       }),
       editor: 'admin@example.com',
       created_at: '2026-01-01 00:00:00',
@@ -94,6 +91,7 @@ function setupIntercept({
   keepFile = null,
   purgeFile = null,
   pubFile = null,
+  bulkFile = null,
 } = {}) {
   cy.intercept('POST', '/graphql', (req) => {
     const isBatch = Array.isArray(req.body)
@@ -119,6 +117,10 @@ function setupIntercept({
       }
       if (query.includes('pubFile')) {
         return { data: { pubFile: pubFile || { id: '1' } } }
+      }
+      if (query.includes('bulkFile')) {
+        const ids = op.variables?.id || ['1']
+        return { data: { bulkFile: bulkFile || { ids, latest: '{}', data: JSON.stringify(op.variables?.input || {}) } } }
       }
       if (query.includes('files')) {
         return { data: filesResponse(files) }
@@ -224,19 +226,21 @@ describe('File List', () => {
   it('shows sort menu with options', () => {
     visitFiles()
     cy.get('.layout .btn-sort .v-btn').click()
-    cy.get('.v-list').should('contain', 'latest')
-    cy.get('.v-list').should('contain', 'oldest')
-    cy.get('.v-list').should('contain', 'name')
-    cy.get('.v-list').should('contain', 'mime')
-    cy.get('.v-list').should('contain', 'language')
-    cy.get('.v-list').should('contain', 'editor')
-    cy.get('.v-list').should('contain', 'usage')
+    cy.get('.v-list').should('contain', 'Latest')
+    cy.get('.v-list').should('contain', 'Oldest')
+    cy.get('.v-list').should('contain', 'Latest edit')
+    cy.get('.v-list').should('contain', 'Oldest edit')
+    cy.get('.v-list').should('contain', 'Name')
+    cy.get('.v-list').should('contain', 'MIME')
+    cy.get('.v-list').should('contain', 'Language')
+    cy.get('.v-list').should('contain', 'Editor')
+    cy.get('.v-list').should('contain', 'Usage')
   })
 
   it('clicking a sort option triggers GQL reload', () => {
     visitFiles()
     cy.get('.layout .btn-sort .v-btn').click()
-    cy.contains('.v-list .v-btn', 'name').click()
+    cy.contains('.v-list .v-btn', 'Name').click()
     cy.wait('@gql')
   })
 
@@ -287,7 +291,7 @@ describe('File List', () => {
       name: 'photo.jpg',
       latest: { ...makeFile().latest, data: JSON.stringify({
         name: 'photo.jpg', lang: 'en', mime: 'image/jpeg', path: 'cms/photo.jpg',
-        previews: {}, description: {}, transcription: {},
+        previews: {},
       })},
     })
     visitFiles([file])
@@ -336,6 +340,21 @@ describe('File List', () => {
       const texts = [...$items].map((item) => item.textContent.trim())
       expect(texts.some((t) => t === 'Publish')).to.be.false
     })
+  })
+
+  it('context menu groups Edit properties between publish and destructive actions', () => {
+    const file = makeFile({ latest: { ...makeFile().latest, published: false } })
+    visitFiles([file])
+    cy.get('.items .v-list-item .btn-actions.item-menu').first().click()
+
+    cy.contains('.v-card .v-list > .v-list-item', 'Edit properties')
+      .prev()
+      .should('have.class', 'v-divider')
+    cy.contains('.v-card .v-list > .v-list-item', 'Edit properties')
+      .next()
+      .should('have.class', 'v-divider')
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    cy.contains('.hint', 'Apply the selected properties to 1 entry.').should('be.visible')
   })
 
   it('context menu shows Delete for non-trashed file', () => {
@@ -433,7 +452,7 @@ describe('File List', () => {
         id: '2', name: 'photo.jpg',
         latest: { ...makeFile().latest, id: '20', data: JSON.stringify({
           name: 'photo.jpg', lang: 'en', mime: 'image/jpeg', path: 'cms/photo.jpg',
-          previews: {}, description: {}, transcription: {},
+          previews: {},
         })},
       }),
     ]
@@ -467,6 +486,45 @@ describe('File List', () => {
     cy.get('.v-card .v-list').should('contain', 'Purge')
   })
 
+  // ---- Batch edit language ----
+
+  it('bulk actions menu shows Edit properties', () => {
+    const file = makeFile()
+    visitFiles([file])
+    cy.get('.items .v-list-item .item-check').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.get('.v-card .v-list').should('contain', 'Edit properties')
+  })
+
+  it('Edit properties opens the edit dialog with Apply disabled', () => {
+    const file = makeFile()
+    visitFiles([file])
+    cy.get('.items .v-list-item .item-check').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    cy.get('.btn-apply').should('exist').and('be.disabled')
+  })
+
+  it('selecting a language and applying sends bulkFile mutation', () => {
+    const file = makeFile()
+    visitFiles([file])
+    cy.get('.items .v-list-item .item-check').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    // real click must OPEN the menu (the attached menu inside the dialog)
+    cy.get('.btn-apply').should('be.visible')
+    cy.get('.v-card .v-field').realClick()
+    cy.get('.v-overlay-container [role="option"]').first().should('be.visible').click()
+    cy.get('.btn-apply').click()
+    cy.wait('@gql').its('request.body').should((body) => {
+      const ops = Array.isArray(body) ? body : [body]
+      const saveOp = ops.find((op) => (op.query || '').includes('bulkFile'))
+      expect(saveOp).to.exist
+      expect(saveOp.variables.input.lang).to.be.a('string')
+      expect(saveOp.variables.id).to.have.length(1)
+    })
+  })
+
   // ---- Multiple files ----
 
   it('displays multiple files in list', () => {
@@ -476,14 +534,14 @@ describe('File List', () => {
         id: '2', name: 'video.mp4',
         latest: { ...makeFile().latest, id: '20', data: JSON.stringify({
           name: 'video.mp4', lang: 'en', mime: 'video/mp4', path: 'cms/video.mp4',
-          previews: {}, description: {}, transcription: {},
+          previews: {},
         })},
       }),
       makeFile({
         id: '3', name: 'song.mp3',
         latest: { ...makeFile().latest, id: '30', data: JSON.stringify({
           name: 'song.mp3', lang: 'en', mime: 'audio/mpeg', path: 'cms/song.mp3',
-          previews: {}, description: {}, transcription: {},
+          previews: {},
         })},
       }),
     ]

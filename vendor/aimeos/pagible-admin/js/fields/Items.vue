@@ -1,14 +1,15 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 /**
  * Configuration:
+ * - `identity`: string, generated property name identifying each item
  * - `max`: int, maximum number of characters allowed in the input field
  * - `min`: int, minimum number of characters required in the input field
  * - `required`: boolean, if true, the field is required
  */
 import gql from 'graphql-tag'
-import { markRaw } from 'vue'
+import { markRaw, toRaw } from 'vue'
 import {
   mdiDotsVertical,
   mdiClose,
@@ -26,10 +27,12 @@ import {
 } from '@mdi/js'
 import { VueDraggable } from 'vue-draggable-plus'
 import { useUserStore, useClipboardStore, useMessageStore } from '../stores'
-import { fieldTypes } from '../fieldtypes'
-import { itemTitle, txlocales } from '../utils'
+import { fieldTypes, protectTypes } from '../fieldtypes'
+import { itemTitle, txlocales, uid } from '../utils'
 
 export default {
+  inheritAttrs: false,
+
   components: {
     VueDraggable
   },
@@ -82,6 +85,7 @@ export default {
       mdiMicrophoneOutline,
       mdiMicrophone,
       mdiViewGridPlus,
+      protectTypes,
       txlocales
     }
   },
@@ -118,7 +122,7 @@ export default {
 
   methods: {
     add() {
-      this.items.push({})
+      this.items.push(this.identity({}, this.config))
       this.panel.push(this.items.length - 1)
       this.$emit('update:modelValue', this.items)
       this.check()
@@ -136,30 +140,68 @@ export default {
       }
     },
 
+    /**
+     * Creates a non-reactive structured copy for clipboard operations.
+     */
+    clone(item) {
+      return structuredClone(toRaw(item))
+    },
+
     copy(idx) {
-      this.clipboard.set('items-content', structuredClone(this.items[idx]))
+      const item = this.clone(this.items[idx])
+      this.clipboard.set('items-content', this.identity(item, this.config, true))
     },
 
     cut(idx) {
-      this.clipboard.set('items-content', structuredClone(this.items[idx]))
+      this.clipboard.set('items-content', this.clone(this.items[idx]))
       this.items.splice(idx, 1)
       this.$emit('update:modelValue', this.items)
       this.check()
     },
 
+    /**
+     * Ensures configured identities exist recursively, optionally renewing them.
+     */
+    identity(item, config, renew = false) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        return item
+      }
+
+      const key = typeof config?.identity === 'string' ? config.identity : ''
+
+      if (key && (renew || typeof item[key] !== 'string' || !item[key])) {
+        item[key] = uid()
+      }
+
+      for (const [name, field] of Object.entries(config?.item || {})) {
+        if (field?.type === 'items' && Array.isArray(item[name])) {
+          item[name].forEach((child) => this.identity(child, field, renew))
+        }
+      }
+
+      return item
+    },
+
     insert(idx) {
-      this.items.splice(idx, 0, {})
+      this.items.splice(idx, 0, this.identity({}, this.config))
       this.panel.push(idx)
       this.$emit('update:modelValue', this.items)
       this.check()
     },
 
     paste(idx = null) {
+      const item = this.clipboard.get('items-content')
+
+      if (!item) {
+        return
+      }
+
       if (idx === null) {
         idx = this.items.length
       }
 
-      this.items.splice(idx, 0, this.clipboard.get('items-content'))
+      this.items.splice(idx, 0, this.clone(item))
+      this.clipboard.set('items-content', null)
       this.$emit('update:modelValue', this.items)
       this.check()
     },
@@ -170,7 +212,9 @@ export default {
       }
 
       if (!this.audio[idx + code]) {
-        return (this.audio[idx + code] = markRaw(import('../audio').then((mod) => mod.recording().start())))
+        return (this.audio[idx + code] = markRaw(
+          import('../audio').then((mod) => mod.recording().start())
+        ))
       }
 
       this.audio[idx + code].then((rec) => {
@@ -263,7 +307,8 @@ export default {
     modelValue: {
       immediate: true,
       handler(val) {
-        this.items = Array.isArray(val) ? val : (this.config.default ?? [])
+        this.items = Array.isArray(val) ? val : this.clone(this.config.default ?? [])
+        this.items.forEach((item) => this.identity(item, this.config))
         this.check()
       }
     }
@@ -272,7 +317,7 @@ export default {
 </script>
 
 <template>
-  <v-expansion-panels class="items" v-model="panel" elevation="0" multiple>
+  <v-expansion-panels v-bind="$attrs" class="items" v-model="panel" elevation="0" multiple>
     <VueDraggable
       v-model="items"
       @update="change()"
@@ -284,11 +329,30 @@ export default {
       group="items"
       animation="500"
     >
-      <v-expansion-panel v-for="(item, idx) in items" :key="idx" class="item">
+      <v-expansion-panel
+        v-for="(item, idx) in items"
+        :key="item?.[config.identity] ?? idx"
+        class="item"
+      >
         <v-expansion-panel-title>
-          <v-btn v-if="!readonly" variant="text" class="item-handle" :aria-label="$gettext('Move element')" icon>
-            <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M9,3H11V5H9V3M13,3H15V5H13V3M9,7H11V9H9V7M13,7H15V9H13V7M9,11H11V13H9V11M13,11H15V13H13V11M9,15H11V17H9V15M13,15H15V17H13V15M9,19H11V21H9V19M13,19H15V21H13V19Z" />
+          <v-btn
+            v-if="!readonly"
+            variant="text"
+            class="item-handle"
+            :aria-label="$gettext('Move element')"
+            icon
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              height="24"
+              width="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path
+                d="M9,3H11V5H9V3M13,3H15V5H13V3M9,7H11V9H9V7M13,7H15V9H13V7M9,11H11V13H9V11
+                  M13,11H15V13H13V11M9,15H11V17H9V15M13,15H15V17H13V15M9,19H11V21H9V19M13,19H15V21H13V19Z"
+              />
             </svg>
           </v-btn>
 
@@ -369,8 +433,8 @@ export default {
 
         <v-expansion-panel-text>
           <div v-for="(field, code) in config.item || {}" :key="code" class="field">
-            <div class="label">
-              {{ field.label || code }}
+            <div v-if="!protectTypes.has(toName(field.type))" class="label">
+              {{ $pgettext('fn', field.label || code).replace(/-|_/g, ' ') }}
               <div
                 v-if="!readonly && ['markdown', 'plaintext', 'string', 'text'].includes(field.type)"
                 class="actions"
@@ -445,6 +509,7 @@ export default {
               :context="items[idx]"
               :assets="assets"
               :config="field"
+              :label="protectTypes.has(toName(field.type)) ? $pgettext('fn', field.label || code).replace(/-|_/g, ' ') : null"
             ></component>
           </div>
         </v-expansion-panel-text>

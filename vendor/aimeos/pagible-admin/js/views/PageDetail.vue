@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import gql from 'graphql-tag'
@@ -10,16 +10,19 @@ import PageDetailContent from '../components/PageDetailContent.vue'
 const PageDetailItem = defineAsyncComponent(() => import('../components/PageDetailItem.vue'))
 const PageDetailEditor = defineAsyncComponent(() => import('../components/PageDetailEditor.vue'))
 import { applyResult, hasUnresolved } from '../merge'
+import { FILE_FIELDS, normalizeFile } from '../files'
 import { publishDate, publishItem } from '../publish'
 import { defineAsyncComponent, markRaw } from 'vue'
-import { frozenParse, hasTrue, safeParse, sanitize, txlocales } from '../utils'
-import { setupEcho, cleanEcho } from '../echo'
+import { frozenParse, hasTrue, safeParse, txlocales } from '../utils'
+import { setupReload, cleanEcho } from '../echo'
+import { reloadVersion } from '../version'
 import {
   useAppStore,
   useDirtyStore,
   useSideStore,
   useUserStore,
   useMessageStore,
+  usePluginStore,
   useSchemaStore,
   useViewStack,
   useChangeStore
@@ -43,16 +46,7 @@ const PAGE_DETAIL_FIELDS = `
   created_at
   editor
   files {
-    id
-    lang
-    mime
-    name
-    path
-    previews
-    description
-    transcription
-    updated_at
-    editor
+    ...CmsFileFields
   }
   elements {
     id
@@ -62,37 +56,37 @@ const PAGE_DETAIL_FIELDS = `
     editor
     updated_at
     files {
-      id
-      lang
-      mime
-      name
-      path
-      previews
-      description
-      transcription
-      updated_at
-      editor
+      ...CmsFileFields
     }
   }
 `
 
-const FETCH_PAGE = gql`query($id: ID!) {
-  page(id: $id) {
-    id
-    latest {
-      ${PAGE_DETAIL_FIELDS}
+const FETCH_PAGE = gql`
+  ${FILE_FIELDS}
+  query($id: ID!, $access: Boolean!) {
+    page(id: $id) {
+      id
+      access @include(if: $access)
+      has
+      restricted
+      latest {
+        ${PAGE_DETAIL_FIELDS}
+      }
     }
   }
-}`
+`
 
-const FETCH_PAGE_VERSIONS = gql`query($id: ID!) {
-  page(id: $id) {
-    id
-    versions {
-      ${PAGE_DETAIL_FIELDS}
+const FETCH_PAGE_VERSIONS = gql`
+  ${FILE_FIELDS}
+  query($id: ID!) {
+    page(id: $id) {
+      id
+      versions {
+        ${PAGE_DETAIL_FIELDS}
+      }
     }
   }
-}`
+`
 
 const SAVE_PAGE = gql`
   mutation ($id: ID!, $input: PageInput!, $latestId: ID) {
@@ -210,6 +204,10 @@ export default {
 
     saveConfig() {
       return { fcn: this.save, count: this.savecnt }
+    },
+
+    subpanels() {
+      return usePluginStore().subpanels.page || {}
     }
   },
 
@@ -222,62 +220,13 @@ export default {
       return
     }
 
-    this.$apollo
-      .query({
-        query: FETCH_PAGE,
-        fetchPolicy: 'no-cache',
-        variables: {
-          id: this.item.id
-        }
-      })
-      .then((result) => {
-        if (this.destroyed) return
+    this.reload().then((ok) => {
+      if (!ok) return
 
-        if (result.errors || !result.data.page) {
-          throw result
-        }
-
-        if (!result.data.page.latest) {
-          throw new Error('No version data available')
-        }
-
-        this.reset()
-        this.latest = result.data.page.latest
-
-        Object.assign(this.item, safeParse(this.latest?.data))
-        this.item.published = this.latest?.published
-        this.item.editor = this.latest?.editor
-        this.item.updated_at = this.latest?.created_at
-
-        const aux = safeParse(this.latest?.aux)
-        this.item.content = aux.content ?? []
-        this.item.config = aux.config ?? {}
-        this.item.meta = aux.meta ?? {}
-
-        this.assets = markRaw(this.files(this.latest?.files || []))
-        this.elements = markRaw(this.elems(this.latest?.elements || []))
-        this.item.content = this.obsolete(this.item.content)
-        this.latest = { id: this.latest?.id }
-
-        setupEcho(this, 'page', this.item.id, (event) => {
-          if (!this.hasChanged && this.user.can('page:view') && event.editor !== this.user.me?.email) {
-            this.latest = { id: event.versionId }
-            Object.assign(this.item, sanitize(event.data))
-
-            const aux = sanitize(event.aux) || {}
-            this.item.content = aux.content ?? this.item.content
-            this.item.config = aux.config ?? this.item.config
-            this.item.meta = aux.meta ?? this.item.meta
-          }
-        })
-
-        this.loading = false
-      })
-      .catch((error) => {
-        this.loading = false
-        this.messages.add(this.$gettext('Error fetching page') + ':\n' + error, 'error')
-        this.$log(`PageDetail::watch(item): Error fetching page`, error)
-      })
+      // reload the open page when its own item is saved elsewhere or after a reconnect that may
+      // have missed a save, unless the user has unsaved edits
+      setupReload(this, 'page', this.item.id, () => this.reload(), () => !this.hasChanged && this.user.can('page:view'))
+    })
   },
 
   beforeUnmount() {
@@ -296,6 +245,33 @@ export default {
   },
 
   methods: {
+    // loads the latest version into the open editor; resolves true on success so the caller
+    // can defer the websocket subscription until the initial load completed
+    reload() {
+      return reloadVersion(this, FETCH_PAGE, 'page', this.$gettext('Error fetching page'), (page) => {
+        this.latest = page.latest
+
+        Object.assign(this.item, safeParse(this.latest?.data))
+        this.item.access = page.access
+        this.item.has = page.has
+        this.item.restricted = page.restricted
+        this.item.published = this.latest?.published
+        this.item.editor = this.latest?.editor
+        this.item.updated_at = this.latest?.created_at
+
+        const aux = safeParse(this.latest?.aux)
+        this.item.content = aux.content ?? []
+        this.item.config = aux.config ?? {}
+        this.item.meta = aux.meta ?? {}
+
+        const elements = this.elems(this.latest?.elements || [])
+        this.assets = markRaw(this.files(this.latest?.files || [], elements))
+        this.elements = markRaw(elements)
+        this.item.content = this.obsolete(this.item.content)
+        this.latest = { id: this.latest?.id }
+      }, () => !this.hasChanged, { access: this.user.can('page:access') })
+    },
+
     apply(changes) {
       if (changes.content) {
         const strip = (el) => {
@@ -390,6 +366,7 @@ export default {
 
       for (const entry of this.item.content || []) {
         for (const id of entry.files || []) files.add(id)
+        for (const file of this.elements[entry.refid]?.files || []) files.add(file.id)
       }
 
       for (const key in this.item.meta || {}) {
@@ -403,16 +380,15 @@ export default {
       return [...files]
     },
 
-    files(entries) {
+    files(entries, elements = {}) {
       const map = {}
 
       for (const entry of entries) {
-        map[entry.id] = {
-          ...entry,
-          previews: frozenParse(entry.previews),
-          description: frozenParse(entry.description),
-          transcription: frozenParse(entry.transcription)
-        }
+        map[entry.id] = normalizeFile(entry)
+      }
+
+      for (const element of Object.values(elements)) {
+        for (const file of element.files || []) map[file.id] = file
       }
 
       return map
@@ -525,21 +501,8 @@ export default {
         return Promise.resolve(true)
       }
 
-      const meta = {}
-      for (const key in this.item.meta || {}) {
-        meta[key] = {
-          type: this.item.meta[key].type || '',
-          data: this.item.meta[key].data || {}
-        }
-      }
-
-      const config = {}
-      for (const key in this.item.config || {}) {
-        config[key] = {
-          type: this.item.config[key].type || '',
-          data: this.item.config[key].data || {}
-        }
-      }
+      const meta = this.clean(this.item.meta || {}, 'meta')
+      const config = this.clean(this.item.config || {}, 'config')
 
       this.saving = true
 
@@ -702,8 +665,9 @@ export default {
     use(version) {
       Object.assign(this.item, version.data)
 
-      this.assets = version.files
-      this.elements = this.elems(version.elements || [])
+      const elements = this.elems(version.elements || [])
+      this.assets = this.files(Object.values(version.files || {}), elements)
+      this.elements = elements
       this.item.content = this.obsolete(this.item.content)
 
       this.dirty['content'] = true
@@ -744,11 +708,12 @@ export default {
           }
 
           return (result.data.page.versions || []).map((v) => {
+            const elements = this.elems(v.elements || [])
             const item = {
               ...v,
               data: Object.freeze(Object.assign(safeParse(v.data), safeParse(v.aux)))
             }
-            item.files = Object.freeze(this.files(v.files || []))
+            item.files = Object.freeze(this.files(v.files || [], elements))
             delete item.aux
             return Object.freeze(item)
           })
@@ -860,6 +825,9 @@ export default {
         <v-tab v-if="user.can('page:metrics')" value="metrics" @click="aside = ''">
           {{ $gettext('Metrics') }}
         </v-tab>
+        <v-tab v-for="(sp, key) in subpanels" :key="key" :value="'ext-' + key" @click="aside = ''">
+          {{ sp.label }}
+        </v-tab>
       </v-tabs>
 
       <v-window v-model="tab" :touch="false">
@@ -898,6 +866,10 @@ export default {
 
         <v-window-item v-if="user.can('page:metrics')" value="metrics">
           <PageDetailMetrics ref="metrics" :item="item" />
+        </v-window-item>
+
+        <v-window-item v-for="(sp, key) in subpanels" :key="key" :value="'ext-' + key">
+          <component :is="sp.component" :item="item" :assets="assets" />
         </v-window-item>
       </v-window>
     </v-form>

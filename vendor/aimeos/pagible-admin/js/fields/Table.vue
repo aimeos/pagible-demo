@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import {
@@ -96,7 +96,8 @@ export default {
     },
 
     header() {
-      const cols = (this.modelValue[0] || []).map((_, i) => true)
+      const size = this.modelValue.reduce((max, row) => Math.max(max, row.length), 0)
+      const cols = Array(size).fill(true)
 
       cols.unshift(null)
       cols.push(null)

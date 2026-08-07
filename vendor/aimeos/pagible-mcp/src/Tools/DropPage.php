@@ -1,13 +1,12 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
-use Aimeos\Cms\Utils;
 use Aimeos\Cms\Resource;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Models\Page;
@@ -40,7 +39,7 @@ class DropPage extends Tool
             'id.required' => 'You must specify the ID of the page to delete.',
         ] );
 
-        $items = Resource::drop( Page::class, [$v['id']], Utils::editor( $request->user() ) );
+        $items = Resource::drop( Page::class, [$v['id']], $request->user() );
 
         if( $items->isEmpty() ) {
             return Response::structured( ['error' => 'Page not found.'] );

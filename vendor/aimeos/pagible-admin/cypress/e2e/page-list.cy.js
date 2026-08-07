@@ -7,6 +7,9 @@
  */
 
 const ALL_PERMISSIONS = {
+  'access:view': true,
+  'cache:clear': true,
+  'page:access': true,
   'page:view': true,
   'page:add': true,
   'page:save': true,
@@ -15,7 +18,7 @@ const ALL_PERMISSIONS = {
   'page:keep': true,
   'page:purge': true,
   'page:publish': true,
-  'page:synthesize': true,
+  'page:chat': true,
   'audio:transcribe': true,
   'element:view': true,
   'file:view': true,
@@ -35,7 +38,9 @@ function makePage(overrides = {}) {
     created_at: '2026-01-01 00:00:00',
     deleted_at: null,
     editor: 'admin@example.com',
-    has: false,
+    has: 0,
+    access: null,
+    restricted: false,
     latest: {
       id: '10',
       published: true,
@@ -74,27 +79,29 @@ function pagesResponse(pages) {
  *
  * @param {object} options
  * @param {object|false|null} options.meResponse  – `data.me` value (null = unauthenticated)
- * @param {Array}             options.pages       – array of page objects for the `pages` query
+ * @param {Array|Function}    options.pages       – page objects or a variable-aware response factory
  * @param {object|null}       options.addPage     – return value for `addPage` mutation
  * @param {object|null}       options.savePage    – return value for `savePage` mutation
+ * @param {Array|null}        options.bulkPage   – return value for `bulkPage` mutation
  * @param {object|null}       options.movePage    – return value for `movePage` mutation
  * @param {object|null}       options.dropPage    – return value for `dropPage` mutation
  * @param {object|null}       options.keepPage    – return value for `keepPage` mutation
  * @param {object|null}       options.purgePage   – return value for `purgePage` mutation
  * @param {object|null}       options.pubPage     – return value for `pubPage` mutation
- * @param {string|null}       options.synthesize  – return value for `synthesize` mutation
  */
 function setupIntercept({
   meResponse = ME_ADMIN,
   pages = [],
   addPage = null,
   savePage = null,
+  bulkPage = null,
   movePage = null,
   dropPage = null,
   keepPage = null,
   purgePage = null,
   pubPage = null,
-  synthesize = null,
+  access = ['member', 'staff'],
+  schemas = [{ name: 'cms', label: 'CMS', types: '{"page":{},"blog":{}}', content: '{}', meta: '{}', config: '{}' }],
 } = {}) {
   cy.intercept('POST', '/graphql', (req) => {
     const isBatch = Array.isArray(req.body)
@@ -109,8 +116,22 @@ function setupIntercept({
       if (query.includes('cmsLogout')) {
         return { data: { cmsLogout: { email: 'admin@example.com', name: 'Admin' } } }
       }
+      if (query.includes('clearCache')) {
+        return { data: { clearCache: 1 } }
+      }
       if (query.includes('addPage')) {
         return { data: { addPage: addPage || { id: '99' } } }
+      }
+      if (query.includes('bulkPage')) {
+        const ids = op.variables?.id || ['1']
+        // data and latest are JSON scalar strings
+        return { data: { bulkPage: bulkPage || { ids, latest: '{}', data: JSON.stringify(op.variables?.input || {}), failed: 0 } } }
+      }
+      if (query.includes('setPageAccess')) {
+        return { data: { setPageAccess: (op.variables?.id || []).length } }
+      }
+      if (query.includes('PageAccessValues')) {
+        return { data: { access } }
       }
       if (query.includes('savePage')) {
         return { data: { savePage: savePage || { id: op.variables?.id || '1' } } }
@@ -130,11 +151,12 @@ function setupIntercept({
       if (query.includes('pubPage')) {
         return { data: { pubPage: pubPage || { id: '1' } } }
       }
-      if (query.includes('synthesize')) {
-        return { data: { synthesize: synthesize || 'Generated page content' } }
+      if (query.includes('schemas')) {
+        return { data: { schemas } }
       }
       if (query.includes('pages')) {
-        return { data: pagesResponse(pages) }
+        const data = typeof pages === 'function' ? pages(op.variables || {}) : pages
+        return { data: pagesResponse(data) }
       }
       // Default: auth-check (me) query
       if (meResponse && typeof meResponse === 'object') {
@@ -153,6 +175,16 @@ function setupIntercept({
 
     req.reply(isBatch ? responses : responses[0])
   }).as('gql')
+}
+
+function waitForSetPageAccess() {
+  return cy.wait('@gql').then((interception) => {
+    const body = interception.request.body
+    const ops = Array.isArray(body) ? body : [body]
+    const accessOp = ops.find((op) => (op.query || '').includes('setPageAccess'))
+
+    return accessOp || waitForSetPageAccess()
+  })
 }
 
 /** Authenticate and navigate to /pages, waiting for the initial GQL calls. */
@@ -251,29 +283,85 @@ describe('Page List', () => {
 
   // ---- Reload ----
 
-  it('shows reload button and clicking it refetches pages', () => {
-    const page = makePage()
-    visitPages([page])
+  it('shows newly added pages after reloading', () => {
+    const pages = [makePage()]
+
+    visitPages(pages)
+    pages.push(makePage({
+      id: '2',
+      latest: {
+        ...pages[0].latest,
+        id: '20',
+        data: JSON.stringify({
+          ...JSON.parse(pages[0].latest.data),
+          name: 'New page',
+          title: 'New page'
+        })
+      }
+    }))
+
     cy.get('.v-btn.btn-reload').should('exist').click()
+    cy.wait('@gql').its('request.body').should((body) => {
+      const ops = Array.isArray(body) ? body : [body]
+      expect(ops.some((op) => (op.query || '').includes('pages'))).to.be.true
+    })
+    cy.get('.item-title').should('contain', 'New page')
+  })
+
+  it('refetches and reopens expanded branches after reloading', () => {
+    const root = makePage({ has: 1 })
+    let childName = 'Old child'
+    const pages = (variables) => {
+      if (variables.filter?.parent_id !== root.id) {
+        return [root]
+      }
+
+      const child = makePage({ id: '2', parent_id: root.id })
+      child.latest = {
+        ...child.latest,
+        id: '20',
+        data: JSON.stringify({
+          ...JSON.parse(child.latest.data),
+          name: childName,
+          title: childName
+        })
+      }
+
+      return [child]
+    }
+
+    visitPages(pages)
+    cy.get('.tree-node-inner .actions .v-btn').first().click()
     cy.wait('@gql')
+    cy.get('.item-title').should('contain', 'Old child')
+
+    cy.then(() => {
+      childName = 'Fresh child'
+    })
+    cy.get('.v-btn.btn-reload').click()
+    cy.wait('@gql')
+    cy.wait('@gql')
+
+    cy.get('.tree-node').first().should('have.attr', 'aria-expanded', 'true')
+    cy.get('.item-title').should('contain', 'Fresh child')
   })
 
   // ---- Tree node expand/collapse ----
 
   it('shows expand button for nodes with children', () => {
-    const page = makePage({ has: true })
+    const page = makePage({ has: 2 })
     visitPages([page])
     cy.get('.tree-node-inner .actions .v-btn').first().should('exist').and('not.have.class', 'hidden')
   })
 
   it('hides expand button for leaf nodes', () => {
-    const page = makePage({ has: false })
+    const page = makePage({ has: 0 })
     visitPages([page])
     cy.get('.tree-node-inner .actions .v-btn').first().should('have.class', 'hidden')
   })
 
   it('clicking expand fetches child pages', () => {
-    const page = makePage({ has: true })
+    const page = makePage({ has: 2 })
     visitPages([page])
     // Click the expand/collapse toggle button
     cy.get('.tree-node-inner .actions .v-btn').first().click()
@@ -317,22 +405,13 @@ describe('Page List', () => {
     })
   })
 
-  it('context menu shows Enable for disabled page', () => {
-    const page = makePage()
-    page.latest.data = JSON.stringify({
-      name: 'Test', title: '', path: '/test', lang: 'en',
-      status: 0, domain: '', to: '', tag: '', type: '', theme: '', cache: 5,
-    })
-    visitPages([page])
-    cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
-    cy.get('.v-card .v-list').should('contain', 'Enable')
-  })
-
-  it('context menu shows Disable for enabled page', () => {
+  it('context menu hides status change actions', () => {
     const page = makePage()
     visitPages([page])
     cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
-    cy.get('.v-card .v-list').should('contain', 'Disable')
+    cy.get('.v-card .v-list').should('not.contain', 'Enable')
+    cy.get('.v-card .v-list').should('not.contain', 'Disable')
+    cy.get('.v-card .v-list').should('not.contain', 'Hide')
   })
 
   it('context menu shows Delete for non-trashed page', () => {
@@ -370,11 +449,102 @@ describe('Page List', () => {
     cy.get('.v-card .v-list').should('contain', 'Copy')
   })
 
+  it('context menu groups node bulk actions with Clear cache', () => {
+    const page = makePage()
+    page.latest.published = false
+    visitPages([page])
+    cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
+
+    cy.contains('.v-card .v-list > .v-list-item', 'Edit properties')
+      .prev()
+      .should('have.class', 'v-divider')
+    cy.contains('.v-card .v-list > .v-list-item', 'Edit properties')
+      .next()
+      .should('contain', 'Access')
+    cy.contains('.v-card .v-list > .v-list-item', 'Access')
+      .next()
+      .should('contain', 'Clear cache')
+    cy.contains('.v-card .v-list > .v-list-item', 'Clear cache')
+      .next()
+      .should('have.class', 'v-divider')
+  })
+
+  it('node bulk edit offers recursive changes for the page subtree', () => {
+    const page = makePage({ has: 3 })
+    visitPages([page])
+    cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+
+    cy.get('.btn-apply-recursive').should('contain', 'Apply recursively (4)')
+  })
+
+  it('node access control applies recursively to the page subtree', () => {
+    const page = makePage({ has: 3 })
+    visitPages([page])
+    cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
+    cy.contains('.v-card .v-list .v-btn', 'Access').click()
+    cy.contains('.page-access .v-radio', 'Public').find('input').check({ force: true })
+    cy.get('.page-access .btn-apply-access-recursive')
+      .should('contain', 'Apply recursively (4)')
+      .click()
+
+    waitForSetPageAccess().should((accessOp) => {
+      expect(accessOp.variables.id).to.deep.equal(['1'])
+      expect(accessOp.variables.access).to.equal(null)
+      expect(accessOp.variables.descendants).to.equal(true)
+    })
+  })
+
+  it('context menu hides Clear cache without cache:clear permission', () => {
+    const page = makePage()
+    const permissions = { ...ALL_PERMISSIONS }
+    delete permissions['cache:clear']
+
+    visitPages([page], {
+      permission: JSON.stringify(permissions),
+      email: 'editor@example.com',
+      name: 'Editor',
+    })
+    cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
+    cy.get('.v-card .v-list').should('not.contain', 'Clear cache')
+  })
+
   it('context menu shows Insert submenu', () => {
     const page = makePage()
     visitPages([page])
     cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
     cy.get('.v-card .v-list').should('contain', 'Insert')
+  })
+
+  it('matches Insert and Paste submenu entries to the other actions', () => {
+    const page = makePage()
+    visitPages([page])
+    cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
+
+    cy.contains('.page-action-menu .v-btn', 'Copy').then(($copy) => {
+      const copy = getComputedStyle($copy[0])
+
+      cy.contains('.page-action-menu .v-btn', 'Insert').should(($insert) => {
+        const insert = getComputedStyle($insert[0])
+
+        expect(insert.color).to.equal(copy.color)
+        expect(insert.fontSize).to.equal(copy.fontSize)
+      })
+    })
+
+    cy.contains('.page-action-menu .v-btn', 'Copy').click()
+    cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
+
+    cy.contains('.page-action-menu .v-btn', 'Cut').then(($cut) => {
+      const cut = getComputedStyle($cut[0])
+
+      cy.contains('.page-action-menu .v-btn', 'Paste').should(($paste) => {
+        const paste = getComputedStyle($paste[0])
+
+        expect(paste.color).to.equal(cut.color)
+        expect(paste.fontSize).to.equal(cut.fontSize)
+      })
+    })
   })
 
   // ---- Context menu actions fire mutations ----
@@ -391,6 +561,19 @@ describe('Page List', () => {
     })
   })
 
+  it('clicking Clear cache sends clearCache mutation for the page', () => {
+    const page = makePage()
+    visitPages([page])
+    cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
+    cy.contains('.v-card .v-list .v-btn', 'Clear cache').click()
+    cy.wait('@gql').its('request.body').should((body) => {
+      const ops = Array.isArray(body) ? body : [body]
+      const clearOp = ops.find((op) => (op.query || '').includes('clearCache'))
+      expect(clearOp).to.exist
+      expect(clearOp.variables.id).to.equal('1')
+    })
+  })
+
   it('clicking Delete sends dropPage mutation', () => {
     const page = makePage()
     visitPages([page])
@@ -399,36 +582,6 @@ describe('Page List', () => {
     cy.wait('@gql').its('request.body').should((body) => {
       const ops = Array.isArray(body) ? body : [body]
       expect(ops.some((op) => (op.query || '').includes('dropPage'))).to.be.true
-    })
-  })
-
-  it('clicking Enable sends savePage mutation with status 1', () => {
-    const page = makePage()
-    page.latest.data = JSON.stringify({
-      name: 'Test', title: '', path: '/test', lang: 'en',
-      status: 0, domain: '', to: '', tag: '', type: '', theme: '', cache: 5,
-    })
-    visitPages([page])
-    cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
-    cy.contains('.v-card .v-list .v-btn', 'Enable').click()
-    cy.wait('@gql').its('request.body').should((body) => {
-      const ops = Array.isArray(body) ? body : [body]
-      const saveOp = ops.find((op) => (op.query || '').includes('savePage'))
-      expect(saveOp).to.exist
-      expect(saveOp.variables.input.status).to.equal(1)
-    })
-  })
-
-  it('clicking Disable sends savePage mutation with status 0', () => {
-    const page = makePage()
-    visitPages([page])
-    cy.get('.tree-node-inner .btn-actions .v-btn').first().click()
-    cy.contains('.v-card .v-list .v-btn', 'Disable').click()
-    cy.wait('@gql').its('request.body').should((body) => {
-      const ops = Array.isArray(body) ? body : [body]
-      const saveOp = ops.find((op) => (op.query || '').includes('savePage'))
-      expect(saveOp).to.exist
-      expect(saveOp.variables.input.status).to.equal(0)
     })
   })
 
@@ -472,7 +625,7 @@ describe('Page List', () => {
     })
   })
 
-  it('bulk actions menu shows Publish, Enable, Disable, Delete, Purge', () => {
+  it('bulk actions menu shows Publish, Access, Enable, Disable, Delete, Purge', () => {
     const page = makePage()
     page.latest.published = false
     visitPages([page])
@@ -480,10 +633,154 @@ describe('Page List', () => {
     // Open bulk actions menu, then check items in the teleported overlay
     cy.get('.header .bulk .btn-actions .v-btn').click()
     cy.get('.v-card .v-list').should('contain', 'Publish')
+    cy.get('.v-card .v-list').should('contain', 'Access')
     cy.get('.v-card .v-list').should('contain', 'Enable')
     cy.get('.v-card .v-list').should('contain', 'Disable')
     cy.get('.v-card .v-list').should('contain', 'Delete')
     cy.get('.v-card .v-list').should('contain', 'Purge')
+  })
+
+  it('bulk Access applies an explicit public value', () => {
+    const page = makePage()
+    visitPages([page])
+    cy.get('.tree-node-inner .v-checkbox-btn').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Access').click()
+    cy.contains('.page-access .v-radio', 'Public').find('input').check({ force: true })
+    cy.get('.page-access .btn-apply-access').click()
+    waitForSetPageAccess().should((accessOp) => {
+      expect(accessOp.variables.id).to.deep.equal(['1'])
+      expect(accessOp.variables.access).to.equal(null)
+      expect(accessOp.variables.descendants).to.equal(false)
+    })
+  })
+
+  // ---- Batch edit properties ----
+
+  // Uses real (focus/hit-test-respecting) pointer events: the dropdown menus only
+  // open on a real click once the dialog is opened after the bulk menu's overlay
+  // has closed. Synthetic cy.click() bypasses this, so realClick keeps it honest.
+  it('real-click on a property dropdown opens its menu and applies the value', () => {
+    const page = makePage()
+    visitPages([page])
+    cy.get('.tree-node-inner .v-checkbox-btn').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    cy.get('.btn-apply').should('be.visible')
+    cy.get('.prop').first().find('.v-field').realClick()
+    cy.get('.v-overlay-container [role="option"]').contains('Disabled').should('be.visible').click()
+    cy.get('.btn-apply').should('not.be.disabled').click()
+    cy.wait('@gql').its('request.body').should((body) => {
+      const ops = Array.isArray(body) ? body : [body]
+      const saveOp = ops.find((op) => (op.query || '').includes('bulkPage'))
+      expect(saveOp).to.exist
+      expect(saveOp.variables.input.status).to.equal(0)
+    })
+  })
+
+  // The page list view does not load theme schemas (only the detail view does),
+  // so the dialog must load them itself or the theme/type dropdowns stay empty.
+  it('theme dropdown is populated from schemas in the list view', () => {
+    const page = makePage()
+    visitPages([page])
+    cy.get('.tree-node-inner .v-checkbox-btn').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    cy.get('.btn-apply').should('be.visible')
+    // theme is the 4th property row (status, cache, language, theme)
+    cy.get('.prop').eq(3).find('.v-field').realClick()
+    cy.get('.v-overlay-container [role="option"]').should('have.length.gte', 1)
+  })
+
+  it('bulk actions menu shows Edit properties', () => {
+    const page = makePage()
+    visitPages([page])
+    cy.get('.tree-node-inner .v-checkbox-btn').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.get('.v-card .v-list').should('contain', 'Edit properties')
+  })
+
+  it('clicking Edit properties opens the dialog', () => {
+    const page = makePage({ has: 2 })
+    visitPages([page])
+    cy.get('.tree-node-inner .v-checkbox-btn').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    cy.get('.btn-apply').should('exist')
+    cy.get('.btn-apply-recursive').should('exist')
+  })
+
+  it('Apply is disabled until a property is enabled', () => {
+    const page = makePage({ has: 2 })
+    visitPages([page])
+    cy.get('.tree-node-inner .v-checkbox-btn').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    cy.get('.btn-apply').should('be.disabled')
+    cy.get('.btn-apply-recursive').should('be.disabled')
+  })
+
+  it('Apply sends bulkPage with the enabled property and descendants false', () => {
+    const page = makePage()
+    visitPages([page])
+    cy.get('.tree-node-inner .v-checkbox-btn').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    // enable the first property (status), then apply
+    cy.get('.prop').first().find('.v-checkbox-btn').click()
+    cy.get('.btn-apply').click()
+    cy.wait('@gql').its('request.body').should((body) => {
+      const ops = Array.isArray(body) ? body : [body]
+      const saveOp = ops.find((op) => (op.query || '').includes('bulkPage'))
+      expect(saveOp).to.exist
+      expect(saveOp.variables.input.status).to.equal(1)
+      expect(saveOp.variables.descendants).to.equal(false)
+      expect(saveOp.variables.id).to.have.length(1)
+    })
+  })
+
+  it('Apply recursively sends bulkPage with descendants true', () => {
+    const page = makePage({ has: 2 })
+    visitPages([page])
+    cy.get('.tree-node-inner .v-checkbox-btn').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    cy.get('.prop').first().find('.v-checkbox-btn').click()
+    cy.get('.btn-apply-recursive').click()
+    cy.wait('@gql').its('request.body').should((body) => {
+      const ops = Array.isArray(body) ? body : [body]
+      const saveOp = ops.find((op) => (op.query || '').includes('bulkPage'))
+      expect(saveOp).to.exist
+      expect(saveOp.variables.descendants).to.equal(true)
+    })
+  })
+
+  it('Apply recursively shows the affected page count', () => {
+    const page = makePage({ has: 2 })
+    visitPages([page])
+    cy.get('.tree-node-inner .v-checkbox-btn').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    // the checked page (has: 2 descendants) plus itself = 3 affected pages
+    cy.get('.btn-apply-recursive').should('contain', '(3)')
+  })
+
+  it('opening a property dropdown and picking a value auto-includes it', () => {
+    const page = makePage()
+    visitPages([page])
+    cy.get('.tree-node-inner .v-checkbox-btn').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    // interact with the dropdown directly (no manual checkbox click)
+    cy.get('.prop').first().find('.v-select').click()
+    cy.get('.v-overlay-container .v-list-item').contains('Disabled').click()
+    cy.get('.btn-apply').click()
+    cy.wait('@gql').its('request.body').should((body) => {
+      const ops = Array.isArray(body) ? body : [body]
+      const saveOp = ops.find((op) => (op.query || '').includes('bulkPage'))
+      expect(saveOp).to.exist
+      expect(saveOp.variables.input.status).to.equal(0)
+    })
   })
 
   // ---- Status styling ----
@@ -533,6 +830,34 @@ describe('Page List', () => {
     cy.get('.publish-at').should('exist')
   })
 
+  // ---- Access indicator ----
+
+  it('shows a lock icon only for non-public pages', () => {
+    const pages = [
+      makePage({ id: '1', access: null, restricted: false }),
+      makePage({ id: '2', access: [], restricted: true }),
+      makePage({ id: '3', access: ['member'], restricted: true }),
+    ]
+
+    visitPages(pages)
+    cy.get('.tree-node-inner').should('have.length', 3)
+    cy.get('.item-access').should('have.length', 2)
+    cy.get('.item-access[title="Authenticated users"]').should('exist')
+    cy.get('.item-access[title="Access: member"]').should('exist')
+  })
+
+  it('hides access values without page:access permission', () => {
+    const me = {
+      permission: JSON.stringify({ 'access:view': true, 'page:view': true }),
+      email: 'viewer@example.com',
+      name: 'Viewer',
+    }
+    const page = makePage({ restricted: true, access: undefined })
+
+    visitPages([page], me)
+    cy.get('.item-access[title="Restricted"]').should('exist')
+  })
+
   // ---- Multiple pages ----
 
   it('displays multiple pages in tree', () => {
@@ -576,14 +901,27 @@ describe('Page List', () => {
     cy.get('.item-aux').first().should('have.attr', 'target', '_blank')
   })
 
-  // ---- AI synthesize prompt ----
+  it('shows the root page path as / when its path is null', () => {
+    const latest = makePage().latest
+    const page = makePage({
+      latest: {
+        ...latest,
+        data: JSON.stringify({ ...JSON.parse(latest.data), path: null }),
+      },
+    })
 
-  it('shows synthesize prompt for users with page:synthesize permission', () => {
+    visitPages([page])
+    cy.get('.item-path').first().should('have.text', '/')
+  })
+
+  // ---- AI chat prompt ----
+
+  it('shows chat prompt for users with page:chat permission', () => {
     visitPages()
     cy.get('.prompt').should('exist')
   })
 
-  it('hides synthesize prompt when user lacks page:synthesize permission', () => {
+  it('hides chat prompt when user lacks page:chat permission', () => {
     const me = {
       permission: JSON.stringify({ 'page:view': true, 'page:add': true }),
       email: 'editor@example.com',
@@ -593,20 +931,31 @@ describe('Page List', () => {
     cy.get('.prompt').should('not.exist')
   })
 
-  it('synthesize submit button appears after typing prompt', () => {
+  it('chat submit button appears after typing prompt', () => {
     visitPages()
     cy.get('.prompt textarea').first().type('Create a landing page about cats')
     cy.get('.prompt .v-input__append .v-btn').should('exist')
   })
 
-  it('clicking synthesize submit sends synthesize mutation', () => {
+  it('opens the chat dialog and streams the synthesized answer when submitting a prompt', () => {
     visitPages()
+
+    // The chat posts to the streaming text endpoint and renders the chunks (no GraphQL mutation)
+    cy.intercept('POST', '**/cmsapi/chat', {
+      statusCode: 200,
+      headers: { 'content-type': 'text/plain' },
+      body: 'Generated page content',
+    }).as('chat')
+
     cy.get('.prompt textarea').first().type('Create a landing page')
     cy.get('.prompt .v-input__append .v-btn').click()
-    cy.wait('@gql').its('request.body').should((body) => {
-      const ops = Array.isArray(body) ? body : [body]
-      expect(ops.some((op) => (op.query || '').includes('synthesize'))).to.be.true
+    cy.contains('AI Assistant').should('be.visible') // the launcher expands into the chat modal
+
+    cy.wait('@chat').its('request.body').should((body) => {
+      expect(body.prompt).to.eq('Create a landing page')
     })
+
+    cy.contains('Generated page content').should('be.visible')
   })
 
   // ---- Permission-based visibility ----

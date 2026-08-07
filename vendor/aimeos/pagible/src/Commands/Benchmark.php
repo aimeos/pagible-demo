@@ -1,12 +1,14 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Commands;
 
+use Aimeos\Cms\Events\PageInvalidated;
+use Aimeos\Cms\Models\Page;
 use Database\Seeders\BenchmarkSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
@@ -138,6 +140,17 @@ class Benchmark extends Command
         $seeder->run( $domain, 'benchmark', $pages, $chunk, function( int $count ) use ( $bar ) {
             $bar->advance( $count );
         } );
+
+        $paths = array_values( Page::withTrashed()
+            ->where( 'domain', $domain )
+            ->where( 'editor', 'benchmark' )
+            ->pluck( 'path' )
+            ->map( fn( $path ) => (string) $path )
+            ->all() );
+
+        if( $paths ) {
+            PageInvalidated::dispatch( $domain, $paths );
+        }
 
         $bar->finish();
         $this->newLine();

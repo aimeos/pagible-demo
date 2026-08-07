@@ -28,8 +28,22 @@ return [
         'admin' => ['*'],
         'viewer' => ['page:view', 'element:view', 'file:view'],
         'publisher' => ['page:*', 'element:*', 'file:*', 'audio:*', 'image:*', 'text:*', 'page:config'],
-        'editor' => ['publisher', '!*:publish', '!*:purge'],
+        'editor' => ['publisher', '!*:publish', '!*:purge', '!page:access'],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Allow fetching from internal hosts
+    |--------------------------------------------------------------------------
+    |
+    | When TRUE, the CMS may fetch remote URLs (e.g. when importing a file from
+    | a URL) whose host resolves to a private or reserved IP range (e.g.
+    | 10.0.0.0/8, 127.0.0.1 or internal services accessed by IP). Set it to
+    | FALSE to block them and mitigate SSRF when URLs can be supplied by
+    | untrusted users.
+    |
+    */
+    'allow-internal' => env( 'CMS_ALLOW_INTERNAL', false ),
 
     /*
     |--------------------------------------------------------------------------
@@ -45,37 +59,76 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Broadcasting authorization middleware
+    |--------------------------------------------------------------------------
+    |
+    | Middleware applied to the "/broadcasting/auth" channel-authorization route. Throttled by
+    | default; multi-tenant setups (e.g. stancl/tenancy) must also add their tenancy-init
+    | middleware here so Tenancy::value() resolves when channels are authorized.
+    |
+    */
+    'broadcast-middleware' => ['web', 'auth', 'throttle:cms-broadcast'],
+
+    /*
+    |--------------------------------------------------------------------------
     | Database connection
     |--------------------------------------------------------------------------
     |
     | Use the database connection defined in ./config/database.php to manage
-    | page, element and file records.
+    | page, element and file records. Defaults to the application's connection.
     |
     */
-    'db' => env( 'DB_CONNECTION', 'sqlite' ),
+    'db' => env( 'CMS_DB_CONNECTION', env( 'DB_CONNECTION', 'sqlite' ) ),
 
     /*
     |--------------------------------------------------------------------------
-    | Filesystem disk
+    | Filesystem disks
     |--------------------------------------------------------------------------
     |
-    | Use the filesystem disk defined in ./config/filesystems.php to store the
-    | uploaded files. By default, they are stored in the ./public/storage/cms/
-    | folder but this can be any supported cloud storage too.
+    | Use the filesystem disks defined in ./config/filesystems.php to store
+    | uploaded files. Public files keep their direct URLs while private files
+    | are delivered after the access rules of their page have been checked.
+    | Public and private must name different filesystem disks.
     |
     */
-    'disk' => env( 'CMS_DISK', 'public' ),
+    'disks' => [
+        'public' => [
+            'name' => env( 'CMS_DISK', 'public' ),
+        ],
+        'private' => [
+            'name' => env( 'CMS_PRIVATE_DISK', 'local' ),
+            'ttl' => (int) env( 'CMS_PRIVATE_TTL', 300 ),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | File upload policy
+    |--------------------------------------------------------------------------
+    |
+    | The maximum upload size is specified in MB and the decoded raster size
+    | in pixels. MIME types may be complete types or prefixes and apply to
+    | uploads through every CMS interface.
+    |
+    */
+    'upload' => [
+        'filesize' => env( 'CMS_UPLOAD_FILESIZE', 50 ),
+        'maxpixels' => env( 'CMS_UPLOAD_MAXPIXELS', 4096 * 4096 ),
+        'mimetypes' => explode( ',', env( 'CMS_UPLOAD_MIMETYPES', 'application/gzip,application/pdf,application/vnd.,application/zip,audio/,image/,text/,video/' ) ),
+    ],
 
     /*
     |--------------------------------------------------------------------------
     | Image settings
     |--------------------------------------------------------------------------
     |
-    | The "preview-sizes" array defines the maximum widths and heights of the
-    | preview images in pixel that are generated for the uploaded images.
+    | The "driver" setting selects the Intervention Image driver available in
+    | the host environment. The "preview-sizes" array defines the maximum
+    | widths and heights of previews generated for uploaded images.
     |
     */
     'image' => [
+        'driver' => env( 'CMS_IMAGE_DRIVER', 'gd' ),
         'preview-sizes' => [
             ['width' => 480, 'height' => 270],
             ['width' => 960, 'height' => 540],
@@ -95,6 +148,17 @@ return [
     |
     */
     'locales' => explode( ',', env( 'CMS_LOCALES', 'en,ar,zh,fr,de,es,pt,pt-BR,ru' ) ),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Page tree write lock
+    |--------------------------------------------------------------------------
+    |
+    | Lock lifetime and maximum acquisition wait in seconds for atomic page
+    | tree writes. Cache and search side effects run outside this lock.
+    |
+    */
+    'lock' => (int) env( 'CMS_LOCK', 30 ),
 
     /*
     |--------------------------------------------------------------------------
@@ -139,5 +203,28 @@ return [
     |
     */
     'versions' => env( 'CMS_VERSIONS', 10 ),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Observability (watch)
+    |--------------------------------------------------------------------------
+    |
+    | Structured audit/observability logging. Set "channel" (e.g. CMS_LOG_CHANNEL=cms)
+    | to the Laravel log channel that receives the entries; leave it unset to disable
+    | all logging at zero per-request cost. When the named channel is not defined in
+    | config/logging.php, the core package registers a daily JSON channel for it.
+    |
+    | "sample" (0.0-1.0) keeps that fraction of high-volume read entries (page
+    | requests, frontend search, JSON:API); audit streams (content, auth, contact)
+    | are always complete.
+    | "anonymize" SHA-256 hashes personal data (email, IP, user agent) in auth and
+    | contact entries before logging; set FALSE to store raw values.
+    |
+    */
+    'watch' => [
+        'channel' => env( 'CMS_LOG_CHANNEL' ),
+        'sample' => env( 'CMS_WATCH_SAMPLE', 1.0 ),
+        'anonymize' => env( 'CMS_WATCH_ANONYMIZE', true ),
+    ],
 
 ];

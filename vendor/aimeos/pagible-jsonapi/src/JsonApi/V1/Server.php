@@ -1,33 +1,17 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\JsonApi\V1;
 
-use Illuminate\Support\Facades\Url;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Storage;
 use LaravelJsonApi\Core\Server\Server as BaseServer;
-use LaravelJsonApi\Core\Document\JsonApi;
 
 
 class Server extends BaseServer
 {
-    /**
-     * Bootstrap the server when it is handling an HTTP request.
-     *
-     * @return void
-     */
-    public function serving(): void
-    {
-        \Aimeos\Cms\Models\Nav::addGlobalScope( new \Aimeos\Cms\Scopes\Status() );
-        \Aimeos\Cms\Models\Page::addGlobalScope( new \Aimeos\Cms\Scopes\Status() );
-    }
-
-
     /**
      * Get the server's list of schemas.
      *

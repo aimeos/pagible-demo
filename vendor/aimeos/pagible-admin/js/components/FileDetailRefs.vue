@@ -1,7 +1,8 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import gql from 'graphql-tag'
+import { mdiLock } from '@mdi/js'
 import { useUserStore, useViewStack } from '../stores'
 
 const FETCH_FILE_REFS = gql`
@@ -12,6 +13,7 @@ const FETCH_FILE_REFS = gql`
         id
         path
         name
+        restricted
       }
       byelements {
         id
@@ -45,7 +47,7 @@ export default {
   setup() {
     const viewStack = useViewStack()
     const user = useUserStore()
-    return { user, viewStack }
+    return { mdiLock, user, viewStack }
   },
 
   beforeUnmount() {
@@ -57,6 +59,7 @@ export default {
     mapVersion(item) {
       const type = item.versionable_type.slice(item.versionable_type.lastIndexOf('\\') + 1)
       return {
+        key: item.id,
         id: item.versionable_id,
         type,
         published: item.published
@@ -72,9 +75,22 @@ export default {
       this.viewStack.openView(ElementDetail, { item: { ...item }, stacked: true })
     },
 
+    async openFile(item) {
+      const { default: FileDetail } = await import('../views/FileDetail.vue')
+      this.viewStack.openView(FileDetail, { item: { ...item }, stacked: true })
+    },
+
     async openPage(item) {
       const { default: PageDetail } = await import('../views/PageDetail.vue')
       this.viewStack.openView(PageDetail, { item: { ...item }, stacked: true })
+    },
+
+    openVersion(item) {
+      const owner = { id: item.id }
+
+      if (item.type === 'Element') return this.openElement(owner)
+      if (item.type === 'File') return this.openFile(owner)
+      if (item.type === 'Page') return this.openPage(owner)
     }
   },
 
@@ -140,7 +156,15 @@ export default {
                 <tr v-for="v in file.bypages" :key="v.id" @click="openPage(v)">
                   <td>{{ v.id }}</td>
                   <td>{{ '/' + v.path }}</td>
-                  <td>{{ v.name }}</td>
+                  <td>
+                    <v-icon
+                      v-if="v.restricted"
+                      class="item-access"
+                      :icon="mdiLock"
+                      :title="$gettext('Restricted')"
+                    />
+                    {{ v.name }}
+                  </td>
                 </tr>
               </tbody>
             </v-table>
@@ -172,7 +196,7 @@ export default {
         <v-expansion-panel v-if="versions?.length">
           <v-expansion-panel-title>{{ $gettext('Versions') }}</v-expansion-panel-title>
           <v-expansion-panel-text>
-            <v-table density="comfortable" hover>
+            <v-table class="versions" density="comfortable" hover>
               <thead>
                 <tr>
                   <th>{{ $gettext('ID') }}</th>
@@ -181,7 +205,7 @@ export default {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="v in versions" :key="v.id">
+                <tr v-for="v in versions" :key="v.key" @click="openVersion(v)">
                   <td>{{ v.id }}</td>
                   <td>{{ v.type }}</td>
                   <td>{{ v.published }}</td>
@@ -206,7 +230,8 @@ export default {
 }
 
 .v-table.pages tbody tr,
-.v-table.elements tbody tr {
+.v-table.elements tbody tr,
+.v-table.versions tbody tr {
   cursor: pointer;
 }
 

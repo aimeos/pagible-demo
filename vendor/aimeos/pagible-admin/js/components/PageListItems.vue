@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import gql from 'graphql-tag'
@@ -15,7 +15,6 @@ import {
   mdiMagnify,
   mdiRefresh,
   mdiMenuDown,
-  mdiSort,
   mdiMenuRight,
   mdiEyeOffOutline,
   mdiContentCut,
@@ -24,18 +23,66 @@ import {
   mdiArrowUp,
   mdiArrowRight,
   mdiArrowDown,
-  mdiClockOutline
+  mdiClockOutline,
+  mdiCached,
+  mdiLock,
+  mdiKeyVariant,
+  mdiPencil
 } from '@mdi/js'
 import { Draggable } from '@he-tree/vue'
 import { dragContext } from '@he-tree/vue'
+import PageAccess from './PageAccess.vue'
+import PageBulkDialog from './PageBulkDialog.vue'
+import ListSort from './ListSort.vue'
 import { useAppStore, useUserStore, useLanguageStore, useMessageStore, useChangeStore } from '../stores'
-import { debounce, safeParse } from '../utils'
+import { debounce, safeParse, sanitize } from '../utils'
+import { setupEcho, cleanEcho, listEcho } from '../echo'
+
+const PAGE_TREE_FIELDS = new Set([
+  'access',
+  'cache',
+  'created_at',
+  'deleted_at',
+  'domain',
+  'editor',
+  'has',
+  'id',
+  'lang',
+  'latest_id',
+  'name',
+  'parent_id',
+  'path',
+  'publish_at',
+  'published',
+  'restricted',
+  'status',
+  'tag',
+  'theme',
+  'title',
+  'to',
+  'type',
+  'updated_at'
+])
+
+function patchData(data, item) {
+  for (const key in item) {
+    if (key in data || PAGE_TREE_FIELDS.has(key)) {
+      data[key] = item[key]
+    }
+  }
+}
 
 const ADD_PAGE = gql`
   mutation ($input: PageInput!) {
     addPage(input: $input) {
       id
     }
+  }
+`
+
+const CLEAR_CACHE = gql`
+  mutation ($id: ID!) {
+    clearCache(id: $id)
   }
 `
 
@@ -53,13 +100,8 @@ const FETCH_PAGE_FOR_PASTE = gql`
       id
       latest {
         id
+        data
         aux
-        files {
-          id
-        }
-        elements {
-          id
-        }
       }
     }
   }
@@ -105,20 +147,25 @@ const PURGE_PAGE = gql`
   }
 `
 
-const SAVE_PAGE = gql`
-  mutation ($id: ID!, $input: PageInput!) {
-    savePage(id: $id, input: $input) {
-      id
+const SAVE_PAGES = gql`
+  mutation ($id: [ID!]!, $input: PageInput!, $descendants: Boolean) {
+    bulkPage(id: $id, input: $input, descendants: $descendants) {
+      ids
+      latest
+      data
+      failed
     }
   }
 `
 
 const PAGE_FIELDS = `id
+          access @include(if: $access)
           parent_id
           created_at
           deleted_at
           editor
           has
+          restricted
           latest {
             id
             published
@@ -134,7 +181,8 @@ const FETCH_CHILD_PAGES = gql`
     $limit: Int!,
     $page: Int!,
     $trashed: Trashed,
-    $publish: Publish
+    $publish: Publish,
+    $access: Boolean!
   ) {
     pages(
       filter: $filter,
@@ -155,7 +203,7 @@ const FETCH_CHILD_PAGES = gql`
 `
 
 const PASTE_PAGE = gql`
-  mutation ($input: PageInput!, $parent: ID, $ref: ID) {
+  mutation ($input: PageInput!, $parent: ID, $ref: ID, $access: Boolean!) {
     addPage(input: $input, parent: $parent, ref: $ref) {
       ${PAGE_FIELDS}
     }
@@ -169,7 +217,8 @@ const SEARCH_PAGES = gql`
     $limit: Int!,
     $page: Int!,
     $trashed: Trashed,
-    $publish: Publish
+    $publish: Publish,
+    $access: Boolean!
   ) {
     pages(
       filter: $filter,
@@ -190,9 +239,22 @@ const SEARCH_PAGES = gql`
   }
 `
 
+const SORT_OPTIONS = Object.freeze([
+  { column: 'LFT', order: 'ASC', label: 'Tree' },
+  { column: 'ID', order: 'DESC', label: 'Latest' },
+  { column: 'ID', order: 'ASC', label: 'Oldest' },
+  { column: 'LATEST_ID', order: 'DESC', label: 'Latest edit' },
+  { column: 'LATEST_ID', order: 'ASC', label: 'Oldest edit' },
+  { column: 'NAME', order: 'ASC', label: 'Name' },
+  { column: 'EDITOR', order: 'ASC', label: 'Editor' }
+])
+
 export default {
   components: {
-    Draggable
+    Draggable,
+    ListSort,
+    PageAccess,
+    PageBulkDialog
   },
 
   props: {
@@ -207,11 +269,25 @@ export default {
       menu: {},
       items: [],
       actions: false,
+      accessDialog: false,
+      accessDescendants: 0,
+      accessIds: [],
+      accessSelected: false,
+      propsDialog: false,
+      propsCount: 0,
+      propsDescendants: 0,
+      propsIds: [],
+      propsSelected: false,
       loading: true,
       checked: null,
       clip: null,
       sort: this.user.getData('page', 'sort') || { column: 'LFT', order: 'ASC' },
-      term: ''
+      term: '',
+      destroyed: false,
+      echoCleanup: null,
+      echoPromise: null,
+      loadId: 0,
+      outdated: false
     }
   },
 
@@ -240,7 +316,6 @@ export default {
       mdiMagnify,
       mdiRefresh,
       mdiMenuDown,
-      mdiSort,
       mdiMenuRight,
       mdiEyeOffOutline,
       mdiContentCut,
@@ -250,6 +325,11 @@ export default {
       mdiArrowRight,
       mdiArrowDown,
       mdiClockOutline,
+      mdiCached,
+      mdiLock,
+      mdiKeyVariant,
+      mdiPencil,
+      sortOptions: SORT_OPTIONS,
       debounce
     }
   },
@@ -258,10 +338,16 @@ export default {
     this.searchd = this.debounce(this.search, 500)
     this.reloadd = this.debounce(() => this.reload(false), 300)
 
-    this.fetch().then((result) => {
-      this.items = result.data
-      this.loading = false
-    })
+    this.refresh()
+
+    if (!this.embed) {
+      // patch the matching node when a page changes elsewhere; subscribe for
+      // the whole lifetime (not per activation) so the tree keeps patching in
+      // the background while the editor is in a detail or another view and is
+      // up to date when they return. The tab that made the change is excluded
+      // server-side via toOthers(), so no editor filter is needed here
+      setupEcho(this, 'page', (event, name) => listEcho(this, event, name))
+    }
   },
 
   mounted() {
@@ -273,6 +359,9 @@ export default {
   },
 
   beforeUnmount() {
+    this.destroyed = true
+    cleanEcho(this)
+
     this.items = null
     this.clip = null
     this.menu = null
@@ -299,6 +388,38 @@ export default {
   },
 
   methods: {
+    accessApplied(access, descendants = false) {
+      const stats = this.$refs.tree?.statsFlat || []
+      const ids = new Set(this.accessIds)
+      const selected = new Set(stats.filter((stat) => ids.has(stat.data?.id)))
+
+      stats.forEach((stat) => {
+        if (selected.has(stat) || (descendants && this.checkedAncestor(stat, selected))) {
+          stat.data.access = Array.isArray(access) ? [...access] : null
+          stat.data.restricted = access !== null
+        }
+
+        if (this.accessSelected) {
+          stat._checked = false
+        }
+      })
+
+      this.accessDialog = false
+      this.accessIds = []
+      if (this.accessSelected) {
+        this.checked = false
+      }
+      this.accessSelected = false
+    },
+
+    accessTitle(access) {
+      if (!Array.isArray(access)) return this.$gettext('Restricted')
+
+      return access.length
+        ? this.$gettext('Access') + ': ' + access.join(', ')
+        : this.$gettext('Authenticated users')
+    },
+
     add() {
       if (this.embed || !this.user.can('page:add')) {
         this.messages.add(this.$gettext('Permission denied'), 'error')
@@ -334,6 +455,14 @@ export default {
         })
     },
 
+    updateHas(stat, delta) {
+      // optimistically adjust the immediate parent's descendant count (`has`); only feeds the
+      // "apply recursively (N)" hint, so grandparents stay approximate until the next reload
+      if (stat?.data) {
+        stat.data.has = Math.max(0, (stat.data.has || 0) + delta)
+      }
+    },
+
     change() {
       if (!dragContext?.targetInfo) return
 
@@ -347,14 +476,10 @@ export default {
         ref ? ref.data.id : null
       ).then(() => {
         const srcparent = dragContext.startInfo.parent
+        const moved = (dragContext.startInfo.dragNode.data.has || 0) + 1
 
-        if (srcparent?.data && !srcparent?.children.length) {
-          srcparent.data.has = false
-        }
-
-        if (parent) {
-          parent.data.has = true
-        }
+        this.updateHas(srcparent, -moved)
+        this.updateHas(parent, moved)
       })
     },
 
@@ -364,6 +489,32 @@ export default {
       if (stat) {
         stat._checked = !stat._checked
       }
+    },
+
+    clear(stat) {
+      if (!this.user.can('cache:clear')) {
+        this.messages.add(this.$gettext('Permission denied'), 'error')
+        return
+      }
+
+      return this.$apollo
+        .mutate({
+          mutation: CLEAR_CACHE,
+          variables: {
+            id: stat.data.id
+          }
+        })
+        .then((result) => {
+          if (result.errors) {
+            throw result.errors
+          }
+
+          this.messages.add(this.$gettext('Cache cleared'), 'success')
+        })
+        .catch((error) => {
+          this.messages.add(this.$gettext('Error clearing cache') + ':\n' + error, 'error')
+          this.$log(`PageList::clear(): Error clearing cache`, stat, error)
+        })
     },
 
     copy(stat, node) {
@@ -462,6 +613,46 @@ export default {
         })
     },
 
+    checkedAncestor(stat, checked) {
+      for (let parent = stat.parent; parent; parent = parent.parent) {
+        if (checked.has(parent)) {
+          return true
+        }
+      }
+      return false
+    },
+
+    editAccess(stat = null) {
+      const list = stat
+        ? [stat]
+        : this.$refs.tree?.statsFlat.filter((stat) => stat._checked && stat.data?.id) || []
+
+      this.accessIds = list.map((stat) => stat.data.id)
+      this.accessDescendants = list.length === 1 ? list[0].data.has || 0 : 0
+      this.accessSelected = !stat
+      this.actions = false
+      this.accessDialog = this.accessIds.length > 0
+    },
+
+    editProps(stat = null) {
+      const list = stat
+        ? [stat]
+        : this.$refs.tree?.statsFlat.filter((stat) => stat._checked && stat.data?.id) || []
+      const set = new Set(list)
+
+      this.propsCount = list.length
+      // pages a recursive apply reaches beyond the selection (0 for leaf-only selections); skip
+      // checked-ancestor-covered pages so overlapping selections aren't counted twice
+      const affected = list
+        .filter((item) => !this.checkedAncestor(item, set))
+        .reduce((sum, item) => sum + (item.data.has || 0) + 1, 0)
+      this.propsDescendants = affected - list.length
+      this.propsIds = list.map((item) => item.data.id)
+      this.propsSelected = !stat
+      this.actions = false
+      this.propsDialog = this.propsCount > 0
+    },
+
     expand() {
       const stat = this.$refs.tree.activeDescendant
 
@@ -501,7 +692,8 @@ export default {
             page: page,
             limit: limit,
             trashed: trashed,
-            publish: publish
+            publish: publish,
+            access: this.user.can('page:access')
           }
         })
         .then((result) => {
@@ -525,8 +717,11 @@ export default {
       const item = entry.latest?.data ? safeParse(entry.latest.data) : { ...entry }
 
       return Object.assign(item, {
+        access: entry.access,
         id: entry.id,
+        latest_id: entry.latest?.id || null,
         has: entry.has,
+        restricted: entry.restricted,
         parent_id: entry.parent_id,
         deleted_at: entry.deleted_at,
         created_at: entry.created_at,
@@ -546,7 +741,7 @@ export default {
       const siblings = this.$refs.tree.getSiblings(stat)
       const parent = idx !== null ? stat.parent : stat
       const pos = siblings.indexOf(stat)
-      const node = this.create()
+      const node = this.create(parent ? { theme: parent.data.theme, type: parent.data.type } : {})
       let refid = null
 
       if (idx === null && !stat.open) {
@@ -565,7 +760,7 @@ export default {
           break
       }
 
-      this.$apollo
+      return this.$apollo
         .mutate({
           mutation: INSERT_PAGE,
           variables: {
@@ -585,9 +780,7 @@ export default {
             this.$refs.tree.add(node, parent, idx !== null ? pos + idx : 0)
           }
 
-          if (parent) {
-            parent.data.has = true
-          }
+          this.updateHas(parent, 1)
 
           this.invalidate()
         })
@@ -683,6 +876,7 @@ export default {
     },
 
     move(stat, idx = null) {
+      const clip = this.clip
       const siblings = this.$refs.tree.getSiblings(stat)
       const parent = idx !== null ? stat.parent : stat
       const pos = siblings.indexOf(stat)
@@ -700,12 +894,16 @@ export default {
           break
       }
 
-      this.movePage(
-        this.clip.node.id,
+      return this.movePage(
+        clip.node.id,
         parent ? parent.data.id : null,
         refid
-      ).then(() => {
-        const clipIdx = this.$refs.tree.getSiblings(stat).indexOf(this.clip.stat)
+      ).then((success) => {
+        if (!success) {
+          return false
+        }
+
+        const clipIdx = this.$refs.tree.getSiblings(stat).indexOf(clip.stat)
         const index =
           idx !== null
             ? clipIdx >= 0 && clipIdx <= pos
@@ -713,23 +911,29 @@ export default {
               : pos + idx
             : 0
 
-        this.$refs.tree.move(this.clip.stat, parent, index)
+        const oldparent = clip.stat.parent
+        const moved = (clip.stat.data.has || 0) + 1
 
-        if (parent) {
-          if (!this.clip.stat.children?.length) {
-            stat.parent.data.has = false
-          }
-          parent.data.has = true
+        this.$refs.tree.move(clip.stat, parent, index)
+        delete clip.stat.cut
+
+        if (this.clip === clip) {
+          this.clip = null
         }
 
+        this.updateHas(oldparent, -moved)
+        this.updateHas(parent, moved)
+
         this.invalidate()
+
+        return true
       })
     },
 
     movePage(id, parentId, refId) {
       if (!this.user.can('page:move')) {
         this.messages.add(this.$gettext('Permission denied'), 'error')
-        return Promise.reject()
+        return Promise.resolve(false)
       }
 
       return this.$apollo
@@ -741,12 +945,16 @@ export default {
           if (result.errors) {
             throw result.errors
           }
+
+          return true
         })
         .catch((error) => {
           if (error) {
             this.messages.add(this.$gettext('Error moving page') + ':\n' + error, 'error')
             this.$log(`PageList::movePage(): Error moving page`, error)
           }
+
+          return false
         })
     },
 
@@ -777,6 +985,7 @@ export default {
       return this.$apollo
         .query({
           query: FETCH_PAGE_FOR_PASTE,
+          fetchPolicy: 'no-cache',
           variables: {
             id: node.id
           }
@@ -787,31 +996,33 @@ export default {
           }
 
           const latest = result?.data?.page?.latest
+          const data = Object.assign({}, node, safeParse(latest?.data))
           const aux = safeParse(latest?.aux)
 
-          this.$apollo
+          return this.$apollo
             .mutate({
               mutation: PASTE_PAGE,
               variables: {
                 input: {
                   status: 0,
-                  to: node.to,
-                  tag: node.tag,
-                  type: node.type,
-                  theme: node.theme,
-                  lang: node.lang,
-                  name: node.name,
-                  title: node.title,
-                  cache: node.cache,
-                  domain: node.domain,
+                  to: data.to,
+                  tag: data.tag,
+                  type: data.type,
+                  theme: data.theme,
+                  lang: data.lang,
+                  name: data.name,
+                  title: data.title,
+                  cache: data.cache,
+                  domain: data.domain,
                   related_id: node.id,
                   meta: JSON.stringify(aux?.meta || {}),
                   config: JSON.stringify(aux?.config || {}),
                   content: JSON.stringify(aux?.content || []),
-                  path: node.path + '_' + Math.floor(Math.random() * 10000)
+                  path: data.path + '_' + Math.floor(Math.random() * 10000)
                 },
                 parent: parent ? parent.data.id : null,
-                ref: refid
+                ref: refid,
+                access: this.user.can('page:access')
               }
             })
             .then((result) => {
@@ -861,13 +1072,22 @@ export default {
         return false
       }
 
-      for (const key in item) {
-        if (key in stat.data) {
-          stat.data[key] = item[key]
-        }
-      }
+      patchData(stat.data, item)
 
       return true
+    },
+
+    patchItems(items) {
+      // index the patches by id so the bulk update is a single pass over the loaded rows
+      const byId = new Map(items.map((item) => [item.id, item]))
+
+      this.$refs.tree?.statsFlat.forEach((stat) => {
+        const item = byId.get(stat.data?.id)
+
+        if (item) {
+          patchData(stat.data, item)
+        }
+      })
     },
 
     publish(stat) {
@@ -940,11 +1160,11 @@ export default {
           }
 
           for (const item of list) {
-            this.$refs.tree.remove(item)
+            const parent = item.parent
+            const removed = (item.data.has || 0) + 1
 
-            if (item.parent && !item.parent.children?.length) {
-              item.parent.data.has = false
-            }
+            this.$refs.tree.remove(item)
+            this.updateHas(parent, -removed)
           }
         })
         .catch((error) => {
@@ -953,20 +1173,52 @@ export default {
         })
     },
 
-    reload(cache = true) {
+    refresh() {
+      const id = ++this.loadId
+      const open = new Set(
+        this.filter.view === 'tree'
+          ? (this.$refs.tree?.statsFlat || [])
+              .filter((stat) => stat.open && stat.data?.id)
+              .map((stat) => stat.data.id)
+          : []
+      )
+
       this.items = []
       this.loading = true
+
+      const promise = this.filter.view === 'list' ? this.search() : this.tree(open)
+
+      return promise
+        .then(async (result) => {
+          if (id === this.loadId) {
+            this.items = result?.data || []
+
+            await this.$nextTick()
+
+            if (id === this.loadId) {
+              this.$refs.tree?.statsFlat.forEach((stat) => {
+                stat.open = open.has(stat.data?.id)
+              })
+            }
+          }
+
+          return result
+        })
+        .finally(() => {
+          if (id === this.loadId) {
+            this.loading = false
+          }
+        })
+    },
+
+    reload(cache = true) {
+      this.outdated = false
 
       if (cache) {
         this.invalidate()
       }
 
-      const promise = this.filter.view === 'list' ? this.search() : this.fetch()
-
-      promise.then((result) => {
-        this.items = result?.data || []
-        this.loading = false
-      })
+      return this.refresh()
     },
 
     reorder(event) {
@@ -985,6 +1237,84 @@ export default {
           ref ? ref.data.id : null
         )
       })
+    },
+
+    saveProps({ input, descendants }) {
+      if (!this.user.can('page:save')) {
+        this.messages.add(this.$gettext('Permission denied'), 'error')
+        return
+      }
+
+      const ids = this.propsIds
+
+      if (!ids.length || !Object.keys(input).length) {
+        return
+      }
+
+      return this.$apollo
+        .mutate({
+          mutation: SAVE_PAGES,
+          variables: {
+            id: ids,
+            input: input,
+            descendants: descendants
+          }
+        })
+        .then((result) => {
+          if (result.errors) {
+            throw result.errors
+          }
+
+          const res = result.data.bulkPage || {}
+          const ids = new Set(res.ids || [])
+          // data/latest are JSON scalar strings; sanitize drops prototype-pollution keys
+          const data = sanitize(safeParse(res.data))
+          const latest = safeParse(res.latest)
+
+          this.$refs.tree?.statsFlat.forEach((stat) => {
+            const id = stat.data?.id
+
+            if (ids.has(id)) {
+              for (const key in data) {
+                if (key in stat.data) {
+                  stat.data[key] = data[key]
+                }
+              }
+
+              if (latest[id]) {
+                stat.data.latest_id = latest[id]
+              }
+            }
+
+            if (this.propsSelected) {
+              stat._checked = false
+            }
+          })
+
+          this.propsIds = []
+          if (this.propsSelected) {
+            this.checked = false
+          }
+          this.propsSelected = false
+          this.invalidate()
+
+          // best effort: the server reports how many attempted pages could not be saved
+          if (res.failed > 0) {
+            this.messages.add(
+              this.$ngettext(
+                '%{num} page could not be updated',
+                '%{num} pages could not be updated',
+                res.failed,
+                { num: res.failed }
+              ),
+              'info'
+            )
+          }
+        })
+        .catch((error) => {
+          this.messages.add(this.$gettext('Error saving page') + ':\n' + error, 'error')
+          this.$log(`PageList::saveProps(): Error saving pages`, ids, input, error)
+        })
     },
 
     search(page = 1, limit = 100) {
@@ -1021,7 +1351,8 @@ export default {
             page: page,
             limit: limit,
             trashed: trashed,
-            publish: publish
+            publish: publish,
+            access: this.user.can('page:access')
           }
         })
         .then((result) => {
@@ -1037,10 +1368,6 @@ export default {
         })
     },
 
-    setSort(column, order) {
-      this.sort = { column, order }
-    },
-
     status(stat, val) {
       if (!this.user.can('page:save')) {
         this.messages.add(this.$gettext('Permission denied'), 'error')
@@ -1053,29 +1380,37 @@ export default {
             return stat._checked && stat.data.id
           })
 
-      list.forEach((stat) => {
-        this.$apollo
-          .mutate({
-            mutation: SAVE_PAGE,
-            variables: {
-              id: stat.data.id,
-              input: {
-                status: val
-              }
-            }
-          })
-          .then((result) => {
-            if (result.errors) {
-              throw result.errors
-            }
+      if (!list.length) {
+        return
+      }
 
-            stat.data.status = val
+      return this.$apollo
+        .mutate({
+          mutation: SAVE_PAGES,
+          variables: {
+            id: list.map((stat) => stat.data.id),
+            input: {
+              status: val
+            }
+          }
+        })
+        .then((result) => {
+          if (result.errors) {
+            throw result.errors
+          }
+
+          const ids = new Set(result.data.bulkPage?.ids || [])
+
+          list.forEach((stat) => {
+            if (ids.has(stat.data.id)) {
+              stat.data.status = val
+            }
           })
-          .catch((error) => {
-            this.messages.add(this.$gettext('Error saving page') + ':\n' + error, 'error')
-            this.$log(`PageList::status(): Error saving page`, stat, val, error)
-          })
-      })
+        })
+        .catch((error) => {
+          this.messages.add(this.$gettext('Error saving page') + ':\n' + error, 'error')
+          this.$log(`PageList::status(): Error saving page`, list, val, error)
+        })
     },
 
     sync() {
@@ -1119,6 +1454,23 @@ export default {
       this.$forceUpdate()
     },
 
+    tree(open, parent = null) {
+      return this.fetch(parent).then(async (result) => {
+        const data = result?.data || []
+
+        await Promise.all(
+          data.map(async (item) => {
+            if (open.has(item.id)) {
+              const children = await this.tree(open, item.id)
+              item.children = children.data
+            }
+          })
+        )
+
+        return { ...result, data }
+      })
+    },
+
     transform(result) {
       const pages = result.data.map((entry) => {
         return this.hydrate(entry)
@@ -1157,16 +1509,8 @@ export default {
 
     filter: {
       deep: true,
-      handler(filter) {
-        this.items = []
-        this.loading = true
-
-        const promise = filter.view === 'list' ? this.search() : this.fetch()
-
-        promise.then((result) => {
-          this.items = result?.data || []
-          this.loading = false
-        })
+      handler() {
+        this.refresh()
       }
     },
 
@@ -1201,7 +1545,7 @@ export default {
           <template v-slot:activator="{ props }">
             <v-btn
               v-bind="props"
-              :disabled="!isChecked || embed || !user.can('page:add')"
+              :disabled="!isChecked || embed"
               :title="$gettext('Actions')"
               :icon="mdiDotsVertical"
               variant="text"
@@ -1227,6 +1571,16 @@ export default {
               <v-list-item v-if="isChecked && user.can('page:save')">
                 <v-btn :prepend-icon="mdiEyeOff" variant="text" @click="status(null, 0)">{{
                   $gettext('Disable')
+                }}</v-btn>
+              </v-list-item>
+              <v-list-item v-if="isChecked && user.can('page:save')">
+                <v-btn :prepend-icon="mdiPencil" variant="text" @click="editProps()">{{
+                  $gettext('Edit properties')
+                }}</v-btn>
+              </v-list-item>
+              <v-list-item v-if="isChecked && user.can('page:access')">
+                <v-btn :prepend-icon="mdiKeyVariant" variant="text" @click="editAccess()">{{
+                  $gettext('Access')
                 }}</v-btn>
               </v-list-item>
 
@@ -1276,6 +1630,18 @@ export default {
     </div>
 
     <v-btn
+      v-if="outdated"
+      @click="reload()"
+      :prepend-icon="mdiRefresh"
+      :title="$gettext('Updated by another user')"
+      color="primary"
+      variant="tonal"
+      size="small"
+      rounded="lg"
+      class="btn-outdated"
+    >{{ $gettext('Refresh') }}</v-btn>
+
+    <v-btn
       @click="reload()"
       :title="$gettext('Reload page tree')"
       :icon="mdiRefresh"
@@ -1283,55 +1649,7 @@ export default {
       class="btn-reload no-rtl"
     />
 
-    <span class="btn-sort" v-if="filter.view === 'list'">
-      <v-menu>
-        <template #activator="{ props }">
-          <v-btn
-            v-bind="props"
-            :title="$gettext('Sort by')"
-            :aria-label="$gettext('Sort by')"
-            :append-icon="mdiMenuDown"
-            :prepend-icon="mdiSort"
-            variant="text"
-          >
-            {{
-              sort?.column === 'ID'
-                ? sort?.order === 'DESC'
-                  ? $gettext('latest')
-                  : $gettext('oldest')
-                : $gettext('tree')
-            }}
-          </v-btn>
-        </template>
-        <v-list>
-          <v-list-item>
-            <v-btn variant="text" @click="setSort('LFT', 'ASC')">{{
-              $gettext('tree')
-            }}</v-btn>
-          </v-list-item>
-          <v-list-item>
-            <v-btn variant="text" @click="setSort('ID', 'DESC')">{{
-              $gettext('latest')
-            }}</v-btn>
-          </v-list-item>
-          <v-list-item>
-            <v-btn variant="text" @click="setSort('ID', 'ASC')">{{
-              $gettext('oldest')
-            }}</v-btn>
-          </v-list-item>
-          <v-list-item>
-            <v-btn variant="text" @click="setSort('NAME', 'ASC')">{{
-              $gettext('name')
-            }}</v-btn>
-          </v-list-item>
-          <v-list-item>
-            <v-btn variant="text" @click="setSort('EDITOR', 'ASC')">{{
-              $gettext('editor')
-            }}</v-btn>
-          </v-list-item>
-        </v-list>
-      </v-menu>
-    </span>
+    <ListSort v-if="filter.view === 'list'" v-model="sort" :options="sortOptions" />
   </div>
 
   <Draggable
@@ -1409,25 +1727,28 @@ export default {
                 />
               </v-toolbar>
 
-              <v-list @click="menu[node.id] = false">
+              <v-list class="page-action-menu" @click="menu[node.id] = false">
                 <v-list-item v-if="!node.deleted_at && !node.published && user.can('page:publish')">
                   <v-btn :prepend-icon="mdiPublish" variant="text" @click="publish(stat)">{{
                     $gettext('Publish')
                   }}</v-btn>
                 </v-list-item>
-                <v-list-item v-if="node.status !== 0 && user.can('page:save')">
-                  <v-btn :prepend-icon="mdiEyeOff" variant="text" @click="status(stat, 0)">{{
-                    $gettext('Disable')
+
+                <v-divider v-if="!node.deleted_at && !node.published && user.can('page:publish')"></v-divider>
+
+                <v-list-item v-if="user.can('page:save')">
+                  <v-btn :prepend-icon="mdiPencil" variant="text" @click="editProps(stat)">{{
+                    $gettext('Edit properties')
                   }}</v-btn>
                 </v-list-item>
-                <v-list-item v-if="node.status !== 1 && user.can('page:save')">
-                  <v-btn :prepend-icon="mdiEye" variant="text" @click="status(stat, 1)">{{
-                    $gettext('Enable')
+                <v-list-item v-if="user.can('page:access')">
+                  <v-btn :prepend-icon="mdiKeyVariant" variant="text" @click="editAccess(stat)">{{
+                    $gettext('Access')
                   }}</v-btn>
                 </v-list-item>
-                <v-list-item v-if="node.status !== 2 && user.can('page:save')">
-                  <v-btn :prepend-icon="mdiEyeOffOutline" variant="text" @click="status(stat, 2)">{{
-                    $gettext('Hide')
+                <v-list-item v-if="user.can('cache:clear')">
+                  <v-btn :prepend-icon="mdiCached" variant="text" @click="clear(stat)">{{
+                    $gettext('Clear cache')
                   }}</v-btn>
                 </v-list-item>
 
@@ -1556,6 +1877,12 @@ export default {
           <div class="item-head">
             <span class="item-lang" v-if="node.lang">{{ node.lang }}</span>
             <v-icon v-if="node.publish_at" class="publish-at" :icon="mdiClockOutline" />
+            <v-icon
+              v-if="node.restricted"
+              class="item-access"
+              :icon="mdiLock"
+              :title="accessTitle(node.access)"
+            />
             <v-icon v-if="node.status > 1" class="item-status" :icon="mdiEyeOffOutline" />
             <span class="item-title">{{ node.name || $gettext('New') }}</span>
           </div>
@@ -1563,7 +1890,7 @@ export default {
         </a>
         <a class="item-aux" :href="url(node)" target="_blank" rel="noopener noreferrer" draggable="false">
           <div class="item-domain">{{ node.domain }}</div>
-          <span class="item-path item-subtitle">{{ '/' + node.path }}</span>
+          <span class="item-path item-subtitle">{{ '/' + (node.path || '') }}</span>
           <span v-if="node.to" class="item-to item-subtitle"> ➔ {{ node.to.substring(0, 50) + (node.to.length > 50 ? '...' : '') }}</span>
         </a>
       </div>
@@ -1601,6 +1928,32 @@ export default {
       variant="tonal"
     />
   </div>
+
+  <PageBulkDialog v-model="propsDialog" :count="propsCount" :descendants="propsDescendants" @apply="saveProps" />
+
+  <v-dialog
+    v-model="accessDialog"
+    :aria-label="$gettext('Access')"
+    max-width="600"
+  >
+    <v-card>
+      <v-toolbar density="compact">
+        <v-toolbar-title>{{ $gettext('Access') }}</v-toolbar-title>
+        <v-btn :icon="mdiClose" :aria-label="$gettext('Close')" @click="accessDialog = false" />
+      </v-toolbar>
+      <v-card-text>
+        <p class="hint">
+          {{ $ngettext('Apply access settings to %{num} page.', 'Apply access settings to %{num} pages.', accessIds.length, { num: accessIds.length }) }}
+        </p>
+        <PageAccess
+          v-if="accessDialog"
+          :ids="accessIds"
+          :descendants="accessDescendants"
+          @applied="accessApplied"
+        />
+      </v-card-text>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style>
@@ -1627,6 +1980,11 @@ export default {
 .tree-node:focus > .tree-node-inner,
 .tree-node-inner:focus-within {
   background-color: rgb(var(--v-theme-surface-light));
+}
+
+.page-action-menu .v-list-group__header {
+  color: inherit;
+  font-size: inherit;
 }
 
 .tree-node-inner .actions {

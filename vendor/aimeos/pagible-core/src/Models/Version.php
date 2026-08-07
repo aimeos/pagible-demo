@@ -1,14 +1,16 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Models;
 
+use Aimeos\Cms\Concerns\HasUuids;
 use Aimeos\Cms\Concerns\Tenancy;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Aimeos\Cms\Validation;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,14 +25,16 @@ use Illuminate\Support\Collection;
  * @property string $id
  * @property string $tenant_id
  * @property string|null $lang
- * @property \stdClass|null $data
- * @property \stdClass|null $aux
+ * @property \stdClass $data
+ * @property \stdClass $aux
  * @property string|null $publish_at
  * @property bool $published
  * @property string $editor
- * @property string|null $versionable_id
- * @property string|null $versionable_type
+ * @property string $versionable_id
+ * @property string $versionable_type
  * @property \Illuminate\Support\Carbon|null $created_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static> due(\DateTimeInterface $at)
+ * @method static \Illuminate\Database\Eloquent\Builder<static> older(Version $version)
  * @method static \Illuminate\Database\Eloquent\Builder<static> withoutTenancy()
  */
 class Version extends Model
@@ -38,20 +42,29 @@ class Version extends Model
     use HasUuids;
     use Tenancy;
 
-    private static ?bool $isSqlsrv = null;
+    /** @var list<class-string<Base>> Supported versionable models */
+    public const TYPES = [Page::class, Element::class, File::class];
 
-
+    /** @var list<string> Most frequently used version projection */
+    public const SELECT_COLUMNS = [
+        'id', 'tenant_id', 'versionable_id', 'versionable_type', 'data', 'lang', 'editor', 'published',
+    ];
 
     /**
      * Boot the model.
      */
     protected static function booted() : void
     {
-        static::addGlobalScope( new \Aimeos\Cms\Scopes\Tenancy() );
+        static::creating( function( Version $version ) {
+            if( $version->versionable_type === File::class )
+            {
+                $snapshot = File::snapshot( (array) $version->data );
 
-        static::creating( function( \Illuminate\Database\Eloquent\Model $model ) {
-            /** @phpstan-ignore method.notFound */
-            $model->setAttribute( $model->getTenantColumn(), \Aimeos\Cms\Tenancy::value() );
+                if( $snapshot['aux'] ) {
+                    $version->data = (object) $snapshot['data'];
+                    $version->aux = (object) array_replace( $snapshot['aux'], (array) $version->aux );
+                }
+            }
         } );
 
         static::saving( function( $version ) {
@@ -125,23 +138,23 @@ class Version extends Model
     public function __toString() : string
     {
         $data = $this->data ?? new \stdClass();
+        $aux = $this->aux ?? new \stdClass();
         $parts = [
             $data->tag ?? '',
             $data->name ?? '',
             $data->title ?? '',
-            $this->aux->meta->{'meta-tags'}->data->description ?? '',
+            $aux->meta->{'meta-tags'}->data->description ?? '',
         ];
 
-        foreach( (array) ( $data->description ?? [] ) as $lang => $value ) {
+        foreach( (array) ( $aux->description ?? [] ) as $lang => $value ) {
             $parts[] = $lang . ":\n" . $value;
         }
 
-        foreach( (array) ( $data->transcription ?? [] ) as $lang => $value ) {
+        foreach( (array) ( $aux->transcription ?? [] ) as $lang => $value ) {
             $parts[] = $lang . ":\n" . $value;
         }
 
-        $config = \Aimeos\Cms\Schema::schemas( section: 'content' );
-        $items = (array) ( $this->aux->content ?? [] );
+        $items = (array) ( $aux->content ?? [] );
 
         if( !empty( $items ) && $this->relationLoaded( 'elements' ) ) {
             foreach( $this->getRelation( 'elements' ) as $el ) {
@@ -150,25 +163,7 @@ class Version extends Model
         }
 
         $items[] = $data;
-
-        foreach( $items as $el )
-        {
-            $fields = (array) ( $config[$el->type ?? '']['fields'] ?? [] );
-
-            if( empty( $fields ) ) {
-                continue;
-            }
-
-            foreach( (array) ( $el->data ?? [] ) as $name => $value )
-            {
-                if( is_string( $value ) && isset( $fields[$name] )
-                    && ( $fields[$name]['searchable'] ?? true )
-                    && in_array( $fields[$name]['type'], ['markdown', 'plaintext', 'string', 'text'] )
-                ) {
-                    $parts[] = $value;
-                }
-            }
-        }
+        array_push( $parts, ...\Aimeos\Cms\Scout::text( $items ) );
 
         return trim( implode( "\n", $parts ) );
     }
@@ -272,28 +267,34 @@ class Version extends Model
 
 
     /**
-     * Normalize UUID case on SQL Server to prevent mixed-case mismatches.
+     * Limits the query to unpublished versions whose publication time is due.
      *
-     * @param string|null $value Raw ID value
-     * @return string|null Uppercased on SQL Server, unchanged otherwise
+     * @param Builder<static> $query
+     * @return Builder<static>
      */
-    public function getIdAttribute( $value )
+    public function scopeDue( Builder $query, \DateTimeInterface $at ) : Builder
     {
-        self::$isSqlsrv ??= $this->getConnection()->getDriverName() === 'sqlsrv';
-        return self::$isSqlsrv && $value ? strtoupper( $value ) : $value;
+        return $query->where( 'publish_at', '<=', $at )->where( 'published', false );
     }
 
 
     /**
-     * Generate a new unique key for the model.
+     * Limits the query to scheduled versions older than the given version.
      *
-     * @return string
+     * created_at provides portable creation order while ID breaks timestamp ties.
+     *
+     * @param Builder<static> $query
+     * @return Builder<static>
      */
-    public function newUniqueId()
+    public function scopeOlder( Builder $query, Version $version ) : Builder
     {
-        // workaround for SQL Server and Lighthouse when UUIDs are mixed case
-        self::$isSqlsrv ??= $this->getConnection()->getDriverName() === 'sqlsrv';
-        return (string) ( self::$isSqlsrv ? strtoupper( \Illuminate\Support\Str::uuid7() ) : \Illuminate\Support\Str::uuid7() );
+        return $query->where( fn( $query ) => $query
+            ->where( 'publish_at', '<', $version->getRawOriginal( 'publish_at' ) )
+            ->orWhere( fn( $query ) => $query->where( 'publish_at', $version->getRawOriginal( 'publish_at' ) )
+                ->where( fn( $query ) => $query
+                    ->where( 'created_at', '<', $version->getRawOriginal( 'created_at' ) )
+                    ->orWhere( fn( $query ) => $query->where( 'created_at', $version->getRawOriginal( 'created_at' ) )
+                        ->where( 'id', '<', $version->id ) ) ) ) );
     }
 
 
@@ -315,5 +316,37 @@ class Version extends Model
     public function versionable() : MorphTo
     {
         return $this->morphTo();
+    }
+
+
+    /**
+     * Interact with the "aux" property.
+     *
+     * Page versions keep meta/config in aux and file versions keep description/
+     * transcription there. Canonicalizing page structures here prevents direct
+     * version writers, restores and publishing from reintroducing legacy shapes.
+     *
+     * @return Attribute<mixed, mixed> Eloquent attribute for the "aux" property
+     */
+    protected function aux(): Attribute
+    {
+        return Attribute::make(
+            set: function( $value ) {
+                if( is_string( $value ) ) {
+                    $value = json_decode( $value, true ) ?: [];
+                }
+
+                $aux = (array) ( $value ?? [] );
+                if( array_key_exists( 'meta', $aux ) ) {
+                    $aux['meta'] = Validation::structured( $aux['meta'], 'meta' );
+                }
+
+                if( array_key_exists( 'config', $aux ) ) {
+                    $aux['config'] = Validation::structured( $aux['config'], 'config' );
+                }
+
+                return json_encode( $aux );
+            },
+        );
     }
 }

@@ -68,6 +68,7 @@ function setupIntercept({
   keepElement = null,
   purgeElement = null,
   pubElement = null,
+  bulkElement = null,
 } = {}) {
   cy.intercept('POST', '/graphql', (req) => {
     const isBatch = Array.isArray(req.body)
@@ -110,6 +111,10 @@ function setupIntercept({
       }
       if (query.includes('pubElement')) {
         return { data: { pubElement: pubElement || { id: '1' } } }
+      }
+      if (query.includes('bulkElement')) {
+        const ids = op.variables?.id || ['1']
+        return { data: { bulkElement: bulkElement || { ids, latest: '{}', data: JSON.stringify(op.variables?.input || {}) } } }
       }
       if (query.includes('elements')) {
         return { data: elementsResponse(elements) }
@@ -209,17 +214,19 @@ describe('Element List', () => {
   it('shows sort menu with options', () => {
     visitElements()
     cy.get('.layout .btn-sort .v-btn').click()
-    cy.get('.v-list').should('contain', 'latest')
-    cy.get('.v-list').should('contain', 'oldest')
-    cy.get('.v-list').should('contain', 'name')
-    cy.get('.v-list').should('contain', 'type')
-    cy.get('.v-list').should('contain', 'editor')
+    cy.get('.v-list').should('contain', 'Latest')
+    cy.get('.v-list').should('contain', 'Oldest')
+    cy.get('.v-list').should('contain', 'Latest edit')
+    cy.get('.v-list').should('contain', 'Oldest edit')
+    cy.get('.v-list').should('contain', 'Name')
+    cy.get('.v-list').should('contain', 'Type')
+    cy.get('.v-list').should('contain', 'Editor')
   })
 
   it('clicking a sort option triggers GQL reload', () => {
     visitElements()
     cy.get('.layout .btn-sort .v-btn').click()
-    cy.contains('.v-list .v-btn', 'name').click()
+    cy.contains('.v-list .v-btn', 'Name').click()
     cy.wait('@gql')
   })
 
@@ -299,6 +306,21 @@ describe('Element List', () => {
       const texts = [...$items].map((item) => item.textContent.trim())
       expect(texts.some((t) => t === 'Publish')).to.be.false
     })
+  })
+
+  it('context menu groups Edit properties between publish and destructive actions', () => {
+    const el = makeElement({ latest: { ...makeElement().latest, published: false } })
+    visitElements([el])
+    cy.get('.items .v-list-item .actions .btn-actions .v-btn').first().click()
+
+    cy.contains('.v-card .v-list > .v-list-item', 'Edit properties')
+      .prev()
+      .should('have.class', 'v-divider')
+    cy.contains('.v-card .v-list > .v-list-item', 'Edit properties')
+      .next()
+      .should('have.class', 'v-divider')
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    cy.contains('.hint', 'Apply the selected properties to 1 entry.').should('be.visible')
   })
 
   it('context menu shows Delete for non-trashed element', () => {
@@ -414,6 +436,45 @@ describe('Element List', () => {
     cy.get('.v-card .v-list').should('contain', 'Delete')
     cy.get('.v-card .v-list').should('contain', 'Restore')
     cy.get('.v-card .v-list').should('contain', 'Purge')
+  })
+
+  // ---- Batch edit language ----
+
+  it('bulk actions menu shows Edit properties', () => {
+    const el = makeElement()
+    visitElements([el])
+    cy.get('.items .v-list-item .item-check').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').first().click()
+    cy.get('.v-card .v-list').should('contain', 'Edit properties')
+  })
+
+  it('Edit properties opens the edit dialog with Apply disabled', () => {
+    const el = makeElement()
+    visitElements([el])
+    cy.get('.items .v-list-item .item-check').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').first().click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    cy.get('.btn-apply').should('exist').and('be.disabled')
+  })
+
+  it('selecting a language and applying sends bulkElement mutation', () => {
+    const el = makeElement()
+    visitElements([el])
+    cy.get('.items .v-list-item .item-check').first().click()
+    cy.get('.header .bulk .btn-actions .v-btn').first().click()
+    cy.contains('.v-card .v-list .v-btn', 'Edit properties').click()
+    // real click must OPEN the menu (the attached menu inside the dialog)
+    cy.get('.btn-apply').should('be.visible')
+    cy.get('.v-card .v-field').realClick()
+    cy.get('.v-overlay-container [role="option"]').first().should('be.visible').click()
+    cy.get('.btn-apply').click()
+    cy.wait('@gql').its('request.body').should((body) => {
+      const ops = Array.isArray(body) ? body : [body]
+      const saveOp = ops.find((op) => (op.query || '').includes('bulkElement'))
+      expect(saveOp).to.exist
+      expect(saveOp.variables.input.lang).to.be.a('string')
+      expect(saveOp.variables.id).to.have.length(1)
+    })
   })
 
   // ---- Multiple elements ----

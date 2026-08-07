@@ -1,5 +1,5 @@
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 // only for translation extraction
@@ -83,8 +83,31 @@ if ($pgettext) {
   $pgettext('fn', 'introduction')
   $pgettext('fn', 'load immediately')
   $pgettext('fn', 'source code')
+  $pgettext('fn', 'Frontend access role')
+  $pgettext('fn', 'Payment prices')
+  $pgettext('fn', 'Payment reference')
+  $pgettext('fn', 'Payment kind')
+  $pgettext('fn', 'Currency')
+  $pgettext('fn', 'Billing interval')
+  $pgettext('fn', 'Price unit')
+  $pgettext('fn', 'Target page or link')
+
+  // option labels
+  $pgettext('op', 'Follow')
+  $pgettext('op', 'Index')
+  $pgettext('op', 'No follow')
+  $pgettext('op', 'No index')
+  $pgettext('op', 'Subscription')
+  $pgettext('op', 'One-time payment')
 
   // AI response
   $pgettext('ai', 'Done')
   $pgettext('ai', 'Already exists')
+
+  // page config groups and elements
+  $pgettext('sg', 'expert')
+  $pgettext('sg', 'theme')
+  $pgettext('st', 'logo')
+  $pgettext('st', 'logo-alternative')
+  $pgettext('st', 'icon')
 }

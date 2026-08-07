@@ -1,15 +1,17 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
+use Aimeos\Cms\Concerns\ObservesPrisma;
+use Aimeos\Prisma\Prisma;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Models\File;
-use Aimeos\Prisma\Prisma;
+use Aimeos\Cms\Utils;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Laravel\Mcp\Server\Attributes\Description;
@@ -26,12 +28,16 @@ use Laravel\Mcp\Request;
 #[Description('Generates a textual description/summary of an image, audio or video file using AI. Useful for alt texts, captions or content summaries. Returns the description as text.')]
 class DescribeFile extends Tool
 {
+    use ObservesPrisma;
+
+
     /**
      * Handle the tool request.
      */
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
-        if( !Permission::can( 'file:describe', $request->user() ) ) {
+        if( !Permission::can( 'file:describe', $request->user() )
+            || !Permission::can( 'file:view', $request->user() ) ) {
             throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
@@ -43,7 +49,7 @@ class DescribeFile extends Tool
         ] );
 
         /** @var File|null $file */
-        $file = File::select( 'id', 'path', 'mime' )->find( $v['file'] );
+        $file = File::select( 'id', 'disk', 'path', 'mime' )->find( $v['file'] );
 
         if( !$file ) {
             return Response::structured( ['error' => 'File not found.'] );
@@ -63,10 +69,14 @@ class DescribeFile extends Tool
         if( str_starts_with( (string) $file->path, 'http' ) ) {
             $doc = $class::fromUrl( (string) $file->path, $file->mime );
         } else {
-            $doc = $class::fromStoragePath( (string) $file->path, config( 'cms.disk', 'public' ), $file->mime );
+            $doc = $class::fromStoragePath(
+                (string) $file->path,
+                File::diskName( (string) $file->disk ),
+                $file->mime,
+            );
         }
 
-        $text = Prisma::type( $type )
+        $text = Prisma::type( $type )->observe( $this->observer( Utils::editor( $request->user() ) ) )
             ->using( $provider, $config )
             ->model( $model )
             ->ensure( 'describe' )
@@ -102,6 +112,7 @@ class DescribeFile extends Tool
      */
     public function shouldRegister( Request $request ) : bool
     {
-        return Permission::can( 'file:describe', $request->user() );
+        return Permission::can( 'file:describe', $request->user() )
+            && Permission::can( 'file:view', $request->user() );
     }
 }

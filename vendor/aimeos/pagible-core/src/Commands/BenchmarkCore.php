@@ -1,17 +1,17 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 use Aimeos\Cms\Concerns\Benchmarks;
+use Aimeos\Cms\Events\PageInvalidated;
 use Aimeos\Cms\Models\Element;
 use Aimeos\Cms\Models\File;
 use Aimeos\Cms\Models\Page;
@@ -40,12 +40,13 @@ class BenchmarkCore extends Command
 
     public function handle(): int
     {
+        $domain = (string) ( $this->option( 'domain' ) ?: '' );
         $tenant = (string) $this->option( 'tenant' );
 
         if( $this->option( 'unseed' ) )
         {
             $this->tenant( $tenant);
-            $this->unseed( config( 'cms.db', 'sqlite' ), $tenant );
+            $this->unseed( config( 'cms.db', 'sqlite' ), $tenant, $domain );
             return self::SUCCESS;
         }
 
@@ -63,8 +64,6 @@ class BenchmarkCore extends Command
             $this->error( 'No benchmark data found. Run `php artisan cms:benchmark --seed` first.' );
             return self::FAILURE;
         }
-
-        $domain = (string) ( $this->option( 'domain' ) ?: '' );
 
         // Load one item per type (each benchmark iteration is rolled back)
         $root = Page::where( 'tag', 'root' )->where( 'domain', $domain )->firstOrFail();
@@ -236,7 +235,8 @@ class BenchmarkCore extends Command
 
         $this->benchmark( 'File update', function() use ( $file ) {
             $version = $file->versions()->forceCreate( [
-                'lang' => 'en', 'data' => (array) $file->latest?->data, 'published' => false, 'editor' => 'benchmark',
+                'lang' => 'en', 'data' => (array) $file->latest?->data, 'aux' => (array) $file->latest?->aux,
+                'published' => false, 'editor' => 'benchmark',
             ] );
             $file->forceFill( ['latest_id' => $version->id] )->saveQuietly();
         }, tries: $tries );
@@ -275,12 +275,20 @@ class BenchmarkCore extends Command
     /**
      * Remove all benchmark data for the tenant, respecting FK constraints.
      */
-    protected function unseed( string $conn, string $tenant ): void
+    protected function unseed( string $conn, string $tenant, string $domain ): void
     {
         // Clear cache for benchmark pages
-        Page::where( 'editor', 'benchmark' )->each( function( $page ) {
-            Cache::forget( Page::key( $page ) );
-        } );
+        $paths = array_values( Page::query()
+            ->withTrashed()
+            ->where( 'editor', 'benchmark' )
+            ->where( 'domain', $domain )
+            ->pluck( 'path' )
+            ->map( fn( $path ) => (string) $path )
+            ->all() );
+
+        if( $paths ) {
+            PageInvalidated::dispatch( $domain, $paths );
+        }
 
         // Break circular page↔version FK by clearing latest_id first
         DB::connection( $conn )->table( 'cms_pages' )

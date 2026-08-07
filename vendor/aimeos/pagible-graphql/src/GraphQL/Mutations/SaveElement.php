@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
@@ -20,10 +20,6 @@ final class SaveElement
      */
     public function __invoke( $rootValue, array $args ) : Element
     {
-        $element = Resource::saveElement( $args['id'], $args['input'] ?? [], Auth::user(), $args['latestId'] ?? null );
-
-        Resource::broadcast( $element, Auth::user() );
-
-        return $element;
+        return Resource::saveElement( $args['id'], $args['input'] ?? [], Auth::user(), $args['latestId'] ?? null );
     }
 }

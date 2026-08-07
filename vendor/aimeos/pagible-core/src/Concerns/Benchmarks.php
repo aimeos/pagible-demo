@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
@@ -294,6 +294,8 @@ trait Benchmarks
             'password' => bcrypt( Str::random( 64 ) ),
             'cmsperms' => ['*'],
         ] )->save();
+
+        $user->setAttribute( 'tenant_id', \Aimeos\Cms\Tenancy::value() );
 
         return $user;
     }

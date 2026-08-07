@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
@@ -17,7 +17,6 @@ use Illuminate\Support\Facades\Auth;
 use LaravelJsonApi\Eloquent\Fields\Relations\HasMany;
 use LaravelJsonApi\Eloquent\Fields\ArrayHash;
 use LaravelJsonApi\Eloquent\Fields\DateTime;
-use LaravelJsonApi\Eloquent\Fields\Boolean;
 use LaravelJsonApi\Eloquent\Fields\Number;
 use LaravelJsonApi\Eloquent\Fields\Str;
 use LaravelJsonApi\Eloquent\Fields\ID;
@@ -95,7 +94,7 @@ class NavSchema extends Schema
             Str::make( 'title' )->readOnly(),
             Str::make( 'to' )->readOnly(),
             Str::make( 'domain' )->readOnly(),
-            Boolean::make( 'has' )->readOnly(),
+            Number::make( 'has' )->readOnly(),
             DateTime::make( 'createdAt' )->readOnly(),
             DateTime::make( 'updatedAt' )->readOnly(),
             ArrayHash::make( 'config' )->readOnly()->extractUsing( function( $model, $column, $items ) {
@@ -120,9 +119,9 @@ class NavSchema extends Schema
     {
         if( Permission::can( 'page:view', Auth::user() ) ) {
             $query = $query->with( [
-                'files' => fn( $q ) => $q->select( File::SELECT_COLS ),
-                'latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'aux' ),
-                'latest.files' => fn( $q ) => $q->select( File::SELECT_COLS ),
+                'files' => fn( $q ) => $q->select( File::SELECT_COLUMNS ),
+                'latest' => fn( $q ) => $q->select( 'id', 'tenant_id', 'versionable_id', 'aux' ),
+                'latest.files' => fn( $q ) => $q->select( File::SELECT_COLUMNS ),
             ] );
         }
 

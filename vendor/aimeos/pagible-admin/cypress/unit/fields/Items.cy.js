@@ -1,20 +1,39 @@
+import { h } from 'vue'
 import ItemsField from '../../../js/fields/Items.vue'
 import { useUserStore, useClipboardStore } from '../../../js/stores'
 
 const itemConfig = {
   item: {
     title: { type: 'string', label: 'Title' },
-    text: { type: 'plaintext', label: 'Text' },
-  },
+    text: { type: 'plaintext', label: 'Text' }
+  }
 }
 
-function mountItems(props = {}, perms = {}) {
-  return cy.mount(ItemsField, {
-    props: { config: {}, assets: {}, ...props },
-  }).then(() => {
-    const user = useUserStore()
-    user.me = { permission: perms }
-  })
+const identityConfig = {
+  identity: 'id',
+  item: {
+    title: { type: 'string', label: 'Title' },
+    prices: {
+      type: 'items',
+      identity: 'id',
+      item: {
+        amount: { type: 'string', label: 'Amount' }
+      }
+    }
+  }
+}
+
+function mountItems(props = {}, perms = {}, stubs = {}) {
+  return cy
+    .mount(ItemsField, {
+      props: { config: {}, assets: {}, ...props },
+      global: { stubs }
+    })
+    .then((mounted) => {
+      const user = useUserStore()
+      user.me = { permission: perms }
+      return mounted
+    })
 }
 
 describe('Items', () => {
@@ -26,7 +45,7 @@ describe('Items', () => {
   it('renders one panel per item', () => {
     mountItems({
       modelValue: [{ title: 'First' }, { title: 'Second' }],
-      config: itemConfig,
+      config: itemConfig
     })
     cy.get('.v-expansion-panel').should('have.length', 2)
   })
@@ -34,7 +53,7 @@ describe('Items', () => {
   it('shows item title in panel header', () => {
     mountItems({
       modelValue: [{ title: 'My Item' }],
-      config: itemConfig,
+      config: itemConfig
     })
     cy.contains('.element-title', 'My Item').should('exist')
   })
@@ -42,7 +61,7 @@ describe('Items', () => {
   it('falls back to other fields for title when title is empty', () => {
     mountItems({
       modelValue: [{ text: 'Some text content' }],
-      config: itemConfig,
+      config: itemConfig
     })
     cy.contains('.element-title', 'Some text content').should('exist')
   })
@@ -60,7 +79,7 @@ describe('Items', () => {
   it('hides "Add element" when at config.max items', () => {
     mountItems({
       modelValue: [{ title: 'A' }, { title: 'B' }],
-      config: { ...itemConfig, max: 2 },
+      config: { ...itemConfig, max: 2 }
     })
     cy.get('button.btn-add').should('not.exist')
   })
@@ -68,7 +87,7 @@ describe('Items', () => {
   it('shows "Add element" when below config.max', () => {
     mountItems({
       modelValue: [{ title: 'A' }],
-      config: { ...itemConfig, max: 3 },
+      config: { ...itemConfig, max: 3 }
     })
     cy.get('button.btn-add').should('exist')
   })
@@ -78,10 +97,82 @@ describe('Items', () => {
     mountItems({
       modelValue: [{ title: 'Existing' }],
       config: itemConfig,
-      'onUpdate:modelValue': onUpdate,
+      'onUpdate:modelValue': onUpdate
     })
     cy.get('button.btn-add').click()
     cy.get('@update').should('have.been.called')
+  })
+
+  it('generates an identity when an item is added', () => {
+    const onUpdate = cy.spy().as('update')
+    mountItems({
+      modelValue: [],
+      config: identityConfig,
+      'onUpdate:modelValue': onUpdate
+    })
+    cy.get('button.btn-add').click()
+    cy.get('@update').should((spy) => {
+      expect(spy.lastCall.args[0][0].id).to.match(/^[A-Za-z][A-Za-z0-9_-]{5}$/)
+    })
+  })
+
+  it('generates missing nested identities', () => {
+    mountItems({
+      modelValue: [{ title: 'First', prices: [{ amount: '10.00' }] }],
+      config: identityConfig
+    }).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(ItemsField).vm
+      expect(vm.items[0].id).to.match(/^[A-Za-z][A-Za-z0-9_-]{5}$/)
+      expect(vm.items[0].prices[0].id).to.match(/^[A-Za-z][A-Za-z0-9_-]{5}$/)
+    })
+  })
+
+  it('regenerates nested identities on copy and consumes them on paste', () => {
+    const original = {
+      id: 'package-1',
+      title: 'First',
+      prices: [{ id: 'price-1', amount: '10.00' }]
+    }
+
+    mountItems({
+      modelValue: [original],
+      config: identityConfig
+    }).then(({ wrapper }) => {
+      const clipboard = useClipboardStore()
+      const vm = wrapper.findComponent(ItemsField).vm
+      vm.copy(0)
+
+      const copied = clipboard.get('items-content')
+      expect(copied.id).not.to.equal(original.id)
+      expect(copied.prices[0].id).not.to.equal(original.prices[0].id)
+
+      vm.paste()
+
+      expect(vm.items[1]).to.deep.equal(copied)
+      expect(clipboard.get('items-content')).to.equal(null)
+    })
+  })
+
+  it('preserves identities when an item is cut and pasted', () => {
+    const original = {
+      id: 'package-1',
+      title: 'First',
+      prices: [{ id: 'price-1', amount: '10.00' }]
+    }
+
+    mountItems({
+      modelValue: [original],
+      config: identityConfig
+    }).then(({ wrapper }) => {
+      const clipboard = useClipboardStore()
+      const vm = wrapper.findComponent(ItemsField).vm
+      vm.cut(0)
+      vm.paste()
+
+      expect(vm.items[0].id).to.equal('package-1')
+      expect(vm.items[0].prices[0].id).to.equal('price-1')
+      expect(clipboard.get('items-content')).to.equal(null)
+    })
   })
 
   it('emits error:true when items below default min of 1', () => {
@@ -95,7 +186,7 @@ describe('Items', () => {
     mountItems({
       modelValue: [{ title: 'Item' }],
       config: {},
-      onError,
+      onError
     })
     cy.get('@error').should('have.been.calledWith', false)
   })
@@ -105,7 +196,7 @@ describe('Items', () => {
     mountItems({
       modelValue: [{ title: 'One' }],
       config: { min: 3 },
-      onError,
+      onError
     })
     cy.get('@error').should('have.been.calledWith', true)
   })
@@ -115,7 +206,7 @@ describe('Items', () => {
     mountItems({
       modelValue: [{ title: 'A' }, { title: 'B' }, { title: 'C' }],
       config: { min: 3 },
-      onError,
+      onError
     })
     cy.get('@error').should('have.been.calledWith', false)
   })
@@ -125,7 +216,7 @@ describe('Items', () => {
     mountItems({
       modelValue: [{ title: 'A' }, { title: 'B' }, { title: 'C' }],
       config: { max: 2 },
-      onError,
+      onError
     })
     cy.get('@error').should('have.been.calledWith', true)
   })
@@ -135,7 +226,7 @@ describe('Items', () => {
     mountItems({
       modelValue: null,
       config: { default: [{ title: 'Default' }] },
-      'onUpdate:modelValue': onUpdate,
+      'onUpdate:modelValue': onUpdate
     })
     cy.contains('.element-title', 'Default').should('exist')
   })
@@ -143,7 +234,7 @@ describe('Items', () => {
   it('shows action menu buttons on panels when not readonly', () => {
     mountItems({
       modelValue: [{ title: 'Item' }],
-      config: itemConfig,
+      config: itemConfig
     })
     cy.get('.v-expansion-panel .btn-actions button').should('exist')
   })
@@ -152,7 +243,7 @@ describe('Items', () => {
     mountItems({
       modelValue: [{ title: 'Item' }],
       config: itemConfig,
-      readonly: true,
+      readonly: true
     })
     cy.get('.v-expansion-panel .btn-actions button').should('not.exist')
   })
@@ -160,10 +251,33 @@ describe('Items', () => {
   it('renders field labels from config', () => {
     mountItems({
       modelValue: [{ title: 'Test' }],
-      config: itemConfig,
+      config: itemConfig
     })
     cy.get('.v-expansion-panel-title').first().click()
     cy.contains('.label', 'Title').should('exist')
     cy.contains('.label', 'Text').should('exist')
+  })
+
+  it('forwards batched file updates from nested fields', () => {
+    const onAddFile = cy.spy()
+    const Images = {
+      emits: ['addFile'],
+      render() {
+        return h('button', {
+          class: 'field-images',
+          onClick: () => this.$emit('addFile', [{ id: '1' }, { id: '2' }])
+        })
+      }
+    }
+
+    mountItems({
+      modelValue: [{ gallery: [] }],
+      config: { item: { gallery: { type: 'images' } } },
+      onAddFile
+    }, {}, { Images })
+
+    cy.get('.v-expansion-panel-title').click()
+    cy.get('.field-images').click()
+    cy.wrap(onAddFile).should('have.been.calledOnceWith', [{ id: '1' }, { id: '2' }])
   })
 })

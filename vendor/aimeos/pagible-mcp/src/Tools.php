@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
@@ -27,6 +27,7 @@ class Tools
             PrismaTools::laravel( Tools\DropElement::class ),
             PrismaTools::laravel( Tools\DropFile::class ),
             PrismaTools::laravel( Tools\DropPage::class ),
+            PrismaTools::laravel( Tools\GetAccess::class ),
             PrismaTools::laravel( Tools\GetElement::class ),
             PrismaTools::laravel( Tools\GetFile::class ),
             PrismaTools::laravel( Tools\GetLocales::class ),
@@ -39,6 +40,7 @@ class Tools
             PrismaTools::laravel( Tools\PublishElement::class ),
             PrismaTools::laravel( Tools\PublishFile::class ),
             PrismaTools::laravel( Tools\PublishPage::class ),
+            PrismaTools::laravel( Tools\RelocateFile::class ),
             PrismaTools::laravel( Tools\RestoreElement::class ),
             PrismaTools::laravel( Tools\RestoreFile::class ),
             PrismaTools::laravel( Tools\RestorePage::class ),
@@ -48,6 +50,7 @@ class Tools
             PrismaTools::laravel( Tools\SearchElements::class ),
             PrismaTools::laravel( Tools\SearchFiles::class ),
             PrismaTools::laravel( Tools\SearchPages::class ),
+            PrismaTools::laravel( Tools\SetPageAccess::class ),
         ];
     }
 }

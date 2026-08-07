@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 import { defineAsyncComponent } from 'vue'
@@ -34,7 +34,7 @@ export default {
   provide() {
     return {
       // let descendant file fields refresh the preview after editing a file
-      reload: this.reload
+      update: this.reload
     }
   },
 

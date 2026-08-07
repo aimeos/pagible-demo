@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
@@ -26,9 +26,8 @@ class TestSeeder extends Seeder
      */
     public function run()
     {
-        \Aimeos\Cms\Tenancy::$callback = function() {
-            return 'demo';
-        };
+        // Resolve the tenant configured by the caller, not a stale scoped instance.
+        app()->forgetInstance( \Aimeos\Cms\Tenancy::class );
 
         Page::withoutSyncingToSearch( function() {
             Element::withoutSyncingToSearch( function() {
@@ -163,8 +162,8 @@ class TestSeeder extends Seeder
             'status' => 1,
             'cache' => 5,
             'editor' => 'seeder',
-            'meta' => ['meta' => ['type' => 'meta', 'data' => ['text' => 'Laravel CMS is outstanding']]],
-            'config' => ['test' => ['type' => 'test', 'data' => ['key' => 'value']]],
+            'meta' => ['meta' => ['type' => 'meta', 'data' => ['text' => 'Laravel CMS is outstanding'], 'files' => []]],
+            'config' => ['test' => ['type' => 'test', 'data' => ['key' => 'value'], 'files' => []]],
             'content' => [
                 ['type' => 'heading', 'data' => ['title' => 'Welcome to Laravel CMS']],
                 ['type' => 'reference', 'refid' => $elementId, 'group' => 'footer']
@@ -186,8 +185,8 @@ class TestSeeder extends Seeder
                 'editor' => 'seeder',
             ],
             'aux' => [
-                'meta' => ['type' => 'meta', 'data' => ['text' => 'Laravel CMS is outstanding']],
-                'config' => ['test' => ['type' => 'test', 'data' => ['key' => 'value']]],
+                'meta' => ['meta' => ['type' => 'meta', 'data' => ['text' => 'Laravel CMS is outstanding'], 'files' => []]],
+                'config' => ['test' => ['type' => 'test', 'data' => ['key' => 'value'], 'files' => []]],
                 'content' => [
                     ['type' => 'heading', 'data' => ['title' => 'Welcome to Laravel CMS']],
                     ['type' => 'reference', 'refid' => $elementId, 'group' => 'footer']

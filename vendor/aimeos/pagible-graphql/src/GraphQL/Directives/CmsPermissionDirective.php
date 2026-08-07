@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
@@ -19,6 +19,9 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class CmsPermissionDirective extends BaseDirective implements FieldMiddleware
 {
+    /**
+     * Returns the GraphQL schema definition for the permission directive.
+     */
     public static function definition(): string
     {
         return /** @lang GraphQL */ <<<'GRAPHQL'
@@ -26,20 +29,31 @@ class CmsPermissionDirective extends BaseDirective implements FieldMiddleware
 Check CMS permissions for the authenticated user.
 """
 directive @cmsPermission(
-  "The permission action to check, e.g. 'page:add' or 'image:imagine'"
-  action: String!
+  "Permission actions to check, e.g. 'page:add' or ['page:view', 'element:view']"
+  action: [String!]!
+  "Allow access when any listed action is permitted instead of requiring all actions"
+  any: Boolean = false
 ) on FIELD_DEFINITION
 GRAPHQL;
     }
 
 
+    /**
+     * Wraps a field resolver with the configured all-or-any permission check.
+     */
     public function handleField( FieldValue $fieldValue ): void
     {
         $fieldValue->wrapResolver( fn( callable $resolver ): \Closure =>
             function( mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo ) use ( $resolver ) {
-                $action = $this->directiveArgValue( 'action' );
+                $allowed = array_map(
+                    fn( string $action ) => Permission::can( $action, Auth::user() ),
+                    (array) $this->directiveArgValue( 'action' ),
+                );
+                $denied = $this->directiveArgValue( 'any', false )
+                    ? !in_array( true, $allowed, true )
+                    : in_array( false, $allowed, true );
 
-                if( !Permission::can( $action, Auth::user() ) ) {
+                if( $denied ) {
                     throw new Error( 'Insufficient permissions' );
                 }
 

@@ -1,7 +1,6 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
-import { markRaw } from 'vue'
 import gql from 'graphql-tag'
 import {
   mdiDotsVertical,
@@ -14,32 +13,18 @@ import {
   mdiMagnify,
   mdiViewGridOutline,
   mdiFormatListBulletedSquare,
-  mdiMenuDown,
-  mdiSort,
   mdiClockOutline,
-  mdiRefresh
+  mdiLock,
+  mdiPlusLock,
+  mdiRefresh,
+  mdiPencil
 } from '@mdi/js'
+import EditBulkDialog from './EditBulkDialog.vue'
+import ListSort from './ListSort.vue'
+import { ADD_FILE, FILE_FIELDS, normalizeFile } from '../files'
 import { useAppStore, useUserStore, useMessageStore, useChangeStore } from '../stores'
-import { debounce, frozenParse, safeParse, url, srcset } from '../utils'
-
-const ADD_FILE = gql`
-  mutation ($file: Upload!) {
-    addFile(file: $file) {
-      id
-      lang
-      mime
-      name
-      path
-      previews
-      description
-      transcription
-      editor
-      created_at
-      updated_at
-      deleted_at
-    }
-  }
-`
+import { debounce, fileurl, filesrcset } from '../utils'
+import { setupEcho, cleanEcho, listEcho } from '../echo'
 
 const DROP_FILE = gql`
   mutation ($id: [ID!]!) {
@@ -73,7 +58,16 @@ const PURGE_FILE = gql`
   }
 `
 
+const SAVE_FILES = gql`
+  mutation ($id: [ID!]!, $input: FileInput!) {
+    bulkFile(id: $id, input: $input) {
+      ids
+    }
+  }
+`
+
 const FETCH_FILES = gql`
+  ${FILE_FIELDS}
   query (
     $filter: FileFilter
     $sort: [QueryFilesSortOrderByClause!]
@@ -91,18 +85,7 @@ const FETCH_FILES = gql`
       publish: $publish
     ) {
       data {
-        id
-        lang
-        name
-        mime
-        path
-        previews
-        description
-        transcription
-        editor
-        created_at
-        updated_at
-        deleted_at
+        ...CmsFileFields
         latest {
           id
           published
@@ -120,7 +103,24 @@ const FETCH_FILES = gql`
   }
 `
 
+const SORT_OPTIONS = Object.freeze([
+  { column: 'ID', order: 'DESC', label: 'Latest' },
+  { column: 'ID', order: 'ASC', label: 'Oldest' },
+  { column: 'LATEST_ID', order: 'DESC', label: 'Latest edit' },
+  { column: 'LATEST_ID', order: 'ASC', label: 'Oldest edit' },
+  { column: 'NAME', order: 'ASC', label: 'Name' },
+  { column: 'MIME', order: 'ASC', label: 'MIME' },
+  { column: 'LANG', order: 'ASC', label: 'Language' },
+  { column: 'EDITOR', order: 'ASC', label: 'Editor' },
+  { column: 'BYVERSIONS_COUNT', order: 'ASC', label: 'Usage' }
+])
+
 export default {
+  components: {
+    EditBulkDialog,
+    ListSort
+  },
+
   props: {
     grid: { type: Boolean, default: false },
     embed: { type: Boolean, default: false },
@@ -140,8 +140,15 @@ export default {
       last: 1,
       limit: 100,
       actions: false,
+      editDialog: false,
+      editIds: [],
+      editSelected: false,
       loading: true,
-      vgrid: false
+      vgrid: false,
+      destroyed: false,
+      echoCleanup: null,
+      echoPromise: null,
+      outdated: false
     }
   },
 
@@ -166,13 +173,15 @@ export default {
       mdiMagnify,
       mdiViewGridOutline,
       mdiFormatListBulletedSquare,
-      mdiMenuDown,
-      mdiSort,
       mdiClockOutline,
+      mdiLock,
+      mdiPlusLock,
       mdiRefresh,
+      mdiPencil,
+      sortOptions: SORT_OPTIONS,
       debounce,
-      url,
-      srcset
+      fileurl,
+      filesrcset
     }
   },
 
@@ -180,9 +189,20 @@ export default {
     this.searchd = this.debounce(this.search, 500)
     this.vgrid = this.user.getData('file', 'grid') ?? this.grid
     this.search()
+
+    if (!this.embed) {
+      // patch the matching row when another user changes a file; subscribe for
+      // the whole lifetime (not per activation) so the list keeps patching in
+      // the background while the editor is in a detail or another view and is up
+      // to date when they return
+      setupEcho(this, 'file', (event, name) => listEcho(this, event, name))
+    }
   },
 
   beforeUnmount() {
+    this.destroyed = true
+    cleanEcho(this)
+
     this.items = null
     this.menu = null
     this.checked = null
@@ -203,27 +223,11 @@ export default {
 
     isTrashed() {
       return this.items.some((item) => this.checked.has(item.id) && item.deleted_at)
-    },
-
-    order() {
-      if(this.sort?.column === 'ID') {
-        return this.sort?.order === 'DESC' ? this.$gettext('latest') : this.$gettext('oldest')
-      }
-
-      const labels = {
-        'BYVERSIONS_COUNT': this.$gettext('usage'),
-        'EDITOR': this.$gettext('editor'),
-        'LANG': this.$gettext('language'),
-        'MIME': this.$gettext('mime'),
-        'NAME': this.$gettext('name'),
-      }
-
-      return labels[this.sort?.column] || this.sort?.column || ''
     }
   },
 
   methods: {
-    add(ev) {
+    add(ev, disk = 'public') {
       if (this.embed || !this.user.can('file:add')) {
         this.messages.add(this.$gettext('Permission denied'), 'error')
         return
@@ -242,6 +246,7 @@ export default {
             .mutate({
               mutation: ADD_FILE,
               variables: {
+                disk,
                 file: file
               },
               context: {
@@ -254,10 +259,7 @@ export default {
               }
 
               const data = {
-                ...(response.data?.addFile || {}),
-                previews: frozenParse(response.data?.addFile?.previews),
-                description: frozenParse(response.data?.addFile?.description),
-                transcription: frozenParse(response.data?.addFile?.transcription),
+                ...normalizeFile(response.data?.addFile),
                 published: true
               }
 
@@ -318,6 +320,7 @@ export default {
     },
 
     reload() {
+      this.outdated = false
       this.items = []
       this.loading = true
       this.invalidate()
@@ -338,6 +341,23 @@ export default {
       }
 
       return true
+    },
+
+    patchItems(items) {
+      // index the patches by id so the bulk update is a single pass over the loaded rows
+      const byId = new Map(items.map((item) => [item.id, item]))
+
+      this.items?.forEach((node) => {
+        const item = byId.get(node.id)
+
+        if (item) {
+          for (const key in item) {
+            if (key in node) {
+              node[key] = item[key]
+            }
+          }
+        }
+      })
     },
 
     sync() {
@@ -457,8 +477,56 @@ export default {
         })
     },
 
-    setSort(column, order) {
-      this.sort = { column, order }
+    edit(item = null) {
+      this.editIds = item ? [item.id] : [...this.checked]
+      this.editSelected = !item
+      this.actions = false
+      this.editDialog = this.editIds.length > 0
+    },
+
+    save(lang) {
+      if (!this.user.can('file:save')) {
+        this.messages.add(this.$gettext('Permission denied'), 'error')
+        return
+      }
+
+      const ids = this.editIds
+      const selected = this.editSelected ? null : new Set(this.checked)
+
+      if (!ids.length || lang === null) {
+        return
+      }
+
+      return this.$apollo
+        .mutate({
+          mutation: SAVE_FILES,
+          variables: {
+            id: ids,
+            input: { lang: lang }
+          }
+        })
+        .then((result) => {
+          if (result.errors) {
+            throw result.errors
+          }
+
+          this.editIds = []
+          if (this.editSelected) {
+            this.checked = new Set()
+          }
+          this.editSelected = false
+          this.invalidate()
+
+          return this.search().then(() => {
+            if (selected) {
+              this.checked = selected
+            }
+          })
+        })
+        .catch((error) => {
+          this.messages.add(this.$gettext('Error saving file') + ':\n' + error, 'error')
+          this.$log(`FileListItems::save(): Error saving files`, ids, lang, error)
+        })
     },
 
     search() {
@@ -507,23 +575,19 @@ export default {
           const files = result.data.files || {}
           this.last = files.paginatorInfo?.lastPage || 1
           this.items = [...(files.data || [])].map((entry) => {
-            const item = entry.latest?.data
-              ? safeParse(entry.latest?.data)
-              : { ...entry, previews: safeParse(entry.previews) }
-
-            delete item.description
-            delete item.transcription
-            item.previews = markRaw(item.previews ?? {})
+            const latest = entry.latest
+            const item = normalizeFile(entry)
 
             return Object.assign(item, {
+              disk: entry.disk,
               id: entry.id,
               deleted_at: entry.deleted_at,
               created_at: entry.created_at,
-              updated_at: entry.latest?.created_at || entry.updated_at,
-              editor: entry.latest?.editor || entry.editor,
-              published: entry.latest?.published ?? true,
-              publish_at: entry.latest?.publish_at || null,
-              latestId: entry.latest?.id || null,
+              updated_at: latest?.created_at || entry.updated_at,
+              editor: latest?.editor || entry.editor,
+              published: latest?.published ?? true,
+              publish_at: latest?.publish_at || null,
+              latest_id: latest?.id || null,
               usage: entry.byversions_count
             })
           })
@@ -637,6 +701,11 @@ export default {
                   $gettext('Publish')
                 }}</v-btn>
               </v-list-item>
+              <v-list-item v-if="isChecked && user.can('file:save')">
+                <v-btn :prepend-icon="mdiPencil" variant="text" @click="edit()">{{
+                  $gettext('Edit properties')
+                }}</v-btn>
+              </v-list-item>
               <v-list-item v-if="canTrash && user.can('file:drop')">
                 <v-btn :prepend-icon="mdiDelete" variant="text" @click="drop()">{{
                   $gettext('Delete')
@@ -657,14 +726,25 @@ export default {
         </component>
       </span>
 
-      <div v-if="!this.embed && user.can('file:add')">
-        <input @change="add($event)" ref="upload" type="file" multiple hidden />
+      <div v-if="!this.embed && user.can('file:add')" class="upload-actions">
+        <input @change="add($event, 'public')" ref="upload" type="file" multiple hidden />
+        <input @change="add($event, 'private')" ref="uploadPrivate" type="file" multiple hidden />
         <v-btn
           @click="$refs.upload.click()"
           :title="$gettext('Add files')"
           :disabled="loading"
           :icon="mdiPlus"
           class="btn-add"
+          color="primary"
+          variant="tonal"
+        />
+        <v-btn
+          v-if="user.can('file:relocate')"
+          @click="$refs.uploadPrivate.click()"
+          :title="$gettext('Add files') + ': ' + $gettext('Protect access')"
+          :disabled="loading"
+          :icon="mdiPlusLock"
+          class="btn-add-private"
           color="primary"
           variant="tonal"
         />
@@ -683,6 +763,18 @@ export default {
     </div>
 
     <div class="layout">
+      <v-btn
+        v-if="outdated"
+        @click="reload()"
+        :prepend-icon="mdiRefresh"
+        :title="$gettext('Updated by another user')"
+        color="primary"
+        variant="tonal"
+        size="small"
+        rounded="lg"
+        class="btn-outdated"
+      >{{ $gettext('Refresh') }}</v-btn>
+
       <v-btn
         @click="reload()"
         :title="$gettext('Reload files')"
@@ -708,57 +800,7 @@ export default {
         variant="text"
       />
 
-      <span class="btn-sort">
-        <v-menu>
-          <template #activator="{ props }">
-            <v-btn
-              v-bind="props"
-              :title="$gettext('Sort by')"
-              :append-icon="mdiMenuDown"
-              :prepend-icon="mdiSort"
-              variant="text"
-              >{{ order }}</v-btn
-            >
-          </template>
-          <v-list>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('ID', 'DESC')">{{
-                $gettext('latest')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('ID', 'ASC')">{{
-                $gettext('oldest')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('NAME', 'ASC')">{{
-                $gettext('name')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('MIME', 'ASC')">{{
-                $gettext('mime')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('LANG', 'ASC')">{{
-                $gettext('language')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('EDITOR', 'ASC')">{{
-                $gettext('editor')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn variant="text" @click="setSort('BYVERSIONS_COUNT', 'ASC')">{{
-                $gettext('usage')
-              }}</v-btn>
-            </v-list-item>
-          </v-list>
-        </v-menu>
-      </span>
+      <ListSort v-model="sort" :options="sortOptions" />
     </div>
   </div>
 
@@ -800,6 +842,24 @@ export default {
                 $gettext('Publish')
               }}</v-btn>
             </v-list-item>
+
+            <v-divider
+              v-if="
+                !item.deleted_at &&
+                !item.published &&
+                user.can('file:publish') &&
+                user.can('file:save')
+              "
+            ></v-divider>
+
+            <v-list-item v-if="user.can('file:save')">
+              <v-btn :prepend-icon="mdiPencil" variant="text" @click="edit(item)">{{
+                $gettext('Edit properties')
+              }}</v-btn>
+            </v-list-item>
+
+            <v-divider v-if="user.can('file:save')"></v-divider>
+
             <v-list-item v-if="!item.deleted_at && user.can('file:drop')">
               <v-btn :prepend-icon="mdiDelete" variant="text" @click="drop(item)">{{
                 $gettext('Delete')
@@ -832,16 +892,16 @@ export default {
       <div class="item-preview" @click="$emit('select', item)" :title="title(item)">
         <v-img
           v-if="item.mime?.startsWith('image/')"
-          :src="url(Object.values(item.previews)[0] ?? item.path)"
-          :srcset="srcset(item.previews)"
+          :src="fileurl(item, Object.values(item.previews)[0] ?? item.path)"
+          :srcset="filesrcset(item)"
           :title="item.name"
           :alt="item.name"
         ></v-img>
 
         <v-img
           v-else-if="item.mime?.startsWith('video/') && Object.values(item.previews).length"
-          :src="url(Object.values(item.previews)[0] ?? '')"
-          :srcset="srcset(item.previews)"
+          :src="fileurl(item, Object.values(item.previews)[0] ?? '')"
+          :srcset="filesrcset(item)"
           :title="item.name"
           :alt="item.name"
         ></v-img>
@@ -896,6 +956,12 @@ export default {
           <div class="item-head">
             <span class="item-lang" v-if="item.lang">{{ item.lang }}</span>
             <v-icon v-if="item.publish_at" class="publish-at" :icon="mdiClockOutline" />
+            <v-icon
+              v-if="item.disk === 'private'"
+              class="item-access"
+              :icon="mdiLock"
+              :title="$gettext('Protect access')"
+            />
             <span class="item-title">{{ item.name }}</span>
           </div>
           <div class="item-mime item-subtitle">{{ item.mime }}</div>
@@ -933,10 +999,11 @@ export default {
 
   <v-pagination v-if="last > 1" v-model="page" :length="last"></v-pagination>
 
-  <div v-if="!this.embed && user.can('file:add')" class="btn-group">
-    <input @change="add($event)" ref="upload" type="file" multiple hidden />
+  <div v-if="!this.embed && user.can('file:add')" class="btn-group upload-actions">
+    <input @change="add($event, 'public')" ref="uploadBottom" type="file" multiple hidden />
+    <input @change="add($event, 'private')" ref="uploadPrivateBottom" type="file" multiple hidden />
     <v-btn
-      @click="$refs.upload.click()"
+      @click="$refs.uploadBottom.click()"
       :title="$gettext('Add files')"
       :disabled="loading"
       :icon="mdiPlus"
@@ -944,10 +1011,27 @@ export default {
       color="primary"
       variant="tonal"
     />
+    <v-btn
+      v-if="user.can('file:relocate')"
+      @click="$refs.uploadPrivateBottom.click()"
+      :title="$gettext('Add files') + ': ' + $gettext('Protect access')"
+      :disabled="loading"
+      :icon="mdiPlusLock"
+      class="btn-add-private"
+      color="primary"
+      variant="tonal"
+    />
   </div>
+
+  <EditBulkDialog v-model="editDialog" :count="editIds.length" @apply="save" />
 </template>
 
 <style scoped>
+.upload-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .layout .v-list-item {
   text-transform: uppercase;
 }

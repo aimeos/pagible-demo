@@ -1,16 +1,18 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
+use Aimeos\Cms\Concerns\ObservesPrisma;
+use Aimeos\Prisma\Prisma;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Models\Page;
 use Aimeos\Cms\Refiner;
-use Aimeos\Prisma\Prisma;
+use Aimeos\Cms\Utils;
 use Aimeos\Prisma\Tools;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Server\Attributes\Description;
@@ -26,12 +28,16 @@ use Laravel\Mcp\Request;
 #[Description('Improves or restructures existing page content using AI based on a prompt. Pass the page ID and a prompt describing the changes. Returns the refined content elements as a JSON array.')]
 class RefineContent extends Tool
 {
+    use ObservesPrisma;
+
+
     /**
      * Handle the tool request.
      */
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
-        if( !Permission::can( 'page:refine', $request->user() ) ) {
+        if( !Permission::can( 'page:refine', $request->user() )
+            || !Permission::can( 'page:view', $request->user() ) ) {
             throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
@@ -46,8 +52,8 @@ class RefineContent extends Tool
         ] );
 
         /** @var Page|null $page */
-        $page = Page::withTrashed()->select( 'id', 'type', 'content', 'latest_id' )
-            ->with( ['latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'aux' )] )
+        $page = Page::withTrashed()->select( 'id', 'tenant_id', 'type', 'content', 'latest_id' )
+            ->with( ['latest' => fn( $q ) => $q->select( 'id', 'tenant_id', 'versionable_id', 'aux' )] )
             ->find( $validated['id'] );
 
         if( !$page ) {
@@ -61,21 +67,33 @@ class RefineContent extends Tool
         $model = config( 'cms.ai.refine.model' );
 
         $system = view( 'cms::prompts.refine' )->render();
+        $schema = \Aimeos\Prisma\Schema\Schema::fromArray( 'response', \Aimeos\Cms\JsonSchema::build( 'content', $page->type ) );
+        $limit = (int) ini_get( 'max_execution_time' );
 
-        $response = Prisma::text()->using( $provider, $config )
-            ->model( $model )
-            ->withMaxTokens( config( 'cms.ai.maxtoken' ) )
-            ->withSystemPrompt( $system . "\n" . ( $validated['context'] ?? '' ) . ( !empty( $validated['lang'] ) ? "\nWrite the content in language: " . $validated['lang'] : '' ) )
-            ->withClientOptions( [
-                'timeout' => 180,
-                'connect_timeout' => 10,
-            ] )
-            ->ensure( 'structure' )
-            ->structure( $validated['prompt'] . "\n\nContent as JSON:\n" . json_encode( $content ), \Aimeos\Prisma\Schema\Schema::fromArray( 'response', \Aimeos\Cms\JsonSchema::build( 'content', $page->type ) ) ); // @phpstan-ignore-line method.notFound
+        set_time_limit( (int) config( 'cms.ai.timeout' ) ); // long AI call; lift PHP's default 30s execution limit
+
+        try
+        {
+            $response = Prisma::text()->observe( $this->observer( Utils::editor( $request->user() ) ) )
+                ->using( $provider, $config )
+                ->model( $model )
+                ->withMaxTokens( config( 'cms.ai.maxtoken' ) )
+                ->withSystemPrompt( $system . "\n" . ( $validated['context'] ?? '' ) . ( !empty( $validated['lang'] ) ? "\nWrite the content in language: " . $validated['lang'] : '' ) )
+                ->withClientOptions( [
+                    'timeout' => (int) config( 'cms.ai.timeout' ),
+                    'connect_timeout' => 10,
+                ] )
+                ->ensure( 'structure' )
+                ->structure( $validated['prompt'] . "\n\nContent as JSON:\n" . json_encode( $content ), $schema, [], ['mode' => 'json'] ); // @phpstan-ignore-line method.notFound
+        }
+        finally
+        {
+            set_time_limit( $limit );
+        }
 
         $structured = $response->structured();
 
-        if( !$structured ) {
+        if( !$structured || $schema->validate( $structured ) ) {
             return Response::structured( ['error' => 'Invalid content in refine response.'] );
         }
 
@@ -115,6 +133,7 @@ class RefineContent extends Tool
      */
     public function shouldRegister( Request $request ) : bool
     {
-        return Permission::can( 'page:refine', $request->user() );
+        return Permission::can( 'page:refine', $request->user() )
+            && Permission::can( 'page:view', $request->user() );
     }
 }

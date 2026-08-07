@@ -1,13 +1,12 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Tools;
 
-use Aimeos\Cms\Utils;
 use Aimeos\Cms\Resource;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Models\Element;
@@ -40,7 +39,7 @@ class DropElement extends Tool
             'id.required' => 'You must specify the ID of the element to delete.',
         ] );
 
-        $items = Resource::drop( Element::class, [$v['id']], Utils::editor( $request->user() ) );
+        $items = Resource::drop( Element::class, [$v['id']], $request->user() );
 
         if( $items->isEmpty() ) {
             return Response::structured( ['error' => 'Element not found.'] );

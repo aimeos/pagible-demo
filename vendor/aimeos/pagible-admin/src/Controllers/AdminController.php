@@ -1,12 +1,16 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms\Controllers;
 
+use Aimeos\Cms\FileResponse;
+use Aimeos\Cms\Permission;
+use Aimeos\Cms\ProxyToken;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Client\Response as ClientResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,9 +22,22 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class AdminController extends Controller
 {
+    /**
+     * Delivers a private File to an authenticated CMS editor.
+     */
+    public function asset( Request $request, string $file,
+        int|string|null $variant = null ) : SymfonyResponse
+    {
+        if( !Permission::can( 'file:view', $request->user() ) ) {
+            abort( 403 );
+        }
+
+        return FileResponse::make( $file, $variant, true );
+    }
+
+
     public function index(): Response
     {
-        $media = config( 'cms.admin.csp.media-src' );
         $nonce = base64_encode( random_bytes( 16 ) );
 
         return response()
@@ -30,9 +47,9 @@ class AdminController extends Controller
                 "default-src 'self' data: blob:;" .
                 "style-src 'self' 'unsafe-inline';" .
                 "script-src 'self' 'nonce-{$nonce}' blob:;" .
-                "media-src 'self' data: blob: http: https: " . $media . ";" .
-                "img-src 'self' data: blob: http: https: " . $media . ";" .
-                "connect-src 'self' data: blob: ws: wss: http: https: " . $media . ";" .
+                "media-src 'self' data: blob: http: https:;" .
+                "img-src 'self' data: blob: http: https:;" .
+                "connect-src 'self' data: blob: ws: wss: http: https:;" .
                 "frame-src 'self' http: https:;" .
                 "worker-src 'self' blob:;"
             );
@@ -45,7 +62,7 @@ class AdminController extends Controller
      * @param Request $request
      * @return SymfonyResponse
      */
-    public function proxy( Request $request ): SymfonyResponse
+    public function proxy( Request $request, ProxyToken $token ): SymfonyResponse
     {
         $method = strtoupper( $request->method() );
 
@@ -57,24 +74,9 @@ class AdminController extends Controller
             abort( 405, "Unsupported HTTP method: $method" );
         }
 
-        try
-        {
-            $parts = explode( '|', base64_decode( (string) $request->query( 'token', '' ) ) );
-            $expires = $parts[0] ?? '';
-            $uid = $parts[1] ?? '';
-            $hmac = $parts[2] ?? '';
+        $user = $request->user();
 
-            // The token is bound to the authenticated user (see UserResolver::token), so a
-            // leaked token cannot be replayed by or for a different account.
-            if( (int) $expires < now()->timestamp
-                || (string) $uid !== (string) $request->user()?->getAuthIdentifier()
-                || !hash_equals( hash_hmac( 'sha256', $expires . '|' . $uid, config( 'app.key' ) ), (string) $hmac )
-            ) {
-                abort( 403, 'Unauthorized' );
-            }
-        }
-        catch( \Exception $e )
-        {
+        if( !$user instanceof Authenticatable || !$token->valid( (string) $request->query( 'token', '' ), $user ) ) {
             abort( 403, 'Unauthorized' );
         }
 

@@ -1,4 +1,4 @@
-/** @license LGPL, https://opensource.org/license/lgpl-3-0 */
+/** @license MIT, https://opensource.org/license/mit */
 
 <script>
 /**
@@ -7,6 +7,8 @@
  * - `min`: int, minimum number of characters required in the input field
  * - `placeholder`: string, placeholder text for the input field
  * - `class`: string, CSS class to apply to the input field
+ * - `pattern`: string, regular expression the value must match
+ * - `uppercase`: boolean, normalize input to uppercase
  */
 export default {
   props: {
@@ -36,8 +38,18 @@ export default {
         (v) =>
           !this.config.max ||
           +v?.length <= +this.config.max ||
-          this.$gettext(`Maximum length is %{num} characters`, { num: this.config.max })
+          this.$gettext(`Maximum length is %{num} characters`, { num: this.config.max }),
+        (v) =>
+          !this.config.pattern ||
+          new RegExp(this.config.pattern).test(v ?? '') ||
+          this.$gettext(`Value has invalid format`)
       ]
+    }
+  },
+
+  methods: {
+    update(value) {
+      this.$emit('update:modelValue', this.config.uppercase ? value?.toUpperCase() : value)
     }
   },
 
@@ -45,7 +57,9 @@ export default {
     modelValue: {
       immediate: true,
       handler(val) {
-        const hasError = !this.rules.every((rule) => rule(val ?? this.config.default ?? '') === true)
+        const hasError = !this.rules.every(
+          (rule) => rule(val ?? this.config.default ?? '') === true
+        )
         if (hasError !== this.lastError) {
           this.lastError = hasError
           this.$emit('error', hasError)
@@ -66,7 +80,7 @@ export default {
     :clearable="!readonly"
     :placeholder="config.placeholder || ''"
     :modelValue="modelValue ?? config.default ?? ''"
-    @update:modelValue="$emit('update:modelValue', $event)"
+    @update:modelValue="update"
     density="comfortable"
     hide-details="auto"
     variant="outlined"

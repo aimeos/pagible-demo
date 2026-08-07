@@ -101,6 +101,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 - [Google Translate](https://cloud.google.com/translate/docs/reference/rest/v2/translate)
 - [Groq](https://groq.com/)
 - [Ideogram](https://ideogram.ai/api)
+- [Kimi](https://platform.kimi.ai/docs/overview)
 - [Mistral](https://docs.mistral.ai/api)
 - [ModelsLab](https://docs.modelslab.com/)
 - [Murf](https://murf.ai/api)
@@ -114,6 +115,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 - [VertexAI (Google)](https://cloud.google.com/vertex-ai/generative-ai/docs)
 - [VoyageAI](https://docs.voyageai.com/)
 - [xAI](https://docs.x.ai/)
+- [Z.AI](https://docs.z.ai/api-reference)
 
 ### Audio
 
@@ -128,6 +130,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 | **Mistral**           | -     | -       | yes      | -       | -     | yes        |
 | **Murf**              | -     | -       | -        | yes     | yes   | -          |
 | **OpenAI**            | -     | -       | yes      | -       | yes   | yes        |
+| **Z.AI**              | -     | -       | -        | -       | -     | yes        |
 
 ### Image
 
@@ -150,6 +153,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 | **VertexAI**          | -          | -        | -      | -     | yes     | yes     | -       | -         | -        | -       | -      | yes     | yes       |
 | **VoyageAI**          | -          | -        | -      | -     | -       | -       | -       | -         | -        | -       | -      | -       | yes       |
 | **xAI**               | -          | -        | -      | -     | beta    | -       | -       | -         | -        | -       | -      | -       | -         |
+| **Z.AI**             | -          | -        | -      | -     | yes     | -       | -       | -         | -        | -       | -      | -       | -         |
 
 ### Text
 
@@ -165,6 +169,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 | **Gemini**            | yes   | yes        |           | yes       | yes   | yes       | yes          | yes            | yes           | yes             |
 | **Google**            |       |            | yes       |           |       |           |              |                |               |                 |
 | **Groq**              | yes   | yes        |           | -         | yes   | -         | yes          |                | yes           | -               |
+| **Kimi**              | yes   | yes        |           | -         | yes   | -         | yes          |                | yes           | yes             |
 | **Mistral**           | yes   | yes        |           | yes       | yes   | -         | yes          | yes            | yes           | -               |
 | **Ollama**            | beta  | beta       |           | beta      | beta  | -         | yes          |                | yes           | -               |
 | **OpenAI**            | yes   | yes        |           | yes       | yes   | yes       | yes          | yes            | yes           | yes             |
@@ -172,6 +177,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 | **Perplexity**        | beta  | beta       |           | -         | beta  | yes       | yes          |                | yes           | -               |
 | **Vertexai**          | beta  | beta       |           | beta      | beta  | yes       | yes          | yes            | yes           | yes             |
 | **xAI**               | beta  | beta       |           | -         | beta  | yes       | yes          | yes            | yes           | yes             |
+| **Z.AI**             | yes   | -          |           | -         | yes   | -         | yes          | yes            | yes           | yes             |
 
 ### Video
 
@@ -438,6 +444,7 @@ Set the thinking/reasoning budget in tokens for models that support extended
 thinking. The budget is mapped to each provider's native format automatically:
 token counts for Anthropic, OpenAI, Gemini and Bedrock; effort levels for other
 OpenAI-API providers (&#8804; 1024 → low, &#8804; 8192 → medium, > 8192 → high).
+Kimi uses its native low/high/max levels for those same three ranges.
 
 ```php
 public function withThinkingBudget( ?int $budget ) : self
@@ -467,8 +474,9 @@ contains the returned data with optional meta/usage/description information.
 **FileResponse** objects:
 
 ```php
-$base64 = $response->base64(); // first base64 data, from binary, base64 and URL, waits for async requests
-$file = $response->binary(); // first binary data, from binary, base64 and URL, waits for async requests
+$base64 = $response->base64(); // first file as base64 data, waits for async requests
+$file = $response->binary(); // first file as binary data, waits for async requests
+$stream = $response->stream(); // first file as a readable PHP stream; close it after use
 $url = $response->url(); // first URL, only if URLs are returned, otherwise NULL
 $mime = $response->mimeType(); // image mime type, waits for async requests
 $text = $response->description(); // image description if returned by provider
@@ -482,8 +490,7 @@ foreach( $response as $name => $file ) {
 }
 ```
 
-URLs are automatically converted to binary and base64 data if requested and conversion between
-binary and base64 data is done on request too.
+File content is loaded and converted lazily when the requested representation is accessed.
 
 **TextResponse** objects:
 
@@ -877,7 +884,7 @@ $response = Prisma::text()
 
 | Tool name | Providers |
 | :--- | :--- |
-| `web_search` | Anthropic, OpenAI, Gemini, Mistral, xAI, OpenRouter, Alibaba |
+| `web_search` | Anthropic, OpenAI, Gemini, Mistral, xAI, OpenRouter, Alibaba, Z.AI |
 | `web_search_premium` | Mistral |
 | `code_execution` | Anthropic, OpenAI, Gemini, Mistral, xAI |
 | `web_fetch` | Anthropic |
@@ -1170,6 +1177,9 @@ public function transcribe( Audio $audio, ?string $lang = null, array $options =
 * Groq
 * [Mistral](https://docs.mistral.ai/api/endpoint/audio/transcriptions)
 * [OpenAI](https://platform.openai.com/docs/api-reference/audio/createTranscription)
+* [Z.AI](https://docs.z.ai/api-reference/audio/audio-transcriptions)
+
+*Note: Z.AI audio transcriptions currently support only mono (single-channel) input files.*
 
 ## Image API
 
@@ -1183,10 +1193,14 @@ $image = Image::fromUrl( 'https://example.com/image.php', 'image/png' );
 $image = Image::fromLocalPath( 'path/to/image.png', 'image/png' );
 $image = Image::fromBinary( 'PNG...', 'image/png' );
 $image = Image::fromBase64( 'UE5H...', 'image/png' );
+$image = Image::fromStream( $stream, 'image/png' );
 
 // Laravel only:
 $image = Image::fromStoragePath( 'path/to/image.png', 'public', 'image/png' );
 ```
+
+`fromStream()` retains a forward-only resource until conversion is needed. See
+the [custom provider guide](CUSTOM-PROVIDERS.md#file-types) for ownership details.
 
 The last parameter of all methods (mime type) is optional. If it's not passed, the file
 content will be retrieved to determine the mime type if reqested.
@@ -1353,15 +1367,16 @@ public function imagine( string $prompt, array $images = [], array $options = []
 * [Gemini](https://ai.google.dev/gemini-api/docs/image-generation#optional_configurations)
 * [Ideogram](https://developer.ideogram.ai/api-reference/api-reference/generate-v3#request)
 * [ModelsLab](https://docs.modelslab.com/image-generation/community-models/text2img)
-* [Replicate](https://replicate.com/docs/topics/predictions/create-a-prediction)
-* [VertexAI](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#generate_images)
 * [OpenAI GPT image 1](https://platform.openai.com/docs/guides/image-generation?image-generation-model=gpt-image-1#customize-image-output)
 * [OpenAI Dall-e-3](https://platform.openai.com/docs/guides/image-generation?image-generation-model=dall-e-3#customize-image-output)
 * [OpenAI Dall-e-2](https://platform.openai.com/docs/guides/image-generation?image-generation-model=dall-e-2#customize-image-output)
+* [Replicate](https://replicate.com/docs/topics/predictions/create-a-prediction)
 * [StabilityAI Core](https://platform.stability.ai/docs/api-reference#tag/Generate/paths/~1v2beta~1stable-image~1generate~1core/post)
 * [StabilityAI Ultra](https://platform.stability.ai/docs/api-reference#tag/Generate/paths/~1v2beta~1stable-image~1generate~1ultra/post)
 * [StabilityAI Stable Diffusion 3.5](https://platform.stability.ai/docs/api-reference#tag/Generate/paths/~1v2beta~1stable-image~1generate~1sd3/post)
+* [VertexAI](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#generate_images)
 * [xAI Grok Image](https://docs.x.ai/docs/guides/image-generations)
+* [Z.AI](https://docs.z.ai/api-reference/image/generate-image)
 
 **Example:**
 
@@ -1693,6 +1708,7 @@ Iterating `$response->stream()` yields:
 * [Deepseek](https://api-docs.deepseek.com/api/create-chat-completion)
 * [Gemini](https://ai.google.dev/gemini-api/docs/text-generation)
 * [Groq](https://console.groq.com/docs/text-chat)
+* [Kimi](https://platform.kimi.ai/docs/guide/utilize-the-streaming-output-feature-of-kimi-api)
 * [Mistral](https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post)
 * [Ollama](https://github.com/ollama/ollama/blob/main/docs/openai.md)
 * [OpenAI](https://platform.openai.com/docs/api-reference/responses-streaming)
@@ -1815,12 +1831,14 @@ public function structure( string $prompt, Schema $schema, array $files = [], ar
 * [Deepseek](https://api-docs.deepseek.com/api/create-chat-completion)
 * [Gemini](https://ai.google.dev/gemini-api/docs/structured-output)
 * [Groq](https://console.groq.com/docs/api-reference#chat-create)
+* [Kimi](https://platform.kimi.ai/docs/guide/kimi-k3-quickstart#structured-output)
 * [Mistral](https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post)
 * [Ollama](https://github.com/ollama/ollama/blob/main/docs/openai.md)
 * [OpenAI](https://platform.openai.com/docs/api-reference/chat/create)
 * [Openrouter](https://openrouter.ai/docs/api-reference/chat-completions)
 * [Perplexity](https://docs.perplexity.ai/api-reference/chat-completions)
 * [xAI](https://docs.x.ai/api/endpoints#chat-completions)
+* [Z.AI](https://docs.z.ai/api-reference/llm/chat-completion)
 
 **Example:**
 
@@ -1960,6 +1978,7 @@ public function write( string $prompt, array $files = [], array $options = [] ) 
 * [Deepseek](https://api-docs.deepseek.com/api/create-chat-completion)
 * [Gemini](https://ai.google.dev/gemini-api/docs/text-generation)
 * [Groq](https://console.groq.com/docs/text-chat)
+* [Kimi](https://platform.kimi.ai/docs/api/chat)
 * [Mistral](https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post)
 * [Ollama](https://github.com/ollama/ollama/blob/main/docs/openai.md)
 * [OpenAI](https://platform.openai.com/docs/api-reference/chat/create)

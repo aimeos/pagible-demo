@@ -20,13 +20,20 @@ const baseItem = {
   published: false,
 }
 
-function mountDetail(perms = {}, item = {}) {
+function mountDetail(perms = {}, item = {}, apollo = {}) {
   return cy.mount(FileDetail, {
     props: { item: { ...baseItem, ...item } },
     global: {
       stubs,
       provide: {
         closeView: () => {},
+      },
+      mocks: {
+        $apollo: {
+          query: () => Promise.resolve({ data: {} }),
+          mutate: () => Promise.resolve({ data: {} }),
+          ...apollo,
+        },
       },
       plugins: [{
         install() {
@@ -73,6 +80,31 @@ describe('FileDetail', () => {
   it('renders the AsideMeta stub', () => {
     mountDetail()
     cy.get('.aside-meta-stub').should('exist')
+  })
+
+  it('keeps the private disk when loading a file', () => {
+    const query = cy.stub().resolves({
+      data: {
+        file: {
+          disk: 'private',
+          id: '1',
+          latest: {
+            id: 'version-1',
+            data: '{"name":"private.pdf","path":"cms/file-1/private.pdf","previews":{}}',
+            aux: '{}',
+          },
+        },
+      },
+    })
+
+    mountDetail({ 'file:view': true }, {}, { query }).then(() => {
+      const vm = Cypress.vueWrapper.findComponent(FileDetail).vm
+
+      cy.wrap(null).should(() => {
+        expect(vm.loading).to.equal(false)
+        expect(vm.item.disk).to.equal('private')
+      })
+    })
   })
 
   it('disables save button without file:save permission', () => {
@@ -272,6 +304,14 @@ describe('FileDetail', () => {
       mountDetail().then(() => {
         const vm = Cypress.vueWrapper.findComponent(FileDetail).vm
         vm.changed = { editor: 'x', data: { name: { previous: 'a', current: 'b', overwritten: 'c' } } }
+        expect(vm.hasConflict).to.be.true
+      })
+    })
+
+    it('hasConflict includes auxiliary file fields', () => {
+      mountDetail().then(() => {
+        const vm = Cypress.vueWrapper.findComponent(FileDetail).vm
+        vm.changed = { editor: 'x', aux: { description: { previous: {}, current: {}, overwritten: { en: 'theirs' } } } }
         expect(vm.hasConflict).to.be.true
       })
     })

@@ -1,12 +1,16 @@
 <?php
 
 /**
- * @license LGPL, https://opensource.org/license/lgpl-3-0
+ * @license MIT, https://opensource.org/license/mit
  */
 
 
 namespace Aimeos\Cms;
 
+use Aimeos\Cms\Jobs\IndexModels;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Collection;
+use Laravel\Scout\ModelObserver;
 use Laravel\Scout\Builder;
 
 
@@ -33,6 +37,10 @@ class Scout
     {
         $isDraft = in_array( 'draft', $fields );
         static::apply( $query, $builder, $isDraft );
+
+        if( $builder->query === '' && $builder->queryCallback ) {
+            call_user_func( $builder->queryCallback, $query );
+        }
 
         return $builder;
     }
@@ -119,4 +127,185 @@ class Scout
     }
 
 
+    /**
+     * Reindexes models by ID in bounded native Scout batches.
+     *
+     * @param class-string<Models\Base> $model Model class
+     * @param array<string> $ids Model IDs
+     * @param Collection<int, Models\Base>|null $loaded Already loaded current models
+     */
+    public static function index( string $model, array $ids, ?Collection $loaded = null ) : void
+    {
+        $instance = new $model();
+        $models = [];
+
+        foreach( $loaded ?? [] as $item ) {
+            if( $item instanceof $model && $item->id !== null ) {
+                $models[$item->id] = $item;
+            }
+        }
+
+        foreach( array_chunk( array_values( array_unique( $ids ) ), 50 ) as $chunk )
+        {
+            if( config( 'scout.queue' ) ) {
+                dispatch( ( new IndexModels( $model, $chunk, Tenancy::value() ) )
+                    ->onQueue( $instance->syncWithSearchUsingQueue() )
+                    ->onConnection( $instance->syncWithSearchUsing() ) );
+            } elseif( count( $items = array_intersect_key( $models, array_flip( $chunk ) ) ) === count( $chunk ) ) {
+                $loaded = $instance->newCollection( array_values( $items ) );
+                $loaded->loadMissing( $model::makeAllSearchableQuery()->getEagerLoads() );
+                $instance->syncMakeSearchable( $loaded );
+            } else {
+                self::sync( $model, $chunk );
+            }
+        }
+    }
+
+
+    /**
+     * Executes the callback without automatic Scout model synchronization.
+     *
+     * Already muted model classes remain muted when nested calls return.
+     *
+     * @template T
+     * @param array<class-string<Models\Base>> $models Model classes to mute
+     * @param \Closure(): T $callback Callback to execute
+     * @return T Callback return value
+     */
+    public static function mute( array $models, \Closure $callback ) : mixed
+    {
+        $instances = [];
+
+        foreach( array_unique( $models ) as $model ) {
+            $instance = new $model();
+
+            if( !ModelObserver::syncingDisabledFor( $instance ) ) {
+                $instance::disableSearchSyncing();
+                $instances[] = $instance;
+            }
+        }
+
+        try {
+            return $callback();
+        } finally {
+            foreach( $instances as $instance ) {
+                $instance::enableSearchSyncing();
+            }
+        }
+    }
+
+
+    /**
+     * Reindexes models after the surrounding transaction commits.
+     *
+     * @param class-string<Models\Base> $model Model class
+     * @param array<string> $ids Model IDs
+     */
+    public static function reindex( string $model, array $ids ) : void
+    {
+        $ids = array_values( array_unique( $ids ) );
+
+        if( !$ids || !self::usesSearchIndex() ) {
+            return;
+        }
+
+        $instance = new $model();
+        $tenant = Tenancy::value();
+
+        $instance->getConnection()->afterCommit(
+            fn() => Tenancy::run( $tenant, fn() => self::index( $model, $ids ) ),
+        );
+    }
+
+
+    /**
+     * Reindexes models immediately after loading their searchable relations.
+     *
+     * @param class-string<Models\Base> $model Model class
+     * @param array<string> $ids Model IDs
+     */
+    public static function sync( string $model, array $ids ) : void
+    {
+        $instance = new $model();
+
+        foreach( array_chunk( array_values( array_unique( $ids ) ), 50 ) as $chunk ) {
+            $items = $instance::makeAllSearchableQuery()
+                ->withoutGlobalScope( SoftDeletingScope::class )
+                ->whereKey( $chunk )
+                ->get();
+
+            $instance->syncMakeSearchable( $items );
+        }
+    }
+
+
+    /**
+     * Returns the searchable text values from content elements.
+     *
+     * @param iterable<array<string, mixed>|object> $items Content elements
+     * @return array<int, string> Searchable text values
+     */
+    public static function text( iterable $items ) : array
+    {
+        $schemas = Schema::schemas( section: 'content' );
+        $result = [];
+
+        foreach( $items as $item )
+        {
+            $item = (object) $item;
+            $fields = (array) ( $schemas[$item->type ?? '']['fields'] ?? [] );
+
+            foreach( (array) ( $item->data ?? [] ) as $name => $value )
+            {
+                if( is_string( $value ) && isset( $fields[$name] )
+                    && ( $fields[$name]['searchable'] ?? true )
+                    && in_array( $fields[$name]['type'], ['markdown', 'plaintext', 'string', 'text'], true )
+                ) {
+                    $result[] = $value;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+
+    /**
+     * Removes models from Scout by ID in bounded native batches.
+     *
+     * @param class-string<Models\Base> $model Model class
+     * @param array<string> $ids Model IDs
+     */
+    public static function unindex( string $model, array $ids ) : void
+    {
+        $instance = new $model();
+        $key = $instance->getScoutKeyName();
+
+        foreach( array_chunk( array_values( array_unique( $ids ) ), 50 ) as $chunk )
+        {
+            $items = $instance->newCollection( array_map(
+                fn( $id ) => $instance->newInstance()->forceFill( [$key => $id] ),
+                $chunk,
+            ) );
+            $instance->queueRemoveFromSearch( $items );
+        }
+    }
+
+
+    /**
+     * Whether visibility must be stored and filtered in an external search index.
+     */
+    public static function usesExternalSearch() : bool
+    {
+        return self::usesSearchIndex() && config( 'scout.driver' ) !== 'cms';
+    }
+
+
+    /**
+     * Whether the configured Scout driver maintains a search index.
+     */
+    public static function usesSearchIndex() : bool
+    {
+        return !in_array( config( 'scout.driver' ), [null, 'null', 'collection', 'database'], true );
+    }
 }

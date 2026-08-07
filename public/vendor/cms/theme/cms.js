@@ -14,6 +14,7 @@ document.querySelectorAll('link[rel="preload"][as="style"]').forEach(el => {
 function PagibleSearch() {
     let modal = null;
     let nextPageUrl = null;
+    let minChars = 2;
 
     return {
         debounce(fn, delay = 300) {
@@ -30,6 +31,7 @@ function PagibleSearch() {
 
             const form = dialog.querySelector('form');
             const input = dialog.querySelector('input');
+            minChars = input?.minLength > 0 ? input.minLength : minChars;
             const onSubmit = (ev) => this.select(ev);
             const onInput = this.debounce((ev) => this.search(ev));
 
@@ -58,7 +60,7 @@ function PagibleSearch() {
 
             const words = term
                 .split(" ")
-                .filter(v => v.length > 2)
+                .filter(v => v.length >= minChars)
                 .map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 
             if (!words.length) {
@@ -73,7 +75,7 @@ function PagibleSearch() {
             const value = ev.target?.value;
             const form = ev.target?.closest('form');
 
-            if (!form || !value || value.length < 3) {
+            if (!form || !value || value.length < minChars) {
                 return;
             }
 
@@ -270,6 +272,31 @@ document.addEventListener('click', (ev) => {
         finder.init(node, modal);
         ev.preventDefault();
     }
+});
+
+
+
+/**
+ * WebMCP search tool (declarative API)
+ *
+ * The search form is exposed to AI agents via its toolname/tooldescription
+ * attributes. On an agent-driven submit, return the matching pages as JSON
+ * instead of letting the form navigate to the first result.
+ */
+document.querySelector('form[toolname="search"]')?.addEventListener('submit', (ev) => {
+    if (!ev.agentInvoked) {
+        return; // human submits are handled by PagibleSearch.select
+    }
+
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+
+    const url = ev.target.action.replace(/_term_/, encodeURIComponent(ev.target.q.value));
+
+    ev.respondWith(
+        fetch(url, { headers: { 'Accept': 'application/json' } })
+            .then(response => response.text())
+    );
 });
 
 

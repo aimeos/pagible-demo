@@ -22,10 +22,13 @@ const vuetifyLabs = readdirSync('node_modules/vuetify/lib/labs', { withFileTypes
 // Group large vendor packages into dedicated chunks.  Rolldown (Vite 8) only
 // supports the function form of manualChunks, so each node_modules package is
 // matched by path and mapped to its chunk name.
+//
+// ckeditor5 is deliberately NOT grouped here: assigning its `export *` barrel
+// to a manual chunk forces the bundler to preserve the chunk's full export
+// surface, which pulls in every CKEditor feature and defeats tree-shaking
+// (5.9 MB instead of ~0.9 MB).  Leaving it out lets Rolldown auto-split and
+// tree-shake it down to only the editor features actually imported.
 const chunkGroups = {
-  // CKEditor deliberately left ungrouped. Forcing it into a manual chunk makes
-  // Rolldown preserve the full export surface and pulls many editor features into
-  // one bundle, bloating the chunk significantly.
   charts: ['chart.js', 'vue-chartjs'],
   cropper: ['cropperjs'],
   diff: ['diff'],
@@ -33,8 +36,8 @@ const chunkGroups = {
   graphql: ['graphql', 'graphql-tag', '@apollo/client', 'apollo-link-batch-http', 'apollo-upload-client'],
   markdown: ['mdast-util-from-markdown', 'mdast-util-to-markdown'],
   tree: ['@he-tree/vue'],
-  // is-plain-obj is shared by the ckeditor and graphql chunks; pinning it to
-  // its own chunk avoids a circular chunk dependency between them.
+  // is-plain-obj is shared by the graphql chunk; pinning it to its own chunk
+  // avoids a circular chunk dependency.
   shared: ['is-plain-obj'],
 }
 
@@ -58,6 +61,25 @@ export default defineConfig({
         }
       }
     },
+    {
+      // Emit the shared-runtime shims (vue, vue-router, vuetify, graphql-tag) as entry
+      // chunks with a strict signature so their `export *` re-exports survive tree-shaking
+      // and stay addressable in the manifest for the plugin import map. preserveSignature is
+      // set per-chunk here instead of globally: a global setting would force the full
+      // Vue/Vuetify/router export surface into the eager app bundle (~17 KB gzip) because the
+      // shims share chunks with the main app. Scoping it keeps the host build unchanged.
+      name: 'cms-plugin-shims',
+      buildStart() {
+        for(const name of ['vue', 'vue-router', 'vuetify', 'graphql-tag']) {
+          this.emitFile({
+            type: 'chunk',
+            id: fileURLToPath(new URL(`./js/shims/${name}.js`, import.meta.url)),
+            name: `shim-${name}`,
+            preserveSignature: 'strict'
+          })
+        }
+      }
+    },
   ],
   resolve: {
     alias: {
@@ -75,6 +97,21 @@ export default defineConfig({
       ...vuetifyComponents,
       ...vuetifyLabs,
     ]
+  },
+  // Dev-only: proxy the credentialed backend calls to the Laravel app so the SPA is same-origin
+  // with them. Then the XSRF-TOKEN cookie is readable by the SPA and CSRF-protected POSTs (chat,
+  // GraphQL mutations, file uploads) carry a valid token instead of being rejected cross-origin.
+  // Use relative URLs in index.html (e.g. data-urlchat="/cmsapi/chat") so they hit this proxy.
+  server: {
+    proxy: {
+      '/graphql': { target: 'http://localhost:8000', changeOrigin: true },
+      '/cmsapi': { target: 'http://localhost:8000', changeOrigin: true },
+      '/cmsproxy': { target: 'http://localhost:8000', changeOrigin: true },
+      '/storage': { target: 'http://localhost:8000', changeOrigin: true },
+      // GET through Laravel's `web` group: starts the session and sets the XSRF-TOKEN cookie that
+      // main.js primes on boot in dev (production gets it from the real /cmsadmin page load).
+      '/cmsadmin': { target: 'http://localhost:8000', changeOrigin: true },
+    }
   },
   build: {
     manifest: true,
