@@ -4,4 +4,4 @@ composer up --no-dev
 git add .
 git commit -m "Package update"
 git push
-kubectl -n demo rollout restart statefulset.apps/pagible-demo
+kubectl -n demo rollout restart deployment.apps/pagible-demo
