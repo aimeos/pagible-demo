@@ -164,12 +164,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "b39b08923edcc62e43172bccccbcd187be639b16"
+                "reference": "a15d3f75c69bb8e02da2a58937f6ae0a2635d5b9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/b39b08923edcc62e43172bccccbcd187be639b16",
-                "reference": "b39b08923edcc62e43172bccccbcd187be639b16",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/a15d3f75c69bb8e02da2a58937f6ae0a2635d5b9",
+                "reference": "a15d3f75c69bb8e02da2a58937f6ae0a2635d5b9",
                 "shasum": ""
             },
             "require": {
@@ -190,7 +190,7 @@
                 "om/potrans": "^1.0.1",
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-08-08T10:26:54+00:00",
+            "time": "2026-08-08T18:54:53+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -928,19 +928,19 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-luxury.git",
-                "reference": "2448ed2f221676dc249c54c1e9cdfa372488b7d6"
+                "reference": "c3e5ad2cd0caa6db6291c472f9dc9c0626a8f8b3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-luxury/zipball/2448ed2f221676dc249c54c1e9cdfa372488b7d6",
-                "reference": "2448ed2f221676dc249c54c1e9cdfa372488b7d6",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-luxury/zipball/c3e5ad2cd0caa6db6291c472f9dc9c0626a8f8b3",
+                "reference": "c3e5ad2cd0caa6db6291c472f9dc9c0626a8f8b3",
                 "shasum": ""
             },
             "require": {
                 "aimeos/pagible-theme": "0.12.*",
                 "php": "^8.2"
             },
-            "time": "2026-08-08T10:31:18+00:00",
+            "time": "2026-08-08T18:55:11+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
