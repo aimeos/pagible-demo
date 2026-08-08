@@ -160,12 +160,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "7427660312be81edc5cb43eb272de2388707973a"
+                "reference": "3f057695d8c566308075ae63142696f72d7359f6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/7427660312be81edc5cb43eb272de2388707973a",
-                "reference": "7427660312be81edc5cb43eb272de2388707973a",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/3f057695d8c566308075ae63142696f72d7359f6",
+                "reference": "3f057695d8c566308075ae63142696f72d7359f6",
                 "shasum": ""
             },
             "require": {
@@ -221,7 +221,7 @@
                 "issues": "https://github.com/aimeos/pagible/issues",
                 "source": "https://github.com/aimeos/pagible/tree/0.12"
             },
-            "time": "2026-08-07T10:19:50+00:00"
+            "time": "2026-08-08T09:34:09+00:00"
         },
         {
             "name": "aimeos/pagible-admin",
@@ -229,12 +229,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-admin.git",
-                "reference": "8312824a7874db42b3ce9395cf6f907d7c1dbf5e"
+                "reference": "d938e605bcd5a26e82c65d730dd7dba4b7a2a334"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/8312824a7874db42b3ce9395cf6f907d7c1dbf5e",
-                "reference": "8312824a7874db42b3ce9395cf6f907d7c1dbf5e",
+                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/d938e605bcd5a26e82c65d730dd7dba4b7a2a334",
+                "reference": "d938e605bcd5a26e82c65d730dd7dba4b7a2a334",
                 "shasum": ""
             },
             "require": {
@@ -280,7 +280,7 @@
                 "issues": "https://github.com/aimeos/pagible-admin/issues",
                 "source": "https://github.com/aimeos/pagible-admin/tree/0.12"
             },
-            "time": "2026-08-07T10:20:57+00:00"
+            "time": "2026-08-08T09:34:38+00:00"
         },
         {
             "name": "aimeos/pagible-ai",
@@ -620,12 +620,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-theme.git",
-                "reference": "ba4ebfcb14420c0754e0783d10236281076b554e"
+                "reference": "8b27ea668c5d898cf0b1a42198eacc02b612700b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/ba4ebfcb14420c0754e0783d10236281076b554e",
-                "reference": "ba4ebfcb14420c0754e0783d10236281076b554e",
+                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/8b27ea668c5d898cf0b1a42198eacc02b612700b",
+                "reference": "8b27ea668c5d898cf0b1a42198eacc02b612700b",
                 "shasum": ""
             },
             "require": {
@@ -670,7 +670,7 @@
                 "issues": "https://github.com/aimeos/pagible-theme/issues",
                 "source": "https://github.com/aimeos/pagible-theme/tree/0.12"
             },
-            "time": "2026-08-07T10:20:55+00:00"
+            "time": "2026-08-08T09:34:20+00:00"
         },
         {
             "name": "aimeos/pagible-themes-bold",
@@ -678,12 +678,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-bold.git",
-                "reference": "d9cc654ba975ae9f08595e23bc1a17e3045acc10"
+                "reference": "063f0822508316692d1e5d9bfbde2962332d2c5e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-bold/zipball/d9cc654ba975ae9f08595e23bc1a17e3045acc10",
-                "reference": "d9cc654ba975ae9f08595e23bc1a17e3045acc10",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-bold/zipball/063f0822508316692d1e5d9bfbde2962332d2c5e",
+                "reference": "063f0822508316692d1e5d9bfbde2962332d2c5e",
                 "shasum": ""
             },
             "require": {
@@ -721,7 +721,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-bold/issues",
                 "source": "https://github.com/aimeos/pagible-themes-bold/tree/0.12"
             },
-            "time": "2026-08-07T10:20:55+00:00"
+            "time": "2026-08-08T09:34:16+00:00"
         },
         {
             "name": "aimeos/pagible-themes-estate",
@@ -729,12 +729,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-estate.git",
-                "reference": "9fe6116f45ffd64cbba8b5b0881a3a6e596e0f36"
+                "reference": "9ee2b01e86ee521b2dd59cc2fdf7f07681cf3a66"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-estate/zipball/9fe6116f45ffd64cbba8b5b0881a3a6e596e0f36",
-                "reference": "9fe6116f45ffd64cbba8b5b0881a3a6e596e0f36",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-estate/zipball/9ee2b01e86ee521b2dd59cc2fdf7f07681cf3a66",
+                "reference": "9ee2b01e86ee521b2dd59cc2fdf7f07681cf3a66",
                 "shasum": ""
             },
             "require": {
@@ -774,7 +774,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-estate/issues",
                 "source": "https://github.com/aimeos/pagible-themes-estate/tree/0.12"
             },
-            "time": "2026-08-07T10:20:58+00:00"
+            "time": "2026-08-08T09:34:18+00:00"
         },
         {
             "name": "aimeos/pagible-themes-glass",
@@ -782,12 +782,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-glass.git",
-                "reference": "a05e873f1b92ab357e23798713b596bec13f671e"
+                "reference": "9ae37086314335a1a5eb2dc91d1e5a35d276c92b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-glass/zipball/a05e873f1b92ab357e23798713b596bec13f671e",
-                "reference": "a05e873f1b92ab357e23798713b596bec13f671e",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-glass/zipball/9ae37086314335a1a5eb2dc91d1e5a35d276c92b",
+                "reference": "9ae37086314335a1a5eb2dc91d1e5a35d276c92b",
                 "shasum": ""
             },
             "require": {
@@ -825,7 +825,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-glass/issues",
                 "source": "https://github.com/aimeos/pagible-themes-glass/tree/0.12"
             },
-            "time": "2026-08-07T10:21:01+00:00"
+            "time": "2026-08-08T09:34:34+00:00"
         },
         {
             "name": "aimeos/pagible-themes-journal",
@@ -833,12 +833,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-journal.git",
-                "reference": "c143dc9037cd020649599c1ef7b831113fc0ce68"
+                "reference": "81fdc32544de8886a22c9991e5d2c9e8428a5bdb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-journal/zipball/c143dc9037cd020649599c1ef7b831113fc0ce68",
-                "reference": "c143dc9037cd020649599c1ef7b831113fc0ce68",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-journal/zipball/81fdc32544de8886a22c9991e5d2c9e8428a5bdb",
+                "reference": "81fdc32544de8886a22c9991e5d2c9e8428a5bdb",
                 "shasum": ""
             },
             "require": {
@@ -877,7 +877,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-journal/issues",
                 "source": "https://github.com/aimeos/pagible-themes-journal/tree/0.12"
             },
-            "time": "2026-08-07T10:20:55+00:00"
+            "time": "2026-08-08T09:34:32+00:00"
         },
         {
             "name": "aimeos/pagible-themes-luxury",
@@ -885,12 +885,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-luxury.git",
-                "reference": "d3266dfce6000ebbeb612b890e06e999567465a7"
+                "reference": "5e239f88a024d5cd1a3dd5fc000be6e3129d6d47"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-luxury/zipball/d3266dfce6000ebbeb612b890e06e999567465a7",
-                "reference": "d3266dfce6000ebbeb612b890e06e999567465a7",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-luxury/zipball/5e239f88a024d5cd1a3dd5fc000be6e3129d6d47",
+                "reference": "5e239f88a024d5cd1a3dd5fc000be6e3129d6d47",
                 "shasum": ""
             },
             "require": {
@@ -929,7 +929,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-luxury/issues",
                 "source": "https://github.com/aimeos/pagible-themes-luxury/tree/0.12"
             },
-            "time": "2026-08-07T10:20:52+00:00"
+            "time": "2026-08-08T09:34:21+00:00"
         },
         {
             "name": "aimeos/pagible-themes-pagible",
@@ -937,12 +937,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-pagible.git",
-                "reference": "b07572f67be6c6c417f86ce5a437eb7768894b1d"
+                "reference": "f77350f04c8c0e53aaa01adae0f78d7ab2c3c007"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/b07572f67be6c6c417f86ce5a437eb7768894b1d",
-                "reference": "b07572f67be6c6c417f86ce5a437eb7768894b1d",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/f77350f04c8c0e53aaa01adae0f78d7ab2c3c007",
+                "reference": "f77350f04c8c0e53aaa01adae0f78d7ab2c3c007",
                 "shasum": ""
             },
             "require": {
@@ -979,7 +979,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-pagible/issues",
                 "source": "https://github.com/aimeos/pagible-themes-pagible/tree/0.12"
             },
-            "time": "2026-08-07T10:21:11+00:00"
+            "time": "2026-08-08T09:34:35+00:00"
         },
         {
             "name": "aimeos/pagible-themes-paper",
@@ -987,12 +987,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-paper.git",
-                "reference": "d88735ac3d5a358865cd6d39d756b4aea81cb701"
+                "reference": "42622b357a93f08a88b81cc00f094327b996afe7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-paper/zipball/d88735ac3d5a358865cd6d39d756b4aea81cb701",
-                "reference": "d88735ac3d5a358865cd6d39d756b4aea81cb701",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-paper/zipball/42622b357a93f08a88b81cc00f094327b996afe7",
+                "reference": "42622b357a93f08a88b81cc00f094327b996afe7",
                 "shasum": ""
             },
             "require": {
@@ -1029,7 +1029,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-paper/issues",
                 "source": "https://github.com/aimeos/pagible-themes-paper/tree/0.12"
             },
-            "time": "2026-08-07T10:20:53+00:00"
+            "time": "2026-08-08T09:34:20+00:00"
         },
         {
             "name": "aimeos/pagible-themes-premium",
@@ -1037,12 +1037,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-premium.git",
-                "reference": "3acd0d88b07d426a02825275c0255d44e8b98de5"
+                "reference": "7dd9ac330856551782314840a2ddeb37e8b0ee89"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-premium/zipball/3acd0d88b07d426a02825275c0255d44e8b98de5",
-                "reference": "3acd0d88b07d426a02825275c0255d44e8b98de5",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-premium/zipball/7dd9ac330856551782314840a2ddeb37e8b0ee89",
+                "reference": "7dd9ac330856551782314840a2ddeb37e8b0ee89",
                 "shasum": ""
             },
             "require": {
@@ -1079,7 +1079,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-premium/issues",
                 "source": "https://github.com/aimeos/pagible-themes-premium/tree/0.12"
             },
-            "time": "2026-08-07T10:20:53+00:00"
+            "time": "2026-08-08T09:34:35+00:00"
         },
         {
             "name": "aimeos/pagible-themes-style",
@@ -1087,12 +1087,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-style.git",
-                "reference": "2fbaca2521893815e1226f9100e3620407bd9b11"
+                "reference": "e47920fdee6ec3b024db49e1d57fd2bd8b74c29f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-style/zipball/2fbaca2521893815e1226f9100e3620407bd9b11",
-                "reference": "2fbaca2521893815e1226f9100e3620407bd9b11",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-style/zipball/e47920fdee6ec3b024db49e1d57fd2bd8b74c29f",
+                "reference": "e47920fdee6ec3b024db49e1d57fd2bd8b74c29f",
                 "shasum": ""
             },
             "require": {
@@ -1132,7 +1132,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-style/issues",
                 "source": "https://github.com/aimeos/pagible-themes-style/tree/0.12"
             },
-            "time": "2026-08-07T10:21:00+00:00"
+            "time": "2026-08-08T09:34:23+00:00"
         },
         {
             "name": "aimeos/prisma",
@@ -3833,16 +3833,16 @@
         },
         {
             "name": "laravel/mcp",
-            "version": "v0.9.1",
+            "version": "v0.9.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/mcp.git",
-                "reference": "a08884d79a95c5143498507aec5badf751cdbec4"
+                "reference": "2bb70c3662dfc2e2ff55c38a10ddf55bed2443b3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/mcp/zipball/a08884d79a95c5143498507aec5badf751cdbec4",
-                "reference": "a08884d79a95c5143498507aec5badf751cdbec4",
+                "url": "https://api.github.com/repos/laravel/mcp/zipball/2bb70c3662dfc2e2ff55c38a10ddf55bed2443b3",
+                "reference": "2bb70c3662dfc2e2ff55c38a10ddf55bed2443b3",
                 "shasum": ""
             },
             "require": {
@@ -3903,7 +3903,7 @@
                 "issues": "https://github.com/laravel/mcp/issues",
                 "source": "https://github.com/laravel/mcp"
             },
-            "time": "2026-07-21T13:23:52+00:00"
+            "time": "2026-08-06T15:59:47+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -6124,24 +6124,27 @@
         },
         {
             "name": "pusher/pusher-php-server",
-            "version": "7.2.8",
+            "version": "7.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pusher/pusher-http-php.git",
-                "reference": "4aa139ed2a2a805cd265449b691198beee1309d2"
+                "reference": "058d8464246118110a341fc2e6e70c7c8b6a7f2c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pusher/pusher-http-php/zipball/4aa139ed2a2a805cd265449b691198beee1309d2",
-                "reference": "4aa139ed2a2a805cd265449b691198beee1309d2",
+                "url": "https://api.github.com/repos/pusher/pusher-http-php/zipball/058d8464246118110a341fc2e6e70c7c8b6a7f2c",
+                "reference": "058d8464246118110a341fc2e6e70c7c8b6a7f2c",
                 "shasum": ""
             },
             "require": {
                 "ext-curl": "*",
                 "ext-json": "*",
-                "guzzlehttp/guzzle": "^7.2",
+                "guzzlehttp/guzzle": "^7.8.2 || ^8.0",
+                "guzzlehttp/promises": "^2.0.3 || ^3.0",
+                "guzzlehttp/psr7": "^2.6.3 || ^3.0",
                 "php": "^7.3|^8.0",
-                "psr/log": "^1.0|^2.0|^3.0"
+                "psr/http-client": "^1.0",
+                "psr/log": "^1.0 || ^2.0 || ^3.0"
             },
             "require-dev": {
                 "overtrue/phplint": "^2.3",
@@ -6178,9 +6181,9 @@
             ],
             "support": {
                 "issues": "https://github.com/pusher/pusher-http-php/issues",
-                "source": "https://github.com/pusher/pusher-http-php/tree/7.2.8"
+                "source": "https://github.com/pusher/pusher-http-php/tree/7.3.0"
             },
-            "time": "2026-05-18T13:11:36+00:00"
+            "time": "2026-08-07T12:47:11+00:00"
         },
         {
             "name": "ralouphie/getallheaders",
@@ -7284,16 +7287,16 @@
         },
         {
             "name": "symfony/console",
-            "version": "v7.4.15",
+            "version": "v7.4.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/console.git",
-                "reference": "088ec6fe0ef6819cbc301174093b6bfa4ad26930"
+                "reference": "f4c69c9aed03abf933b294257d618bdd9b30a06d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/console/zipball/088ec6fe0ef6819cbc301174093b6bfa4ad26930",
-                "reference": "088ec6fe0ef6819cbc301174093b6bfa4ad26930",
+                "url": "https://api.github.com/repos/symfony/console/zipball/f4c69c9aed03abf933b294257d618bdd9b30a06d",
+                "reference": "f4c69c9aed03abf933b294257d618bdd9b30a06d",
                 "shasum": ""
             },
             "require": {
@@ -7358,7 +7361,7 @@
                 "terminal"
             ],
             "support": {
-                "source": "https://github.com/symfony/console/tree/v7.4.15"
+                "source": "https://github.com/symfony/console/tree/v7.4.16"
             },
             "funding": [
                 {
@@ -7378,7 +7381,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-27T13:51:00+00:00"
+            "time": "2026-07-31T12:37:14+00:00"
         },
         {
             "name": "symfony/css-selector",
@@ -7838,16 +7841,16 @@
         },
         {
             "name": "symfony/http-foundation",
-            "version": "v7.4.15",
+            "version": "v7.4.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-foundation.git",
-                "reference": "1f898ee8188adda9417fb52cf8425a8342c254e7"
+                "reference": "b676451bb638e99a7d34d8a2be90406822e301eb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-foundation/zipball/1f898ee8188adda9417fb52cf8425a8342c254e7",
-                "reference": "1f898ee8188adda9417fb52cf8425a8342c254e7",
+                "url": "https://api.github.com/repos/symfony/http-foundation/zipball/b676451bb638e99a7d34d8a2be90406822e301eb",
+                "reference": "b676451bb638e99a7d34d8a2be90406822e301eb",
                 "shasum": ""
             },
             "require": {
@@ -7896,7 +7899,7 @@
             "description": "Defines an object-oriented layer for the HTTP specification",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/http-foundation/tree/v7.4.15"
+                "source": "https://github.com/symfony/http-foundation/tree/v7.4.16"
             },
             "funding": [
                 {
@@ -7916,20 +7919,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-29T07:12:33+00:00"
+            "time": "2026-08-07T11:50:27+00:00"
         },
         {
             "name": "symfony/http-kernel",
-            "version": "v7.4.15",
+            "version": "v7.4.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-kernel.git",
-                "reference": "403275d94f94d5626c3288c599b3b48093ba24f7"
+                "reference": "f5e728670fa2218ae8be8ea91f2b44b7d6e5304c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-kernel/zipball/403275d94f94d5626c3288c599b3b48093ba24f7",
-                "reference": "403275d94f94d5626c3288c599b3b48093ba24f7",
+                "url": "https://api.github.com/repos/symfony/http-kernel/zipball/f5e728670fa2218ae8be8ea91f2b44b7d6e5304c",
+                "reference": "f5e728670fa2218ae8be8ea91f2b44b7d6e5304c",
                 "shasum": ""
             },
             "require": {
@@ -8015,7 +8018,7 @@
             "description": "Provides a structured process for converting a Request into a Response",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/http-kernel/tree/v7.4.15"
+                "source": "https://github.com/symfony/http-kernel/tree/v7.4.16"
             },
             "funding": [
                 {
@@ -8035,7 +8038,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-29T11:40:42+00:00"
+            "time": "2026-08-07T18:00:13+00:00"
         },
         {
             "name": "symfony/mailer",
@@ -8123,16 +8126,16 @@
         },
         {
             "name": "symfony/mime",
-            "version": "v7.4.15",
+            "version": "v7.4.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/mime.git",
-                "reference": "0c1daf58bc931628df0bea26840d1fc8b9a3d34b"
+                "reference": "20094b76a7106dbe978d31cd3bd7aa1ed248d0e5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/mime/zipball/0c1daf58bc931628df0bea26840d1fc8b9a3d34b",
-                "reference": "0c1daf58bc931628df0bea26840d1fc8b9a3d34b",
+                "url": "https://api.github.com/repos/symfony/mime/zipball/20094b76a7106dbe978d31cd3bd7aa1ed248d0e5",
+                "reference": "20094b76a7106dbe978d31cd3bd7aa1ed248d0e5",
                 "shasum": ""
             },
             "require": {
@@ -8188,7 +8191,7 @@
                 "mime-type"
             ],
             "support": {
-                "source": "https://github.com/symfony/mime/tree/v7.4.15"
+                "source": "https://github.com/symfony/mime/tree/v7.4.16"
             },
             "funding": [
                 {
@@ -8208,7 +8211,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-29T07:59:49+00:00"
+            "time": "2026-08-07T14:56:57+00:00"
         },
         {
             "name": "symfony/polyfill-ctype",
@@ -9368,16 +9371,16 @@
         },
         {
             "name": "symfony/translation",
-            "version": "v8.1.1",
+            "version": "v8.1.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/translation.git",
-                "reference": "342b4218630dc2cf284cedcb2080c80b13404014"
+                "reference": "c0955eb4aa417a110e65c8162237b8a5c7d910bf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/translation/zipball/342b4218630dc2cf284cedcb2080c80b13404014",
-                "reference": "342b4218630dc2cf284cedcb2080c80b13404014",
+                "url": "https://api.github.com/repos/symfony/translation/zipball/c0955eb4aa417a110e65c8162237b8a5c7d910bf",
+                "reference": "c0955eb4aa417a110e65c8162237b8a5c7d910bf",
                 "shasum": ""
             },
             "require": {
@@ -9437,7 +9440,7 @@
             "description": "Provides tools to internationalize your application",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/translation/tree/v8.1.1"
+                "source": "https://github.com/symfony/translation/tree/v8.1.4"
             },
             "funding": [
                 {
@@ -9457,7 +9460,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-06T11:11:44+00:00"
+            "time": "2026-07-30T12:40:56+00:00"
         },
         {
             "name": "symfony/translation-contracts",
