@@ -160,12 +160,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "a15d3f75c69bb8e02da2a58937f6ae0a2635d5b9"
+                "reference": "670faa6212f83c7162f78a3cfa53216fe48aa155"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/a15d3f75c69bb8e02da2a58937f6ae0a2635d5b9",
-                "reference": "a15d3f75c69bb8e02da2a58937f6ae0a2635d5b9",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/670faa6212f83c7162f78a3cfa53216fe48aa155",
+                "reference": "670faa6212f83c7162f78a3cfa53216fe48aa155",
                 "shasum": ""
             },
             "require": {
@@ -221,7 +221,7 @@
                 "issues": "https://github.com/aimeos/pagible/issues",
                 "source": "https://github.com/aimeos/pagible/tree/0.12"
             },
-            "time": "2026-08-08T18:54:53+00:00"
+            "time": "2026-08-10T14:57:32+00:00"
         },
         {
             "name": "aimeos/pagible-admin",
@@ -620,12 +620,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-theme.git",
-                "reference": "e0d9b445921d6fef8b6b3fe74e191e62b01af51a"
+                "reference": "5db9f66953c6d10f9e923f823e0d99d9b4054a32"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/e0d9b445921d6fef8b6b3fe74e191e62b01af51a",
-                "reference": "e0d9b445921d6fef8b6b3fe74e191e62b01af51a",
+                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/5db9f66953c6d10f9e923f823e0d99d9b4054a32",
+                "reference": "5db9f66953c6d10f9e923f823e0d99d9b4054a32",
                 "shasum": ""
             },
             "require": {
@@ -670,7 +670,7 @@
                 "issues": "https://github.com/aimeos/pagible-theme/issues",
                 "source": "https://github.com/aimeos/pagible-theme/tree/0.12"
             },
-            "time": "2026-08-08T10:31:09+00:00"
+            "time": "2026-08-10T10:09:23+00:00"
         },
         {
             "name": "aimeos/pagible-themes-bold",
@@ -678,12 +678,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-bold.git",
-                "reference": "5ec6c16867a3344bf38749d9c7365ac828971c31"
+                "reference": "f197a218cfd4ac66018bc0631d2cbb9fb911f3e7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-bold/zipball/5ec6c16867a3344bf38749d9c7365ac828971c31",
-                "reference": "5ec6c16867a3344bf38749d9c7365ac828971c31",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-bold/zipball/f197a218cfd4ac66018bc0631d2cbb9fb911f3e7",
+                "reference": "f197a218cfd4ac66018bc0631d2cbb9fb911f3e7",
                 "shasum": ""
             },
             "require": {
@@ -721,7 +721,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-bold/issues",
                 "source": "https://github.com/aimeos/pagible-themes-bold/tree/0.12"
             },
-            "time": "2026-08-08T10:31:06+00:00"
+            "time": "2026-08-10T14:57:55+00:00"
         },
         {
             "name": "aimeos/pagible-themes-estate",
@@ -729,12 +729,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-estate.git",
-                "reference": "9ee2b01e86ee521b2dd59cc2fdf7f07681cf3a66"
+                "reference": "de4cdfec040709995d0cf979e50cd04338df5924"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-estate/zipball/9ee2b01e86ee521b2dd59cc2fdf7f07681cf3a66",
-                "reference": "9ee2b01e86ee521b2dd59cc2fdf7f07681cf3a66",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-estate/zipball/de4cdfec040709995d0cf979e50cd04338df5924",
+                "reference": "de4cdfec040709995d0cf979e50cd04338df5924",
                 "shasum": ""
             },
             "require": {
@@ -774,7 +774,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-estate/issues",
                 "source": "https://github.com/aimeos/pagible-themes-estate/tree/0.12"
             },
-            "time": "2026-08-08T09:34:18+00:00"
+            "time": "2026-08-10T14:57:58+00:00"
         },
         {
             "name": "aimeos/pagible-themes-glass",
@@ -833,12 +833,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-journal.git",
-                "reference": "81fdc32544de8886a22c9991e5d2c9e8428a5bdb"
+                "reference": "00277b09fbe8205e7f1f6301076902ce38d37a80"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-journal/zipball/81fdc32544de8886a22c9991e5d2c9e8428a5bdb",
-                "reference": "81fdc32544de8886a22c9991e5d2c9e8428a5bdb",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-journal/zipball/00277b09fbe8205e7f1f6301076902ce38d37a80",
+                "reference": "00277b09fbe8205e7f1f6301076902ce38d37a80",
                 "shasum": ""
             },
             "require": {
@@ -877,7 +877,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-journal/issues",
                 "source": "https://github.com/aimeos/pagible-themes-journal/tree/0.12"
             },
-            "time": "2026-08-08T09:34:32+00:00"
+            "time": "2026-08-10T14:58:02+00:00"
         },
         {
             "name": "aimeos/pagible-themes-luxury",
@@ -885,12 +885,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-luxury.git",
-                "reference": "c3e5ad2cd0caa6db6291c472f9dc9c0626a8f8b3"
+                "reference": "05f4f7882e97ab7984d3d8e51f3216037026e503"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-luxury/zipball/c3e5ad2cd0caa6db6291c472f9dc9c0626a8f8b3",
-                "reference": "c3e5ad2cd0caa6db6291c472f9dc9c0626a8f8b3",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-luxury/zipball/05f4f7882e97ab7984d3d8e51f3216037026e503",
+                "reference": "05f4f7882e97ab7984d3d8e51f3216037026e503",
                 "shasum": ""
             },
             "require": {
@@ -929,7 +929,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-luxury/issues",
                 "source": "https://github.com/aimeos/pagible-themes-luxury/tree/0.12"
             },
-            "time": "2026-08-08T18:55:11+00:00"
+            "time": "2026-08-10T14:58:12+00:00"
         },
         {
             "name": "aimeos/pagible-themes-pagible",
@@ -2226,16 +2226,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.453.0",
+            "version": "v0.454.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "9eeab572613c0b533f8268e5df0954a63100061d"
+                "reference": "4c0b343eb836b63616592ce98eca9f804b2b6493"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/9eeab572613c0b533f8268e5df0954a63100061d",
-                "reference": "9eeab572613c0b533f8268e5df0954a63100061d",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/4c0b343eb836b63616592ce98eca9f804b2b6493",
+                "reference": "4c0b343eb836b63616592ce98eca9f804b2b6493",
                 "shasum": ""
             },
             "require": {
@@ -2264,9 +2264,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.453.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.454.0"
             },
-            "time": "2026-08-03T01:20:25+00:00"
+            "time": "2026-08-10T01:06:25+00:00"
         },
         {
             "name": "google/auth",
@@ -4252,16 +4252,16 @@
         },
         {
             "name": "league/commonmark",
-            "version": "2.9.0",
+            "version": "2.9.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/commonmark.git",
-                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529"
+                "reference": "73cb188c785abfa7a7bec73487148202968274c6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
-                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
+                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/73cb188c785abfa7a7bec73487148202968274c6",
+                "reference": "73cb188c785abfa7a7bec73487148202968274c6",
                 "shasum": ""
             },
             "require": {
@@ -4355,7 +4355,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-03T13:42:31+00:00"
+            "time": "2026-08-09T14:10:38+00:00"
         },
         {
             "name": "league/config",

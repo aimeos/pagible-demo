@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'c417289c278ee48ab200eb809720b3a5f9c93165',
+        'reference' => '2c4b374b67b16f4a0ffa7a077582a0fb9d0b015f',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -40,7 +40,7 @@
         'aimeos/pagible' => array(
             'pretty_version' => '0.12.x-dev',
             'version' => '0.12.9999999.9999999-dev',
-            'reference' => 'a15d3f75c69bb8e02da2a58937f6ae0a2635d5b9',
+            'reference' => '670faa6212f83c7162f78a3cfa53216fe48aa155',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible',
             'aliases' => array(),
@@ -112,7 +112,7 @@
         'aimeos/pagible-theme' => array(
             'pretty_version' => '0.12.x-dev',
             'version' => '0.12.9999999.9999999-dev',
-            'reference' => 'e0d9b445921d6fef8b6b3fe74e191e62b01af51a',
+            'reference' => '5db9f66953c6d10f9e923f823e0d99d9b4054a32',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-theme',
             'aliases' => array(),
@@ -121,7 +121,7 @@
         'aimeos/pagible-themes-bold' => array(
             'pretty_version' => '0.12.x-dev',
             'version' => '0.12.9999999.9999999-dev',
-            'reference' => '5ec6c16867a3344bf38749d9c7365ac828971c31',
+            'reference' => 'f197a218cfd4ac66018bc0631d2cbb9fb911f3e7',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-themes-bold',
             'aliases' => array(),
@@ -130,7 +130,7 @@
         'aimeos/pagible-themes-estate' => array(
             'pretty_version' => '0.12.x-dev',
             'version' => '0.12.9999999.9999999-dev',
-            'reference' => '9ee2b01e86ee521b2dd59cc2fdf7f07681cf3a66',
+            'reference' => 'de4cdfec040709995d0cf979e50cd04338df5924',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-themes-estate',
             'aliases' => array(),
@@ -148,7 +148,7 @@
         'aimeos/pagible-themes-journal' => array(
             'pretty_version' => '0.12.x-dev',
             'version' => '0.12.9999999.9999999-dev',
-            'reference' => '81fdc32544de8886a22c9991e5d2c9e8428a5bdb',
+            'reference' => '00277b09fbe8205e7f1f6301076902ce38d37a80',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-themes-journal',
             'aliases' => array(),
@@ -157,7 +157,7 @@
         'aimeos/pagible-themes-luxury' => array(
             'pretty_version' => '0.12.x-dev',
             'version' => '0.12.9999999.9999999-dev',
-            'reference' => 'c3e5ad2cd0caa6db6291c472f9dc9c0626a8f8b3',
+            'reference' => '05f4f7882e97ab7984d3d8e51f3216037026e503',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-themes-luxury',
             'aliases' => array(),
@@ -355,9 +355,9 @@
             'dev_requirement' => false,
         ),
         'google/apiclient-services' => array(
-            'pretty_version' => 'v0.453.0',
-            'version' => '0.453.0.0',
-            'reference' => '9eeab572613c0b533f8268e5df0954a63100061d',
+            'pretty_version' => 'v0.454.0',
+            'version' => '0.454.0.0',
+            'reference' => '4c0b343eb836b63616592ce98eca9f804b2b6493',
             'type' => 'library',
             'install_path' => __DIR__ . '/../google/apiclient-services',
             'aliases' => array(),
@@ -753,7 +753,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'c417289c278ee48ab200eb809720b3a5f9c93165',
+            'reference' => '2c4b374b67b16f4a0ffa7a077582a0fb9d0b015f',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -814,9 +814,9 @@
             'dev_requirement' => false,
         ),
         'league/commonmark' => array(
-            'pretty_version' => '2.9.0',
-            'version' => '2.9.0.0',
-            'reference' => '5703d83ba3da3b2e356a5fedc848ed6d8ffb6529',
+            'pretty_version' => '2.9.1',
+            'version' => '2.9.1.0',
+            'reference' => '73cb188c785abfa7a7bec73487148202968274c6',
             'type' => 'library',
             'install_path' => __DIR__ . '/../league/commonmark',
             'aliases' => array(),

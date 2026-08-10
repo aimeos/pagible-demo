@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 92" role="img" aria-labelledby="title desc">
+  <title id="title">Avelune Retreat logo</title>
+  <desc id="desc">Avelune wordmark with a crescent above a fine horizon line</desc>
+  <g fill="none" fill-rule="evenodd">
+    <path d="M42 14c-13 7-19 23-13 37 6 15 23 22 38 16-8 9-21 13-33 9C17 70 8 51 14 34 18 23 28 16 42 14Z" fill="#7A5F32"/>
+    <path d="M12 79h62" stroke="#7A5F32" stroke-width="1"/>
+    <text x="94" y="57" fill="#1C1A16" font-family="Didot, 'Bodoni 72', 'Times New Roman', serif" font-size="43" letter-spacing="5">AVELUNE</text>
+    <text x="98" y="78" fill="#7A5F32" font-family="Futura, 'Century Gothic', Arial, sans-serif" font-size="10" letter-spacing="7">RETREAT MALLORCA</text>
+  </g>
+</svg>
