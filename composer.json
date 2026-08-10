@@ -58,7 +58,6 @@
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
             "rm -rf public/vendor/cms/admin/",
             "@php artisan vendor:publish --force --tag=cms-admin --tag=cms-config --tag=cms-graphql --tag=cms-theme",
-            "cp local/stats.js public/vendor/cms/theme/",
             "@php artisan migrate --force"
         ],
         "post-root-package-install": [
