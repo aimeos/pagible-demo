@@ -164,12 +164,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "a5804da4c65b376db7770f68489d79009ed10347"
+                "reference": "0118f1b6a8265aef3ae94655576323ad0ee345e2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/a5804da4c65b376db7770f68489d79009ed10347",
-                "reference": "a5804da4c65b376db7770f68489d79009ed10347",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/0118f1b6a8265aef3ae94655576323ad0ee345e2",
+                "reference": "0118f1b6a8265aef3ae94655576323ad0ee345e2",
                 "shasum": ""
             },
             "require": {
@@ -190,7 +190,7 @@
                 "om/potrans": "^1.0.1",
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-08-10T15:37:00+00:00",
+            "time": "2026-08-11T07:24:16+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -648,12 +648,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-theme.git",
-                "reference": "5db9f66953c6d10f9e923f823e0d99d9b4054a32"
+                "reference": "b862aa3e7c08802790894de0ddf2c7da3bb7a407"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/5db9f66953c6d10f9e923f823e0d99d9b4054a32",
-                "reference": "5db9f66953c6d10f9e923f823e0d99d9b4054a32",
+                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/b862aa3e7c08802790894de0ddf2c7da3bb7a407",
+                "reference": "b862aa3e7c08802790894de0ddf2c7da3bb7a407",
                 "shasum": ""
             },
             "require": {
@@ -665,7 +665,7 @@
             "require-dev": {
                 "orchestra/testbench": "^9.0||^10.0||^11.0"
             },
-            "time": "2026-08-10T10:09:23+00:00",
+            "time": "2026-08-11T07:24:31+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -983,19 +983,19 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-pagible.git",
-                "reference": "f77350f04c8c0e53aaa01adae0f78d7ab2c3c007"
+                "reference": "e2aed205df5096af0dd63df63f2e8f45828895dd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/f77350f04c8c0e53aaa01adae0f78d7ab2c3c007",
-                "reference": "f77350f04c8c0e53aaa01adae0f78d7ab2c3c007",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/e2aed205df5096af0dd63df63f2e8f45828895dd",
+                "reference": "e2aed205df5096af0dd63df63f2e8f45828895dd",
                 "shasum": ""
             },
             "require": {
                 "aimeos/pagible-theme": "0.12.*",
                 "php": "^8.2"
             },
-            "time": "2026-08-08T09:34:35+00:00",
+            "time": "2026-08-11T07:24:25+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -4001,17 +4001,17 @@
         },
         {
             "name": "laravel/mcp",
-            "version": "v0.9.2",
-            "version_normalized": "0.9.2.0",
+            "version": "v0.9.3",
+            "version_normalized": "0.9.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/mcp.git",
-                "reference": "2bb70c3662dfc2e2ff55c38a10ddf55bed2443b3"
+                "reference": "534b29f18418673033ec918c5a840b6ce9c08327"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/mcp/zipball/2bb70c3662dfc2e2ff55c38a10ddf55bed2443b3",
-                "reference": "2bb70c3662dfc2e2ff55c38a10ddf55bed2443b3",
+                "url": "https://api.github.com/repos/laravel/mcp/zipball/534b29f18418673033ec918c5a840b6ce9c08327",
+                "reference": "534b29f18418673033ec918c5a840b6ce9c08327",
                 "shasum": ""
             },
             "require": {
@@ -4035,7 +4035,7 @@
                 "phpstan/phpstan": "^2.1.27",
                 "rector/rector": "^2.2.4"
             },
-            "time": "2026-08-06T15:59:47+00:00",
+            "time": "2026-08-10T18:01:31+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -4438,17 +4438,17 @@
         },
         {
             "name": "league/commonmark",
-            "version": "2.9.1",
-            "version_normalized": "2.9.1.0",
+            "version": "2.9.2",
+            "version_normalized": "2.9.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/commonmark.git",
-                "reference": "73cb188c785abfa7a7bec73487148202968274c6"
+                "reference": "72e9a87efcf41a8e83be3ed0866b69d77565cb12"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/73cb188c785abfa7a7bec73487148202968274c6",
-                "reference": "73cb188c785abfa7a7bec73487148202968274c6",
+                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/72e9a87efcf41a8e83be3ed0866b69d77565cb12",
+                "reference": "72e9a87efcf41a8e83be3ed0866b69d77565cb12",
                 "shasum": ""
             },
             "require": {
@@ -4482,7 +4482,7 @@
             "suggest": {
                 "symfony/yaml": "v2.3+ required if using the Front Matter extension"
             },
-            "time": "2026-08-09T14:10:38+00:00",
+            "time": "2026-08-11T00:58:45+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
