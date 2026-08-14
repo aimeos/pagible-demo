@@ -284,23 +284,23 @@
         },
         {
             "name": "aimeos/pagible-ai",
-            "version": "0.12.0",
+            "version": "0.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-ai.git",
-                "reference": "c9e281acc85d0897cc8cf587016990c7a12baebe"
+                "reference": "bfd0b46ccad7d32979688162c201d9f7e8c95af0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-ai/zipball/c9e281acc85d0897cc8cf587016990c7a12baebe",
-                "reference": "c9e281acc85d0897cc8cf587016990c7a12baebe",
+                "url": "https://api.github.com/repos/aimeos/pagible-ai/zipball/bfd0b46ccad7d32979688162c201d9f7e8c95af0",
+                "reference": "bfd0b46ccad7d32979688162c201d9f7e8c95af0",
                 "shasum": ""
             },
             "require": {
                 "aimeos/pagible-core": "0.12.*",
                 "aimeos/pagible-graphql": "0.12.*",
                 "aimeos/pagible-mcp": "0.12.*",
-                "aimeos/prisma": "dev-master",
+                "aimeos/prisma": "~0.6",
                 "php": "^8.2"
             },
             "require-dev": {
@@ -332,22 +332,22 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-ai/issues",
-                "source": "https://github.com/aimeos/pagible-ai/tree/0.12.0"
+                "source": "https://github.com/aimeos/pagible-ai/tree/0.12.1"
             },
-            "time": "2026-08-07T10:20:59+00:00"
+            "time": "2026-08-14T08:38:39+00:00"
         },
         {
             "name": "aimeos/pagible-core",
-            "version": "0.12.0",
+            "version": "0.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-core.git",
-                "reference": "4c63f3f0ff8549ff5a8b4b40a1f3c73b65485944"
+                "reference": "bafcee8507315551e5ee38888314afe7c4ee7ed8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-core/zipball/4c63f3f0ff8549ff5a8b4b40a1f3c73b65485944",
-                "reference": "4c63f3f0ff8549ff5a8b4b40a1f3c73b65485944",
+                "url": "https://api.github.com/repos/aimeos/pagible-core/zipball/bafcee8507315551e5ee38888314afe7c4ee7ed8",
+                "reference": "bafcee8507315551e5ee38888314afe7c4ee7ed8",
                 "shasum": ""
             },
             "require": {
@@ -398,22 +398,22 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-core/issues",
-                "source": "https://github.com/aimeos/pagible-core/tree/0.12.0"
+                "source": "https://github.com/aimeos/pagible-core/tree/0.12.1"
             },
-            "time": "2026-08-06T12:09:01+00:00"
+            "time": "2026-08-12T11:07:46+00:00"
         },
         {
             "name": "aimeos/pagible-graphql",
-            "version": "0.12.0",
+            "version": "0.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-graphql.git",
-                "reference": "be5db062fadbbee469ae90ee79c0ffeddd14f4c3"
+                "reference": "d109b8cc51ef3dd67feaeb652c956d742fb8a80f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-graphql/zipball/be5db062fadbbee469ae90ee79c0ffeddd14f4c3",
-                "reference": "be5db062fadbbee469ae90ee79c0ffeddd14f4c3",
+                "url": "https://api.github.com/repos/aimeos/pagible-graphql/zipball/d109b8cc51ef3dd67feaeb652c956d742fb8a80f",
+                "reference": "d109b8cc51ef3dd67feaeb652c956d742fb8a80f",
                 "shasum": ""
             },
             "require": {
@@ -452,13 +452,13 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-graphql/issues",
-                "source": "https://github.com/aimeos/pagible-graphql/tree/0.12.0"
+                "source": "https://github.com/aimeos/pagible-graphql/tree/0.12.1"
             },
-            "time": "2026-08-07T10:20:54+00:00"
+            "time": "2026-08-11T08:16:46+00:00"
         },
         {
             "name": "aimeos/pagible-jsonapi",
-            "version": "0.12.0",
+            "version": "0.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-jsonapi.git",
@@ -504,13 +504,13 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-jsonapi/issues",
-                "source": "https://github.com/aimeos/pagible-jsonapi/tree/0.12.0"
+                "source": "https://github.com/aimeos/pagible-jsonapi/tree/0.12.1"
             },
             "time": "2026-08-07T10:20:55+00:00"
         },
         {
             "name": "aimeos/pagible-mcp",
-            "version": "0.12.0",
+            "version": "0.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-mcp.git",
@@ -557,22 +557,22 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-mcp/issues",
-                "source": "https://github.com/aimeos/pagible-mcp/tree/0.12.0"
+                "source": "https://github.com/aimeos/pagible-mcp/tree/0.12.1"
             },
             "time": "2026-08-07T10:20:55+00:00"
         },
         {
             "name": "aimeos/pagible-search",
-            "version": "0.12.0",
+            "version": "0.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-search.git",
-                "reference": "e18aa7343d3e500da67f475d6195f7f3a686e6c2"
+                "reference": "f4305bfd5a2593507489616da864b47570263017"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-search/zipball/e18aa7343d3e500da67f475d6195f7f3a686e6c2",
-                "reference": "e18aa7343d3e500da67f475d6195f7f3a686e6c2",
+                "url": "https://api.github.com/repos/aimeos/pagible-search/zipball/f4305bfd5a2593507489616da864b47570263017",
+                "reference": "f4305bfd5a2593507489616da864b47570263017",
                 "shasum": ""
             },
             "require": {
@@ -610,9 +610,9 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-search/issues",
-                "source": "https://github.com/aimeos/pagible-search/tree/0.12.0"
+                "source": "https://github.com/aimeos/pagible-search/tree/0.12.1"
             },
-            "time": "2026-08-07T10:21:01+00:00"
+            "time": "2026-08-12T09:29:35+00:00"
         },
         {
             "name": "aimeos/pagible-theme",
@@ -1136,7 +1136,7 @@
         },
         {
             "name": "aimeos/prisma",
-            "version": "dev-master",
+            "version": "0.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/prisma.git",
@@ -1161,7 +1161,6 @@
                 "phpunit/phpunit": "^11.5||^12.4",
                 "vlucas/phpdotenv": "^5.6"
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -1175,7 +1174,7 @@
             "description": "A powerful PHP package for integrating media related Large Language Models (LLMs) into your applications",
             "support": {
                 "issues": "https://github.com/aimeos/prisma/issues",
-                "source": "https://github.com/aimeos/prisma/tree/master"
+                "source": "https://github.com/aimeos/prisma/tree/0.6.0"
             },
             "time": "2026-08-14T07:05:17+00:00"
         },

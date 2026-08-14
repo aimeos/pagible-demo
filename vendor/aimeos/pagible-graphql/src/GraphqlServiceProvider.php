@@ -9,6 +9,7 @@ use Aimeos\Cms\Listeners\AuthLogListener;
 use Aimeos\Cms\Listeners\UserLogListener;
 use GraphQL\Language\AST\FieldNode;
 use GraphQL\Utils\AST;
+use GraphQL\Validator\Rules\DisableIntrospection;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider as Provider;
@@ -57,12 +58,17 @@ class GraphqlServiceProvider extends Provider
         // Lighthouse ships query depth/complexity limits disabled. Enable sane
         // defaults to protect against deeply nested (e.g. recursive nav) or
         // expensive queries, unless the host application configured its own.
+
         if( !config( 'lighthouse.security.max_query_depth' ) ) {
             config( ['lighthouse.security.max_query_depth' => (int) config( 'cms.graphql.maxdepth', 15 )] );
         }
 
         if( !config( 'lighthouse.security.max_query_complexity' ) ) {
             config( ['lighthouse.security.max_query_complexity' => (int) config( 'cms.graphql.maxcomplexity', 300 )] );
+        }
+
+        if( !config( 'app.debug' ) ) {
+            config( ['lighthouse.security.disable_introspection' => DisableIntrospection::ENABLED] );
         }
     }
 
