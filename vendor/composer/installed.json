@@ -2,17 +2,17 @@
     "packages": [
         {
             "name": "aimeos/laravel-analytics-bridge",
-            "version": "1.0.3",
-            "version_normalized": "1.0.3.0",
+            "version": "1.0.4",
+            "version_normalized": "1.0.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/laravel-analytics-bridge.git",
-                "reference": "2be714ad98973533f8eab56a9c5c2ff20cb436d5"
+                "reference": "2db7a0ded1abc51c4b9054be6c28c6a27ff3cac9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/laravel-analytics-bridge/zipball/2be714ad98973533f8eab56a9c5c2ff20cb436d5",
-                "reference": "2be714ad98973533f8eab56a9c5c2ff20cb436d5",
+                "url": "https://api.github.com/repos/aimeos/laravel-analytics-bridge/zipball/2db7a0ded1abc51c4b9054be6c28c6a27ff3cac9",
+                "reference": "2db7a0ded1abc51c4b9054be6c28c6a27ff3cac9",
                 "shasum": ""
             },
             "require": {
@@ -20,7 +20,7 @@
                 "illuminate/support": "^11.0||^12.0||^13.0",
                 "php": "^8.2"
             },
-            "time": "2026-04-02T06:18:01+00:00",
+            "time": "2026-08-14T12:07:14+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
@@ -45,7 +45,7 @@
             "description": "Unified analytics bridge for Laravel",
             "support": {
                 "issues": "https://github.com/aimeos/laravel-analytics-bridge/issues",
-                "source": "https://github.com/aimeos/laravel-analytics-bridge/tree/1.0.3"
+                "source": "https://github.com/aimeos/laravel-analytics-bridge/tree/1.0.4"
             },
             "install-path": "../aimeos/laravel-analytics-bridge"
         },

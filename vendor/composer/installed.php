@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '2dd4bf5aa0fc99e8e4477fbf02b4a4181fed2dda',
+        'reference' => 'ea26213d366e43fd275903568aab38880fdeca38',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'aimeos/laravel-analytics-bridge' => array(
-            'pretty_version' => '1.0.3',
-            'version' => '1.0.3.0',
-            'reference' => '2be714ad98973533f8eab56a9c5c2ff20cb436d5',
+            'pretty_version' => '1.0.4',
+            'version' => '1.0.4.0',
+            'reference' => '2db7a0ded1abc51c4b9054be6c28c6a27ff3cac9',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/laravel-analytics-bridge',
             'aliases' => array(),
@@ -751,7 +751,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '2dd4bf5aa0fc99e8e4477fbf02b4a4181fed2dda',
+            'reference' => 'ea26213d366e43fd275903568aab38880fdeca38',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
