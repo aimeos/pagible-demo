@@ -3,6 +3,7 @@
 namespace Tests\Providers\Audio;
 
 use Aimeos\Prisma\Files\Audio;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tests\MakesPrismaRequests;
 
@@ -29,7 +30,12 @@ class OpenaiTest extends TestCase
             ->describe( Audio::fromBinary( 'MP3', 'audio/mpeg' ), 'en' );
 
         $this->assertPrismaRequest( function( $request, $options ) {
-            $this->assertEquals( 'https://api.openai.com/v1/audio/transcriptions', (string) $request->getUri() );
+            if( (string) $request->getUri() !== 'https://api.openai.com/v1/chat/completions' ) {
+                return false;
+            }
+
+            $body = json_decode( $request->getBody()->getContents(), true );
+            $this->assertEquals( 'gpt-5.6-luna', $body['model'] );
         } );
 
         $this->assertEquals( 'an audio description', $response->text() );
@@ -84,5 +90,35 @@ class OpenaiTest extends TestCase
         } );
 
         $this->assertEquals( 'Hello.', $response->text() );
+    }
+
+
+    #[DataProvider( 'browserContainerProvider' )]
+    public function testTranscribeBrowserContainerFilename( string $mimeType, string $filename ) : void
+    {
+        $this->prisma( 'audio', 'openai', ['api_key' => 'test'] )
+            ->response( '{"text":"Hello."}' )
+            ->ensure( 'transcribe' )
+            ->transcribe( Audio::fromBinary( 'audio data', $mimeType ) );
+
+        $this->assertPrismaRequest( function( $request, $options ) use ( $mimeType, $filename ) {
+            $body = $request->getBody()->getContents();
+
+            $this->assertStringContainsString( 'filename="' . $filename . '"', $body );
+            $this->assertStringContainsString( 'Content-Type: ' . $mimeType, $body );
+        } );
+    }
+
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function browserContainerProvider() : array
+    {
+        return [
+            'mp4' => ['video/mp4', 'audio.mp4'],
+            'ogg' => ['video/ogg', 'audio.ogg'],
+            'webm' => ['video/webm', 'audio.webm'],
+        ];
     }
 }

@@ -202,7 +202,7 @@ class OpenaiTest extends TestCase
         $this->assertPrismaRequest( function( $request, $options ) {
             $body = json_decode( $request->getBody()->getContents(), true );
             $this->assertEquals( 'https://api.openai.com/v1/responses', (string) $request->getUri() );
-            $this->assertEquals( 'gpt-5.5', $body['model'] );
+            $this->assertEquals( 'gpt-5.6', $body['model'] );
             $this->assertEquals( 'json_schema', $body['text']['format']['type'] );
             $this->assertEquals( 'person', $body['text']['format']['name'] );
             $this->assertArrayHasKey( 'schema', $body['text']['format'] );
@@ -524,7 +524,7 @@ class OpenaiTest extends TestCase
             $this->assertStringContainsString( 'Bearer test', $request->getHeaderLine( 'authorization' ) );
 
             $body = json_decode( $request->getBody()->getContents(), true );
-            $this->assertEquals( 'gpt-5.5', $body['model'] );
+            $this->assertEquals( 'gpt-5.6', $body['model'] );
             $this->assertEquals( 'Say hello', $body['input'][0]['content'][0]['text'] );
             $this->assertArrayNotHasKey( 'instructions', $body );
         } );
@@ -543,6 +543,34 @@ class OpenaiTest extends TestCase
             ->response( ['error' => ['message' => 'Bad request']], status: 400, reason: 'Bad Request' )
             ->ensure( 'write' )
             ->write( 'prompt' );
+    }
+
+
+    public function testWriteWithReasoningDisabled() : void
+    {
+        $this->prisma( 'text', 'openai', ['api_key' => 'test'] )
+            ->response( ['output' => [], 'usage' => ['total_tokens' => 1]] )
+            ->withReasoning( false )
+            ->write( 'prompt' );
+
+        $this->assertPrismaRequest( function( $request, $options ) {
+            $body = json_decode( $request->getBody()->getContents(), true );
+            $this->assertEquals( ['effort' => 'minimal'], $body['reasoning'] );
+        } );
+    }
+
+
+    public function testWriteExplicitReasoningWins() : void
+    {
+        $this->prisma( 'text', 'openai', ['api_key' => 'test'] )
+            ->response( ['output' => [], 'usage' => ['total_tokens' => 1]] )
+            ->withReasoning( false )
+            ->write( 'prompt', [], ['reasoning' => ['effort' => 'high']] );
+
+        $this->assertPrismaRequest( function( $request, $options ) {
+            $body = json_decode( $request->getBody()->getContents(), true );
+            $this->assertEquals( ['effort' => 'high'], $body['reasoning'] );
+        } );
     }
 
 

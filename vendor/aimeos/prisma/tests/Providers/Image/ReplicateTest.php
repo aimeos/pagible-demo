@@ -3,6 +3,9 @@
 namespace Tests\Providers\Image;
 
 use Aimeos\Prisma\Exceptions\PrismaException;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 use Tests\MakesPrismaRequests;
 
@@ -78,6 +81,73 @@ class ReplicateTest extends TestCase
         } );
 
         $this->assertEquals( 'https://replicate.delivery/single.png', $response->first()?->url() );
+    }
+
+
+    public function testGeneratedImageRejectsNonHttpsDownload() : void
+    {
+        $response = $this->prisma( 'image', 'replicate', ['api_key' => 'test'] )
+            ->response( ['status' => 'succeeded', 'output' => 'http://replicate.delivery/image.png'] )
+            ->ensure( 'imagine' )
+            ->imagine( 'x' );
+
+        $this->assertEquals( 'http://replicate.delivery/image.png', $response->first()?->url() );
+
+        $this->expectException( PrismaException::class );
+        $this->expectExceptionMessage( 'Invalid or unsafe URL' );
+
+        $response->first()?->binary();
+    }
+
+
+    public function testGeneratedImageRejectsHostOutsideAllowlist() : void
+    {
+        $response = $this->prisma( 'image', 'replicate', ['api_key' => 'test'] )
+            ->response( ['status' => 'succeeded', 'output' => 'https://169.254.169.254/latest/meta-data'] )
+            ->ensure( 'imagine' )
+            ->imagine( 'x' );
+
+        $this->expectException( PrismaException::class );
+        $this->expectExceptionMessage( 'Invalid or unsafe URL' );
+
+        $response->first()?->binary();
+    }
+
+
+    public function testGeneratedImageRejectsResolvablePrivateHost() : void
+    {
+        $response = $this->prisma( 'image', 'replicate', [
+            'api_key' => 'test',
+            'download_hosts' => ['localhost'],
+        ] )
+            ->response( ['status' => 'succeeded', 'output' => 'https://localhost/image.png'] )
+            ->ensure( 'imagine' )
+            ->imagine( 'x' );
+
+        $image = $response->first();
+        $image?->withClientHandler( HandlerStack::create( new MockHandler( [new Response( 200, [], 'image' )] ) ) );
+
+        $this->expectException( PrismaException::class );
+        $this->expectExceptionMessage( 'does not resolve to an allowed address' );
+
+        $image?->binary();
+    }
+
+
+    public function testGeneratedImageAllowsConfiguredPublicHost() : void
+    {
+        $response = $this->prisma( 'image', 'replicate', [
+            'api_key' => 'test',
+            'download_hosts' => ['8.8.8.8'],
+        ] )
+            ->response( ['status' => 'succeeded', 'output' => 'https://8.8.8.8/image.png'] )
+            ->ensure( 'imagine' )
+            ->imagine( 'x' );
+
+        $image = $response->first();
+        $image?->withClientHandler( HandlerStack::create( new MockHandler( [new Response( 200, [], 'image' )] ) ) );
+
+        $this->assertEquals( 'image', $image?->binary() );
     }
 
 

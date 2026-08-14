@@ -21,6 +21,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
     <li><a href="#withsystemprompt">withSystemPrompt</a><span>: Add a system prompt for the LLM</span></li>
     <li><a href="#withmessages">withMessages</a><span>: Add prior conversation turns for multi-turn chat</span></li>
     <li><a href="#withmaxtokens">withMaxTokens</a><span>: Set the maximum number of output tokens</span></li>
+    <li><a href="#withreasoning">withReasoning</a><span>: Enable or minimize model reasoning</span></li>
     <li><a href="#withthinkingbudget">withThinkingBudget</a><span>: Set the thinking/reasoning budget in tokens</span></li>
     <li><a href="#response-objects">Response objects</a><span>: How data is returned by the API</span></li>
     <li><a href="#citations">Citations</a><span>: Source references from provider responses</span></li>
@@ -109,6 +110,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 - [OpenAI](https://openai.com/api/)
 - [Openrouter](https://openrouter.ai/docs/quickstart)
 - [Perplexity](https://docs.perplexity.ai/)
+- [Requesty](https://docs.requesty.ai/api-reference/overview)
 - [RemoveBG](https://www.remove.bg/api)
 - [Replicate](https://replicate.com/docs)
 - [StabilityAI](https://platform.stability.ai/)
@@ -150,7 +152,6 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 | **RemoveBG**          | -          | -        | -      | -     | -       | -       | yes     | -         | yes      | -       | -      | -       | -         |
 | **Replicate**         | -          | -        | -      | -     | beta    | -       | -       | -         | -        | -       | -      | -       | -         |
 | **StabilityAI**       | -          | -        | -      | yes   | yes     | yes     | yes     | -         | -        | -       | yes    | yes     | -         |
-| **VertexAI**          | -          | -        | -      | -     | yes     | yes     | -       | -         | -        | -       | -      | yes     | yes       |
 | **VoyageAI**          | -          | -        | -      | -     | -       | -       | -       | -         | -        | -       | -      | -       | yes       |
 | **xAI**               | -          | -        | -      | -     | beta    | -       | -       | -         | -        | -       | -      | -       | -         |
 | **Z.AI**             | -          | -        | -      | -     | yes     | -       | -       | -         | -        | -       | -      | -       | -         |
@@ -175,6 +176,7 @@ Light-weight PHP package for integrating multi-media and text related Large Lang
 | **OpenAI**            | yes   | yes        |           | yes       | yes   | yes       | yes          | yes            | yes           | yes             |
 | **Openrouter**        | yes   | yes        |           | -         | yes   | -         | yes          | yes            | yes           | -               |
 | **Perplexity**        | beta  | beta       |           | -         | beta  | yes       | yes          |                | yes           | -               |
+| **Requesty**          | yes   | yes        |           | yes       | yes   | -         | yes          |                | yes           | -               |
 | **Vertexai**          | beta  | beta       |           | beta      | beta  | yes       | yes          | yes            | yes           | yes             |
 | **xAI**               | beta  | beta       |           | -         | beta  | yes       | yes          | yes            | yes           | yes             |
 | **Z.AI**             | yes   | -          |           | -         | yes   | -         | yes          | yes            | yes           | yes             |
@@ -437,6 +439,28 @@ public function withMaxTokens( ?int $tokens ) : self
     ->withMaxTokens( 4096 )
     ->write( 'Tell me a story' );
 ```
+
+### withReasoning
+
+Enable reasoning or ask supported providers to minimize it. Providers map
+`false` to their closest native control; for example, Gemini and Ollama disable
+thinking, OpenRouter excludes reasoning, and OpenAI uses minimal effort. Explicit
+provider options passed to `write()`, `stream()` or `structure()` take precedence.
+
+```php
+public function withReasoning( bool $enabled = true ) : self
+```
+
+**Example:**
+
+```php
+$response = \Aimeos\Prisma\Prisma::text()
+    ->using( '<provider>', ['api_key' => 'xxx'] )
+    ->withReasoning( false )
+    ->write( 'Answer briefly' );
+```
+
+Providers without a native reasoning control ignore this setting.
 
 ### withThinkingBudget
 
@@ -1153,7 +1177,7 @@ public function speak( string $text, ?string $voice = null, array $options = [] 
 * [Deepgram](https://developers.deepgram.com/reference/text-to-speech/speak-request)
 * [ElevenLabs](https://elevenlabs.io/docs/api-reference/text-to-speech/convert)
 * Groq
-* [Murf](https://murf.ai/api/docs/api-reference/text-to-speech/generate)
+* [Murf](https://murf.ai/api/docs/api-reference/text-to-speech/stream)
 * [OpenAI](https://platform.openai.com/docs/api-reference/audio/createSpeech)
 
 ### transcribe
@@ -1374,7 +1398,6 @@ public function imagine( string $prompt, array $images = [], array $options = []
 * [StabilityAI Core](https://platform.stability.ai/docs/api-reference#tag/Generate/paths/~1v2beta~1stable-image~1generate~1core/post)
 * [StabilityAI Ultra](https://platform.stability.ai/docs/api-reference#tag/Generate/paths/~1v2beta~1stable-image~1generate~1ultra/post)
 * [StabilityAI Stable Diffusion 3.5](https://platform.stability.ai/docs/api-reference#tag/Generate/paths/~1v2beta~1stable-image~1generate~1sd3/post)
-* [VertexAI](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#generate_images)
 * [xAI Grok Image](https://docs.x.ai/docs/guides/image-generations)
 * [Z.AI](https://docs.z.ai/api-reference/image/generate-image)
 
@@ -1412,7 +1435,6 @@ to edit.
 * [Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-titan-image.html)
 * [Black Forest Labs](https://docs.bfl.ai/api-reference/models/generate-an-image-with-flux1-fill-[pro]-using-an-input-image-and-mask)
 * [Ideogram](https://developer.ideogram.ai/api-reference/api-reference/edit-v3#request)
-* [VertexAI](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api-edit#parameters)
 * [OpenAI GPT image 1](https://platform.openai.com/docs/guides/image-generation?image-generation-model=gpt-image-1#customize-image-output)
 * [OpenAI Dall-e-3](https://platform.openai.com/docs/guides/image-generation?image-generation-model=dall-e-3#customize-image-output)
 * [OpenAI Dall-e-2](https://platform.openai.com/docs/guides/image-generation?image-generation-model=dall-e-2#customize-image-output)
@@ -1619,7 +1641,6 @@ public function upscale( Image $image, int $factor, array $options = [] ) : File
 
 * Clipdrop
 * [Ideogram](https://developer.ideogram.ai/api-reference/api-reference/upscale#request)
-* [VertexAI](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-upscale-api#parameters)
 * [StabilityAI](https://platform.stability.ai/docs/api-reference#tag/Upscale)
 
 **Example:**
@@ -1655,7 +1676,6 @@ public function vectorize( array $images, ?int $size = null, array $options = []
 * [Alibaba](https://www.alibabacloud.com/help/en/model-studio/multimodal-embedding-api-reference)
 * Bedrock
 * [Cohere](https://docs.cohere.com/reference/embed#request)
-* VertexAI
 * [VoyageAI](https://docs.voyageai.com/reference/multimodal-embeddings-api)
 
 **Example:**
@@ -1714,6 +1734,7 @@ Iterating `$response->stream()` yields:
 * [OpenAI](https://platform.openai.com/docs/api-reference/responses-streaming)
 * [Openrouter](https://openrouter.ai/docs/api-reference/streaming)
 * [Perplexity](https://docs.perplexity.ai/api-reference/chat-completions)
+* [Requesty](https://docs.requesty.ai/features/streaming)
 * [xAI](https://docs.x.ai/api/endpoints#chat-completions)
 
 **Example:**
@@ -1837,6 +1858,7 @@ public function structure( string $prompt, Schema $schema, array $files = [], ar
 * [OpenAI](https://platform.openai.com/docs/api-reference/chat/create)
 * [Openrouter](https://openrouter.ai/docs/api-reference/chat-completions)
 * [Perplexity](https://docs.perplexity.ai/api-reference/chat-completions)
+* [Requesty](https://docs.requesty.ai/features/structured-outputs)
 * [xAI](https://docs.x.ai/api/endpoints#chat-completions)
 * [Z.AI](https://docs.z.ai/api-reference/llm/chat-completion)
 
@@ -1940,6 +1962,7 @@ public function vectorize( array $texts, ?int $size = null, array $options = [] 
 * [Mistral](https://docs.mistral.ai/api/#tag/embeddings)
 * [Ollama](https://github.com/ollama/ollama/blob/main/docs/openai.md)
 * [OpenAI](https://platform.openai.com/docs/api-reference/embeddings/create)
+* [Requesty](https://docs.requesty.ai/api-reference/endpoint/embeddings-create)
 
 **Example:**
 
@@ -1984,6 +2007,7 @@ public function write( string $prompt, array $files = [], array $options = [] ) 
 * [OpenAI](https://platform.openai.com/docs/api-reference/chat/create)
 * [Openrouter](https://openrouter.ai/docs/api-reference/chat-completions)
 * [Perplexity](https://docs.perplexity.ai/api-reference/chat-completions)
+* [Requesty](https://docs.requesty.ai/api-reference/endpoint/chat-completions-create)
 * [xAI](https://docs.x.ai/api/endpoints#chat-completions)
 
 **Example:**

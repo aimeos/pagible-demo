@@ -165,13 +165,13 @@ class Anthropic extends Base implements Stream, Structure, Write
     private function messageParams( array $messages, array $options, int $step, bool $stream, array $toolsParam ) : array
     {
         $params = [
-            'model' => $this->modelName( 'claude-opus-4-8' ),
+            'model' => $this->modelName( 'claude-opus-5' ),
             'messages' => $messages,
             'max_tokens' => $this->maxTokens() ?? 4096,
         ] + ( $stream ? ['stream' => true] : [] ) + $options;
 
         // an explicit "thinking" option wins; otherwise withThinkingBudget() enables a fixed budget
-        if( !isset( $params['thinking'] ) && ( $thinkingBudget = $this->thinkingBudget() ) ) {
+        if( !isset( $params['thinking'] ) && $this->reasoningEnabled() !== false && ( $thinkingBudget = $this->thinkingBudget() ) ) {
             $params['thinking'] = ['type' => 'enabled', 'budget_tokens' => $thinkingBudget];
         }
 
