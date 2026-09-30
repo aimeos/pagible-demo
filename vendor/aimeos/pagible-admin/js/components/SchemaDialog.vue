@@ -1,59 +1,57 @@
 /** @license MIT, https://opensource.org/license/mit */
 
 <script>
-import ElementListItems from './ElementListItems.vue'
+import { defineAsyncComponent } from 'vue'
+import CmsDialog from './Dialog.vue'
 import SchemaItems from './SchemaItems.vue'
-import { mdiClose } from '@mdi/js'
+
+const ElementListItems = defineAsyncComponent(() => import('./ElementListItems.vue'))
 
 export default {
   components: {
+    CmsDialog,
     ElementListItems,
     SchemaItems
   },
 
   props: {
     modelValue: { type: Boolean, required: true },
-    elements: { type: Boolean, default: true }
+    elements: { type: Boolean, default: true },
+    type: { type: String, default: 'content' }
   },
-
   emits: ['update:modelValue', 'add'],
 
-  setup() {
-    return { mdiClose }
-  }
+  data: () => ({
+    tab: 'new'
+  })
 }
 </script>
 
 <template>
-  <v-dialog
-    :aria-label="$gettext('Content elements')"
-    :modelValue="modelValue"
-    @afterLeave="$emit('update:modelValue', false)"
+  <CmsDialog
+    :model-value="modelValue"
+    :title="$gettext('Content elements')"
+    @update:model-value="$emit('update:modelValue', $event)"
     max-width="1200"
-    scrollable
   >
-    <v-card>
-      <v-toolbar density="compact">
-        <v-toolbar-title>{{ $gettext('Content elements') }}</v-toolbar-title>
-        <v-btn :icon="mdiClose" :aria-label="$gettext('Close')" @click="$emit('update:modelValue', false)" />
-      </v-toolbar>
-      <v-card-text>
-        <SchemaItems type="content" @add="$emit('add', $event)" />
+    <v-tabs v-if="elements" v-model="tab" class="tint-tabs">
+      <v-tab value="new">{{ $gettext('New elements') }}</v-tab>
+      <v-tab value="shared">{{ $gettext('Shared elements') }}</v-tab>
+    </v-tabs>
 
-        <div v-if="elements">
-          <v-tabs>
-            <v-tab>{{ $gettext('Shared elements') }}</v-tab>
-          </v-tabs>
-          <ElementListItems @select="$emit('add', $event)" embed />
-        </div>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
+    <v-tabs-window v-model="tab">
+      <v-tabs-window-item value="new">
+        <SchemaItems :type="type" @add="$emit('add', $event)" />
+      </v-tabs-window-item>
+      <v-tabs-window-item v-if="elements" value="shared">
+        <ElementListItems @select="$emit('add', $event)" embed />
+      </v-tabs-window-item>
+    </v-tabs-window>
+  </CmsDialog>
 </template>
 
 <style scoped>
 .v-tabs {
-  background-color: rgb(var(--v-theme-background));
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 </style>

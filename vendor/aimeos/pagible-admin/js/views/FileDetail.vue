@@ -8,11 +8,13 @@ import FileDetailRefs from '../components/FileDetailRefs.vue'
 import FileDetailItem from '../components/FileDetailItem.vue'
 import { useDirtyStore, useSideStore, useUserStore, useMessageStore, usePluginStore, useViewStack, useChangeStore } from '../stores'
 import { applyResult, hasUnresolved } from '../merge'
+import { invalidateList } from '../graphql'
+import { pluginLabel } from '../i18n'
 import { publishDate, publishItem } from '../publish'
 import { defineAsyncComponent, markRaw } from 'vue'
 import { setupReload, cleanEcho } from '../echo'
-import { reloadVersion } from '../version'
-import { safeParse } from '../utils'
+import { loadVersions, reloadVersion } from '../version'
+import { focusInvalid, safeParse } from '../utils'
 
 const ChangesDialog = defineAsyncComponent(() => import('../components/ChangesDialog.vue'))
 const HistoryDialog = defineAsyncComponent(() => import('../components/HistoryDialog.vue'))
@@ -92,6 +94,7 @@ export default {
     echoCleanup: null,
     echoPromise: null,
     file: null,
+    initial: null,
     error: false,
     changed: null,
     loading: true,
@@ -136,6 +139,7 @@ export default {
       const item = this.item
       return markRaw({
         data: Object.freeze({
+          scheduled: item.publish_at ? 1 : 0,
           lang: item.lang,
           name: item.name,
           mime: item.mime,
@@ -151,6 +155,7 @@ export default {
 
   created() {
     this.dirtyStore.register(() => this.save(true))
+    this.initial = this.previewsJson()
 
     if (!this.item?.id || !this.user.can('file:view')) {
       this.loading = false
@@ -176,6 +181,10 @@ export default {
   },
 
   methods: {
+    label(panel) {
+      return pluginLabel(panel, this)
+    },
+
     // loads the latest version into the open editor; resolves true on success so the caller
     // can defer the websocket subscription until the initial load completed
     reload() {
@@ -188,6 +197,7 @@ export default {
         this.item.published = latest?.published
         this.item.updated_at = latest?.created_at
         this.item.editor = latest?.editor
+        this.initial = this.previewsJson()
       }, () => !this.dirty)
     },
 
@@ -211,8 +221,8 @@ export default {
       this.dirty = true
     },
 
-    loadVersions() {
-      return this.versions(this.item.id)
+    invalidate() {
+      invalidateList(this.$apollo.provider.defaultClient.cache, 'files')
     },
 
     media(data) {
@@ -232,27 +242,26 @@ export default {
       })
     },
 
-    publish(at = null) {
+    previewsJson() {
+      return JSON.stringify(this.item?.previews || {})
+    },
+
+    publish(at = null, close = false) {
       publishItem(this, 'file', {
         success: this.$gettext('File published successfully'),
         scheduled: (d) => this.$gettext('File scheduled for publishing at %{date}', { date: d.toLocaleDateString() }),
         error: this.$gettext('Error publishing file')
-      }, at)
+      }, at, close)
     },
 
-    published() {
-      this.publish(publishDate(this.publishAt, this.publishTime))
+    schedule(close = false) {
+      this.publish(publishDate(this.publishAt, this.publishTime), close)
     },
 
     reset() {
       this.dirty = false
       this.changed = null
       this.error = false
-    },
-
-    revertVersion(event) {
-      this.use(event)
-      this.reset()
     },
 
     save(quiet = false) {
@@ -266,6 +275,8 @@ export default {
           this.$gettext('There are invalid fields, please resolve the errors first'),
           'error'
         )
+        this.tab = 'file'
+        this.$nextTick(() => focusInvalid(this.$refs.form))
         return Promise.resolve(false)
       }
 
@@ -274,6 +285,7 @@ export default {
       }
 
       this.saving = true
+      const previews = this.previewsJson()
 
       return this.$apollo
         .mutate({
@@ -283,7 +295,8 @@ export default {
             input: {
               transcription: JSON.stringify(this.item.transcription || {}),
               description: JSON.stringify(this.item.description || {}),
-              previews: JSON.stringify(this.item.previews || {}),
+              // keep previews updated in the meantime (e.g. by cms:previews) if unchanged
+              ...(previews !== this.initial ? { previews } : {}),
               path: this.item.path,
               name: this.item.name,
               lang: this.item.lang
@@ -307,12 +320,14 @@ export default {
           Object.assign(this.item, safeParse(latest?.data), safeParse(latest?.aux))
           this.item.updated_at = latest?.created_at
           this.item.latestId = latest?.id
+          this.initial = this.previewsJson()
 
           applyResult(this, changed, this.$gettext('File saved successfully'), quiet)
 
           this.item.published = latest?.published ?? false
           this.item.publish_at = latest?.publish_at ?? null
           this.item.editor = latest?.editor ?? this.item.editor
+          this.invalidate()
           this.changes.notify('file', this.item)
           this.onSaved?.()
 
@@ -327,47 +342,21 @@ export default {
         })
     },
 
-    use(version) {
+    use(version, clean = false) {
       Object.assign(this.item, version.data)
       this.vhistory = false
       this.dirty = true
+      if (clean) this.reset()
     },
 
     versions(id) {
-      if (!this.user.can('file:view')) {
-        this.messages.add(this.$gettext('Permission denied'), 'error')
-        return Promise.resolve([])
-      }
-
-      if (!id) {
-        return Promise.resolve([])
-      }
-
-      return this.$apollo
-        .query({
-          query: FETCH_FILE_VERSIONS,
-          fetchPolicy: 'no-cache',
-          variables: {
-            id: id
-          }
-        })
-        .then((result) => {
-          if (result.errors || !result.data.file) {
-            throw result
-          }
-
-          return (result.data.file.versions || []).map((v) => {
-            const data = Object.assign(safeParse(v.data), safeParse(v.aux))
-            const item = { ...v, data: Object.freeze(data) }
-            delete item.aux
-            item.files = this.media(item.data)
-            return Object.freeze(item)
-          })
-        })
-        .catch((error) => {
-          this.messages.add(this.$gettext('Error fetching file versions') + ':\n' + error, 'error')
-          this.$log(`FileDetail::versions(): Error fetching file versions`, id, error)
-        })
+      return loadVersions(this, FETCH_FILE_VERSIONS, 'file', id, v => {
+        const data = Object.assign(safeParse(v.data), safeParse(v.aux))
+        const item = { ...v, data: Object.freeze(data) }
+        delete item.aux
+        item.files = this.media(item.data)
+        return Object.freeze(item)
+      })
     }
   },
 
@@ -396,22 +385,22 @@ export default {
     v-model:publish-at="publishAt"
     v-model:publish-time="publishTime"
     @save="save()"
-    @publish="publish()"
-    @schedule="published"
+    @publish="publish(null, $event)"
+    @schedule="schedule"
     @history="vhistory = true"
     @changes="vchanged = true"
   />
 
   <v-main class="file-details" :aria-label="$gettext('File')">
     <v-progress-linear v-if="loading" indeterminate color="primary" />
-    <v-form v-else @submit.prevent>
-      <v-tabs fixed-tabs v-model="tab">
+    <v-form v-else ref="form" @submit.prevent>
+      <v-tabs class="detail-tabs" fixed-tabs hide-slider v-model="tab">
         <v-tab value="file" :class="{ changed: dirty, error: error }">{{
           $gettext('File')
         }}</v-tab>
         <v-tab value="refs">{{ $gettext('Used by') }}</v-tab>
         <v-tab v-for="(sp, key) in subpanels" :key="key" :value="'ext-' + key">
-          {{ sp.label }}
+          {{ label(sp) }}
         </v-tab>
       </v-tabs>
 
@@ -440,13 +429,13 @@ export default {
 
   <Teleport to="body">
     <HistoryDialog
+      v-if="vhistory"
       v-model="vhistory"
       :readonly="!user.can('file:save')"
       :current="historyCurrent"
-      :load="loadVersions"
-      @revert="revertVersion"
+      :load="() => versions(item.id)"
       @apply="apply"
-      @use="use($event)"
+      @use="use"
     />
     <ChangesDialog v-model="vchanged" :changed="changed"
       :targets="{ data: item, aux: item }"

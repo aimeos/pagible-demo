@@ -142,13 +142,26 @@ function setupIntercept({
 
 function visitAccess(options) {
   const requests = setupIntercept(options)
+  const permissions = options?.permissions ?? ALL_PERMISSIONS
+  const canManageUsers = ['user:access', 'user:create', 'user:permission'].some(
+    (permission) => permissions[permission]
+  )
+
   cy.visit('/access')
-  cy.wait('@initialAccess')
+  if (canManageUsers) cy.contains('.v-tab', 'Roles', { timeout: 20000 }).click()
   cy.get('.access-roles', { timeout: 20000 }).should('exist')
   return requests
 }
 
 describe('Access list', () => {
+  it('shows Users first and by default when available', () => {
+    setupIntercept()
+    cy.visit('/access')
+
+    cy.get('.v-tab', { timeout: 20000 }).first().should('contain', 'Users').and('have.class', 'v-tab--selected')
+    cy.get('.access-users').should('exist')
+  })
+
   it('lists and filters access values', () => {
     visitAccess()
 
@@ -156,7 +169,7 @@ describe('Access list', () => {
     cy.contains('.v-tab', 'Roles').should('have.class', 'v-tab--selected')
     cy.contains('.v-tab', 'Users').should('exist')
     cy.get('.item-title').should('have.length', 2)
-    cy.get('.search input').type('mem')
+    cy.get('.access-roles .search input').type('mem')
     cy.get('.item-title').should('have.length', 1).and('contain', 'member')
   })
 
@@ -179,12 +192,13 @@ describe('Access list', () => {
     cy.get('.assigned-access').should('exist').and('have.class', 'v-autocomplete')
   })
 
-  it('deletes selected access values after confirmation', () => {
+  it('purges selected access values after confirmation', () => {
     visitAccess()
 
     cy.get('.items .v-checkbox-btn').first().click()
     cy.get('.btn-delete').click()
-    cy.get('.v-dialog').contains('button', 'Delete').click()
+    cy.get('.v-dialog .v-list').should('contain', 'alpha')
+    cy.get('.v-dialog .btn-confirm').click()
 
     cy.wait('@deleteAccess').then(({ request }) => {
       const operation = Array.isArray(request.body) ? request.body[0] : request.body
@@ -246,7 +260,7 @@ describe('Access list', () => {
     cy.get('.assigned-access').should('contain', 'member')
     cy.get('.assigned-permissions').should('contain', 'viewer')
 
-    cy.get('.assigned-access input').click()
+    cy.get('.assigned-access input[role="combobox"]').click()
     cy.contains('.v-overlay--active .v-list-item', 'alpha').click()
     cy.get('.btn-save').click()
     cy.wait('@setUserAccess').then(({ request }) => {
@@ -255,7 +269,7 @@ describe('Access list', () => {
       expect(operation.variables).not.to.have.property('email')
       expect(operation.variables.access).to.have.members(['member', 'alpha'])
     })
-    cy.get('.assigned-access input').type('{esc}')
+    cy.get('.assigned-access input[role="combobox"]').type('{esc}')
 
     cy.get('.assigned-permissions .assigned').click()
     cy.contains('.v-overlay--active .v-list-item', 'editor').click()
@@ -370,7 +384,7 @@ describe('Access list', () => {
     cy.get('.user-search input').type('member@example.com')
     cy.get('.btn-search').click()
     cy.wait('@cmsUser')
-    cy.get('.assigned-access input').click()
+    cy.get('.assigned-access input[role="combobox"]').click()
     cy.contains('.v-overlay--active .v-list-item', 'alpha').click()
     cy.get('.btn-save').click()
     cy.get('.user-search input').clear().type('other@example.com')

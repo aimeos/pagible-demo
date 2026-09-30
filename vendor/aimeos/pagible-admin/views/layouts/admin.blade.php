@@ -37,11 +37,14 @@
       data-urladmin="{{ route('cms.admin', [], false) }}"
       data-urlasset="{{ route('cms.admin.asset', ['file' => '_file_', 'variant' => '_variant_'], false) }}"
       data-urlproxy="{{ route('cms.proxy', ['url' => '_url_']) }}"
+      data-urlcsrf="{{ Route::has('cms.api.csrf') ? route('cms.api.csrf', config('cms.multidomain') ? ['domain' => request()->getHost()] : []) : '/cmsapi/csrf' }}"
       data-urlpage="{{ Route::has('cms.page') ? route('cms.page', ['path' => '_path_'] + (config('cms.multidomain') ? ['domain' => '_domain_'] : [])) : '' }}"
       data-urlfile="{{ \Illuminate\Support\Facades\Storage::disk( config( 'cms.disks.public.name', 'public' ) )->url( '' ) }}"
       data-theme="{{ json_encode( config( 'cms.admin.colors', [] ) ) }}"
       data-locales="{{ json_encode( config( 'cms.locales', ['en'] ) ) }}"
       data-multidomain="{{ (int) config('cms.multidomain', false) }}"
+      data-urllogin="{{ config('cms.admin.login', '') }}"
+      data-sessionlifetime="{{ config('session.expire_on_close') ? 0 : (int) config('session.lifetime', 120) }}"
       data-plugins="{{ json_encode(\Aimeos\Cms\Plugin::all()) }}"
       @if(config('cms.broadcast'))
         data-reverb="{{ json_encode([

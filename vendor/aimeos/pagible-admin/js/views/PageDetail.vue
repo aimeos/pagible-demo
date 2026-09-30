@@ -4,20 +4,26 @@
 import gql from 'graphql-tag'
 import AsideMeta from '../components/AsideMeta.vue'
 import AsideCount from '../components/AsideCount.vue'
+import ActionMenu from '../components/ActionMenu.vue'
+import ChatDialog from '../components/ChatDialog.vue'
 import DetailAppBar from '../components/DetailAppBar.vue'
 import PageDetailContent from '../components/PageDetailContent.vue'
 
+const FieldsAside = defineAsyncComponent(() => import('../components/FieldsAside.vue'))
 const PageDetailItem = defineAsyncComponent(() => import('../components/PageDetailItem.vue'))
 const PageDetailEditor = defineAsyncComponent(() => import('../components/PageDetailEditor.vue'))
 import { applyResult, hasUnresolved } from '../merge'
-import { FILE_FIELDS, normalizeFile } from '../files'
+import { FILE_FIELDS, fileMap } from '../files'
+import { invalidateList } from '../graphql'
+import { pluginLabel } from '../i18n'
 import { publishDate, publishItem } from '../publish'
 import { defineAsyncComponent, markRaw } from 'vue'
-import { frozenParse, hasTrue, safeParse, txlocales } from '../utils'
+import { focusInvalid, frozenParse, hasTrue, safeParse, txlocales } from '../utils'
 import { setupReload, cleanEcho } from '../echo'
-import { reloadVersion } from '../version'
+import { loadVersions, reloadVersion } from '../version'
 import {
   useAppStore,
+  useDrawerStore,
   useDirtyStore,
   useSideStore,
   useUserStore,
@@ -28,6 +34,7 @@ import {
   useChangeStore
 } from '../stores'
 import {
+  mdiCreation,
   mdiTranslate,
   mdiArrowRightThin
 } from '@mdi/js'
@@ -100,10 +107,13 @@ const SAVE_PAGE = gql`
 
 export default {
   components: {
+    ActionMenu,
     AsideMeta,
     AsideCount,
+    ChatDialog,
     ChangesDialog,
     DetailAppBar,
+    FieldsAside,
     HistoryDialog,
     PageDetailItem,
     PageDetailEditor,
@@ -126,6 +136,7 @@ export default {
 
   setup() {
     const dirtyStore = useDirtyStore()
+    const drawer = useDrawerStore()
     const messages = useMessageStore()
     const schemas = useSchemaStore()
     const side = useSideStore()
@@ -136,6 +147,7 @@ export default {
 
     return {
       app,
+      drawer,
       dirtyStore,
       side,
       user,
@@ -143,6 +155,7 @@ export default {
       schemas,
       viewStack,
       changes,
+      mdiCreation,
       mdiTranslate,
       mdiArrowRightThin,
       txlocales
@@ -154,10 +167,14 @@ export default {
       tab: this.app.urlpage ? 'editor' : 'content',
       aside: '',
       asidePage: 'meta',
+      chatOpen: false,
       dirty: {},
       errors: {},
       assets: {},
       elements: {},
+      editorActions: false,
+      editorElement: null,
+      previewSize: 'computer',
       latest: null,
       publishAt: null,
       publishTime: null,
@@ -177,6 +194,13 @@ export default {
   },
 
   computed: {
+    chatContext() {
+      return this.$gettext(
+        'The user is viewing the page with ID "%{id}". When they refer to "this page", use get-page with that ID.',
+        { id: this.item.id }
+      )
+    },
+
     hasChanged() {
       return hasTrue(this.dirty)
     },
@@ -225,7 +249,7 @@ export default {
 
       // reload the open page when its own item is saved elsewhere or after a reconnect that may
       // have missed a save, unless the user has unsaved edits
-      setupReload(this, 'page', this.item.id, () => this.reload(), () => !this.hasChanged && this.user.can('page:view'))
+      setupReload(this, 'page', this.item.id, () => this.refresh(), () => !this.hasChanged && this.user.can('page:view'))
     })
   },
 
@@ -235,6 +259,8 @@ export default {
 
     this.assets = markRaw({})
     this.elements = markRaw({})
+    this.editorActions = false
+    this.editorElement = null
     this.destroyed = true
     this.changed = null
     this.latest = null
@@ -245,6 +271,10 @@ export default {
   },
 
   methods: {
+    label(panel) {
+      return pluginLabel(panel, this)
+    },
+
     // loads the latest version into the open editor; resolves true on success so the caller
     // can defer the websocket subscription until the initial load completed
     reload() {
@@ -272,7 +302,12 @@ export default {
       }, () => !this.hasChanged, { access: this.user.can('page:access') })
     },
 
-    apply(changes) {
+    apply(changes, version) {
+      if (version) {
+        this.elements = { ...this.elems(version.elements || []), ...this.elements }
+        this.assets = { ...version.files, ...this.assets }
+      }
+
       if (changes.content) {
         const strip = (el) => {
           const out = {}
@@ -328,7 +363,9 @@ export default {
             const cleanedData = {}
 
             for (const name in cleaned.data) {
-              if (fields[name]) {
+              const url = name.endsWith('-rel') ? name.slice(0, -4) : null
+
+              if (fields[name] || (url && fields[url]?.rel)) {
                 cleanedData[name] = cleaned.data[name]
               }
             }
@@ -361,6 +398,21 @@ export default {
       return map
     },
 
+    editorAction(action) {
+      const editor = this.$refs.editor
+
+      if (typeof editor?.[action] === 'function') {
+        editor[action]()
+      }
+    },
+
+    editElement(element, actions = false) {
+      this.editorActions = !!element && actions
+      this.editorElement = element
+      this.aside = element ? 'editor' : ''
+      this.drawer.aside = !!element
+    },
+
     fileIds() {
       const files = new Set()
 
@@ -381,11 +433,7 @@ export default {
     },
 
     files(entries, elements = {}) {
-      const map = {}
-
-      for (const entry of entries) {
-        map[entry.id] = normalizeFile(entry)
-      }
+      const map = fileMap(entries)
 
       for (const element of Object.values(elements)) {
         for (const file of element.files || []) map[file.id] = file
@@ -397,11 +445,7 @@ export default {
     historyCurrent() {
       const item = this.item
       const fileIds = new Set(this.fileIds())
-      const files = {}
-
-      for (const key in this.assets) {
-        if (fileIds.has(key)) files[key] = this.assets[key]
-      }
+      const files = Object.fromEntries(Object.entries(this.assets).filter(([id]) => fileIds.has(id)))
 
       return markRaw({
         data: Object.freeze({
@@ -422,19 +466,13 @@ export default {
           config: this.clean(item.config, 'config'),
           content: this.clean(item.content, 'content')
         }),
-        elements: this.latest?.elements || [],
+        elements: Object.values(this.elements).filter(element => item.content.some(block => block.refid === element.id)),
         files: markRaw(files)
       })
     },
 
     invalidate() {
-      const cache = this.$apollo.provider.defaultClient.cache
-      cache.evict({ id: 'Page:' + this.item.id })
-      cache.gc()
-    },
-
-    loadVersions() {
-      return this.versions(this.item.id)
+      invalidateList(this.$apollo.provider.defaultClient.cache, 'pages')
     },
 
     obsolete(content) {
@@ -454,16 +492,16 @@ export default {
       this.dirty.page = true
     },
 
-    publish(at = null) {
+    publish(at = null, close = false) {
       publishItem(this, 'page', {
         success: this.$gettext('Page published successfully'),
         scheduled: (d) => this.$gettext('Page scheduled for publishing at %{date}', { date: d.toLocaleDateString() }),
         error: this.$gettext('Error publishing page')
-      }, at)
+      }, at, close)
     },
 
-    published() {
-      this.publish(publishDate(this.publishAt, this.publishTime))
+    schedule(close = false) {
+      this.publish(publishDate(this.publishAt, this.publishTime), close)
     },
 
     reset() {
@@ -475,9 +513,41 @@ export default {
       this.errors = {}
     },
 
-    revertVersion(event) {
-      this.use(event)
-      this.reset()
+    async showError() {
+      const tab = this.errors.content ? 'content' : this.errors.page ? 'page' : null
+
+      if (!tab) {
+        return
+      }
+
+      this.tab = tab
+      this.aside = tab === 'content' ? 'count' : this.asidePage
+
+      await this.$nextTick()
+      await this.$refs[tab]?.showError()
+      await this.$nextTick()
+
+      focusInvalid(this.$refs.form)
+    },
+
+    // a chat turn may have changed this page via tool calls; reload it unless the user has unsaved edits
+    chatDone() {
+      if (!this.hasChanged && this.user.can('page:view')) {
+        this.refresh()
+      }
+    },
+
+    // reloads the page data and, on success, the preview iframe which renders the saved version
+    refresh() {
+      return this.reload().then((ok) => {
+        if (ok) this.$refs.editor?.reload()
+        return ok
+      })
+    },
+
+    review() {
+      this.chatOpen = true
+      this.$nextTick(() => this.$refs.chat?.send(this.$gettext('Rate this page and suggest improvements')))
     },
 
     async save(quiet = false) {
@@ -494,6 +564,7 @@ export default {
           this.$gettext('There are invalid fields, please resolve the errors first'),
           'error'
         )
+        this.showError()
         return Promise.resolve(false)
       }
 
@@ -543,7 +614,6 @@ export default {
             this.latest = { id: changed?.latest?.id ?? page.latest.id }
           }
 
-          this.$refs.history?.reset()
           applyResult(this, changed, this.$gettext('Page saved successfully'), quiet)
 
           if (changed) {
@@ -662,7 +732,7 @@ export default {
       this.dirty[what] = true
     },
 
-    use(version) {
+    use(version, clean = false) {
       Object.assign(this.item, version.data)
 
       const elements = this.elems(version.elements || [])
@@ -674,6 +744,7 @@ export default {
       this.dirty['page'] = true
 
       this.vhistory = false
+      if (clean) this.reset()
     },
 
     validate() {
@@ -685,43 +756,16 @@ export default {
     },
 
     versions(id) {
-      if (!this.user.can('page:view')) {
-        this.messages.add(this.$gettext('Permission denied'), 'error')
-        return Promise.resolve([])
-      }
-
-      if (!id) {
-        return Promise.resolve([])
-      }
-
-      return this.$apollo
-        .query({
-          query: FETCH_PAGE_VERSIONS,
-          variables: {
-            id: id
-          },
-          fetchPolicy: 'no-cache'
-        })
-        .then((result) => {
-          if (result.errors || !result.data.page) {
-            throw result
-          }
-
-          return (result.data.page.versions || []).map((v) => {
-            const elements = this.elems(v.elements || [])
-            const item = {
-              ...v,
-              data: Object.freeze(Object.assign(safeParse(v.data), safeParse(v.aux)))
-            }
-            item.files = Object.freeze(this.files(v.files || [], elements))
-            delete item.aux
-            return Object.freeze(item)
-          })
-        })
-        .catch((error) => {
-          this.messages.add(this.$gettext('Error fetching page versions') + ':\n' + error, 'error')
-          this.$log(`PageDetail::versions(): Error fetching page versions`, id, error)
-        })
+      return loadVersions(this, FETCH_PAGE_VERSIONS, 'page', id, v => {
+        const elements = this.elems(v.elements || [])
+        const item = {
+          ...v,
+          data: Object.freeze(Object.assign(safeParse(v.data), safeParse(v.aux)))
+        }
+        item.files = Object.freeze(this.files(v.files || [], elements))
+        delete item.aux
+        return Object.freeze(item)
+      })
     },
 
     writeText(prompt, context = [], files = []) {
@@ -769,43 +813,48 @@ export default {
     v-model:publish-at="publishAt"
     v-model:publish-time="publishTime"
     @save="save()"
-    @publish="publish()"
-    @schedule="published"
+    @publish="publish(null, $event)"
+    @schedule="schedule($event)"
     @history="vhistory = true"
     @changes="vchanged = true"
   >
     <template #actions>
+      <v-btn
+        v-if="user.can('page:chat')"
+        @click="review()"
+        :title="$gettext('Rate this page and suggest improvements')"
+        :icon="mdiCreation"
+        class="btn-review-page"
+      />
       <span class="btn-translate-page" v-if="user.can('text:translate')">
-        <v-menu>
-          <template #activator="{ props }">
+        <ActionMenu :title="$gettext('Translate page')">
+          <template #activator="{ props, label }">
             <v-btn
               v-bind="props"
-              :title="$gettext('Translate page')"
+              :title="label"
               :loading="translating"
               :icon="mdiTranslate"
             />
           </template>
-          <v-list>
-            <v-list-item v-for="lang in txlocales(item.lang)" :key="lang.code">
-              <v-btn
-                @click="translatePage(lang.code)"
-                :prepend-icon="mdiArrowRightThin"
-                variant="text"
-              >
-                {{ lang.name }}
-              </v-btn>
-            </v-list-item>
-          </v-list>
-        </v-menu>
+          <v-list-item v-for="lang in txlocales(item.lang)" :key="lang.code">
+            <v-btn
+              @click="translatePage(lang.code)"
+              :prepend-icon="mdiArrowRightThin"
+              variant="text"
+            >
+              {{ lang.name }}
+            </v-btn>
+          </v-list-item>
+        </ActionMenu>
       </span>
     </template>
   </DetailAppBar>
 
   <v-main class="page-details" :aria-label="$gettext('Page')">
     <v-progress-linear v-if="loading" indeterminate color="primary" />
-    <v-form v-else @submit.prevent>
-      <v-tabs fixed-tabs v-model="tab">
-        <v-tab v-if="app.urlpage" value="editor" @click="aside = ''">
+    <v-form v-else ref="form" @submit.prevent>
+      <v-tabs class="detail-tabs" fixed-tabs hide-slider v-model="tab">
+        <v-tab v-if="app.urlpage" value="editor" @click="aside = editorElement ? 'editor' : ''">
           {{ $gettext('Editor') }}
         </v-tab>
         <v-tab
@@ -826,18 +875,22 @@ export default {
           {{ $gettext('Metrics') }}
         </v-tab>
         <v-tab v-for="(sp, key) in subpanels" :key="key" :value="'ext-' + key" @click="aside = ''">
-          {{ sp.label }}
+          {{ label(sp) }}
         </v-tab>
       </v-tabs>
 
       <v-window v-model="tab" :touch="false">
         <v-window-item v-if="app.urlpage" value="editor">
           <PageDetailEditor
+            ref="editor"
+            :aside-visible="aside === 'editor' && drawer.aside"
             :save="saveConfig"
             :item="item"
             :assets="assets"
             :elements="elements"
+            :preview-size="previewSize"
             @change="dirty.content = true"
+            @edit="editElement"
           />
         </v-window-item>
 
@@ -877,17 +930,31 @@ export default {
 
   <AsideMeta v-if="aside === 'meta'" :item="item" />
   <AsideCount v-if="aside === 'count'" />
+  <FieldsAside
+    v-if="aside === 'editor' && editorElement"
+    :actions="editorActions && user.can('page:save')"
+    :assets="assets"
+    :element="editorElement.type === 'reference' ? elements[editorElement.refid] : editorElement"
+    :preview-size="previewSize"
+    :readonly="!user.can('page:save') || !!editorElement.refid"
+    :save-count="savecnt"
+    @add-after="editorAction('addAfter')"
+    @add-before="editorAction('addBefore')"
+    @change="dirty.content = true"
+    @remove="editorAction('remove')"
+    @update:preview-size="previewSize = $event"
+  />
 
   <Teleport to="body">
+    <ChatDialog ref="chat" v-model="chatOpen" :context="chatContext" @done="chatDone" />
     <HistoryDialog
-      ref="history"
+      v-if="vhistory"
       v-model="vhistory"
       :readonly="!user.can('page:save')"
       :current="historyData"
-      :load="loadVersions"
-      @revert="revertVersion"
+      :load="() => versions(item.id)"
       @apply="apply"
-      @use="use($event)"
+      @use="use"
     />
     <ChangesDialog v-model="vchanged" :changed="changed"
       :targets="changeTargets"
@@ -897,7 +964,7 @@ export default {
 </template>
 
 <style scoped>
-.v-tab.conflict {
-  color: rgb(var(--v-theme-error));
+.detail-tabs .v-tab.conflict {
+  color: color-mix(in srgb, rgb(var(--v-theme-error)) 50%, rgb(var(--v-theme-on-background)));
 }
 </style>

@@ -1,4 +1,5 @@
 import PageListItems from '../../../js/components/PageListItems.vue'
+import { isMac } from '../../../js/commands'
 import { useUserStore } from '../../../js/stores'
 
 const stubs = {
@@ -26,7 +27,11 @@ function mountList(props = {}, perms = {}, apollo = {}) {
             data: { pages: { data: [], paginatorInfo: { currentPage: 1, lastPage: 1 } } }
           }),
           mutate: () => Promise.resolve({ data: {} }),
-          provider: { defaultClient: { cache: { evict() {}, gc() {} } } },
+          provider: {
+            defaultClient: {
+              cache: { evict() {}, gc() {} },
+            },
+          },
           ...apollo,
         },
       },
@@ -42,12 +47,34 @@ function mountList(props = {}, perms = {}, apollo = {}) {
 
 describe('PageListItems', () => {
   beforeEach(() => {
+    document.querySelector('[data-cy-root]').id = 'app'
     cy.on('uncaught:exception', () => false)
+  })
+
+  afterEach(() => {
+    document.querySelector('#app')?.removeAttribute('data-reverb')
   })
 
   it('renders the component', () => {
     mountList({}, { 'page:view': true })
     cy.get('.header').should('exist')
+  })
+
+  it('uses the surface color for the drag placeholder', () => {
+    mountList({}, { 'page:view': true })
+    cy.get('.draggable-stub').then(($tree) => {
+      const wrapper = document.createElement('div')
+      const inner = document.createElement('div')
+
+      wrapper.className = 'drag-placeholder-wrapper'
+      wrapper.style.setProperty('--v-theme-background', '30, 41, 59')
+      wrapper.style.setProperty('--v-theme-surface', '255, 255, 255')
+      inner.className = 'tree-node-inner'
+      wrapper.append(inner)
+      $tree[0].append(wrapper)
+    })
+    cy.get('.drag-placeholder-wrapper .tree-node-inner')
+      .should('have.css', 'background-color', 'rgb(255, 255, 255)')
   })
 
   it('renders search field', () => {
@@ -98,7 +125,7 @@ describe('PageListItems', () => {
   it('shows title-case sort options in list view', () => {
     mountList({ filter: { view: 'list' } }, { 'page:view': true })
     cy.get('.btn-sort button').click()
-    cy.get('.v-overlay .v-btn').then(($buttons) => {
+    cy.get('.v-overlay .v-list .v-btn').then(($buttons) => {
       expect([...$buttons].map((button) => button.textContent.trim())).to.deep.equal([
         'Tree', 'Latest', 'Oldest', 'Latest edit', 'Oldest edit', 'Name', 'Editor'
       ])
@@ -113,7 +140,7 @@ describe('PageListItems', () => {
     mountList({ filter: { view: 'list' } }, { 'page:view': true }, { query })
 
     cy.get('.btn-sort button').click()
-    cy.contains('.v-overlay .v-btn', 'Latest edit').click()
+    cy.contains('.v-overlay .v-list .v-btn', 'Latest edit').scrollIntoView().click()
     cy.get('.btn-sort button').should('contain', 'Latest edit')
     cy.then(() => {
       expect(query.lastCall.args[0].variables.sort).to.deep.equal([
@@ -122,7 +149,7 @@ describe('PageListItems', () => {
     })
 
     cy.get('.btn-sort button').click()
-    cy.contains('.v-overlay .v-btn', 'Oldest edit').click()
+    cy.contains('.v-overlay .v-list .v-btn', 'Oldest edit').scrollIntoView().click()
     cy.get('.btn-sort button').should('contain', 'Oldest edit')
     cy.then(() => {
       expect(query.lastCall.args[0].variables.sort).to.deep.equal([
@@ -132,14 +159,165 @@ describe('PageListItems', () => {
   })
 
   it('loads the saved list view with its active filters', () => {
+    document.querySelector('#app').dataset.reverb = '{}'
     const query = cy.stub().resolves({
       data: { pages: { data: [], paginatorInfo: { currentPage: 1, lastPage: 1 } } }
     })
 
-    mountList({ filter: { view: 'list', status: 0 } }, { 'page:view': true }, { query }).then(() => {
+    mountList({ embed: true, filter: { view: 'list', status: 0 } }, { 'page:view': true }, { query }).then(() => {
       expect(query).to.have.been.calledOnce
+      expect(query.firstCall.args[0].fetchPolicy).to.equal('cache-first')
       expect(query.firstCall.args[0].variables.filter).to.deep.equal({ status: 0 })
       expect(query.firstCall.args[0].variables.sort).to.deep.equal([{ column: 'LFT', order: 'ASC' }])
+    })
+  })
+
+  it('uses the Apollo cache for page tree queries', () => {
+    document.querySelector('#app').dataset.reverb = '{}'
+    const query = cy.stub().resolves({
+      data: { pages: { data: [], paginatorInfo: { currentPage: 1, lastPage: 1 } } }
+    })
+
+    mountList({ embed: true, filter: { view: 'tree' } }, { 'page:view': true }, { query }).then(() => {
+      expect(query).to.have.been.calledOnce
+      expect(query.firstCall.args[0].fetchPolicy).to.equal('cache-first')
+    })
+  })
+
+  it('reconciles an invalidation received during the initial load', () => {
+    const response = {
+      data: { pages: { data: [], paginatorInfo: { currentPage: 1, lastPage: 1 } } }
+    }
+    let finishInitial
+    const query = cy.stub()
+    query.onFirstCall().returns(new Promise((resolve) => { finishInitial = resolve }))
+    query.onSecondCall().resolves(response)
+    const evict = cy.stub()
+    const gc = cy.stub()
+
+    mountList({ filter: { view: 'list' } }, { 'page:view': true }, {
+      query,
+      provider: {
+        defaultClient: {
+          cache: { evict, gc },
+        },
+      },
+    }).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(PageListItems).vm
+
+      vm.outdated = true
+      finishInitial(response)
+
+      cy.wrap(null).should(() => {
+        expect(query).to.have.been.calledTwice
+        expect(evict).to.have.been.calledOnceWith({ id: 'ROOT_QUERY', fieldName: 'pages' })
+        expect(gc).to.have.been.calledOnce
+        expect(vm.outdated).to.equal(false)
+      })
+    })
+  })
+
+  it('keeps an invalidation received during the reconciliation visible', () => {
+    const response = {
+      data: { pages: { data: [], paginatorInfo: { currentPage: 1, lastPage: 1 } } }
+    }
+    let finishInitial
+    let finishReconciliation
+    const query = cy.stub()
+    query.onFirstCall().returns(new Promise((resolve) => { finishInitial = resolve }))
+    query.onSecondCall().returns(new Promise((resolve) => { finishReconciliation = resolve }))
+
+    mountList({ filter: { view: 'list' } }, { 'page:view': true }, {
+      query,
+      provider: {
+        defaultClient: {
+          cache: { evict() {}, gc() {} },
+        },
+      },
+    }).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(PageListItems).vm
+
+      vm.outdated = true
+      finishInitial(response)
+
+      cy.wrap(null).should(() => {
+        expect(query).to.have.been.calledTwice
+        expect(vm.outdated).to.equal(false)
+      }).then(() => {
+        vm.outdated = true
+        finishReconciliation(response)
+      }).then(() => {
+        expect(query).to.have.been.calledTwice
+        expect(vm.outdated).to.equal(true)
+      })
+    })
+  })
+
+  it('reloads from the network when reactivated without remote invalidation', () => {
+    const query = cy.stub().resolves({
+      data: { pages: { data: [], paginatorInfo: { currentPage: 1, lastPage: 1 } } }
+    })
+
+    mountList({ embed: true, filter: { view: 'list' } }, { 'page:view': true }, { query }).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(PageListItems).vm
+
+      return vm.$options.activated.call(vm).then(() => {
+        expect(query).to.have.been.calledTwice
+        expect(query.lastCall.args[0].fetchPolicy).to.equal('network-only')
+      })
+    })
+  })
+
+  it('clears the complete Apollo cache before a manual reload', () => {
+    const calls = []
+    const query = cy.stub().callsFake(() => {
+      calls.push('query')
+      return Promise.resolve({
+        data: { pages: { data: [], paginatorInfo: { currentPage: 1, lastPage: 1 } } }
+      })
+    })
+    const evict = cy.stub()
+    const gc = cy.stub()
+    const clearStore = cy.stub().callsFake(() => {
+      calls.push('clearStore')
+      return Promise.resolve()
+    })
+
+    mountList({ filter: { view: 'list' } }, { 'page:view': true }, {
+      query,
+      provider: {
+        defaultClient: {
+          cache: { evict, gc },
+          clearStore,
+        },
+      },
+    })
+
+    cy.get('button.btn-reload').click()
+    cy.then(() => {
+      expect(clearStore).to.have.been.calledOnce
+      expect(evict).not.to.have.been.called
+      expect(gc).not.to.have.been.called
+      expect(query).to.have.been.calledTwice
+      expect(calls).to.deep.equal(['query', 'clearStore', 'query'])
+    })
+  })
+
+  it('removes every page list query', () => {
+    const evict = cy.stub()
+    const gc = cy.stub()
+
+    mountList({}, { 'page:view': true }, {
+      provider: {
+        defaultClient: {
+          cache: { evict, gc },
+        },
+      },
+    }).then(({ wrapper }) => {
+      wrapper.findComponent(PageListItems).vm.invalidate()
+
+      expect(evict).to.have.been.calledWith({ id: 'ROOT_QUERY', fieldName: 'pages' })
+      expect(gc).to.have.been.calledOnce
     })
   })
 
@@ -462,6 +640,56 @@ describe('PageListItems', () => {
         expect(JSON.parse(input.config)).to.deep.equal(aux.config)
         expect(JSON.parse(input.meta)).to.deep.equal(aux.meta)
       })
+    })
+  })
+
+  it('cuts the focused page with Ctrl+X and Cmd+X', () => {
+    mountList({}, { 'page:view': true, 'page:move': true }).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(PageListItems).vm
+      const cut = (opts) => {
+        vm.clip = null
+        vm.$refs.tree.activeDescendant = { data: { id: 'p1' } }
+        wrapper.find('.draggable-stub').element.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true, ...opts })
+        )
+        return vm.clip?.type
+      }
+
+      expect(cut({ ctrlKey: true })).to.equal('cut')
+      expect(cut({ metaKey: true })).to.equal('cut')
+      expect(cut({ metaKey: true, shiftKey: true })).to.equal(undefined)
+    })
+  })
+
+  it('selects and deletes the focused page with Space and Delete', () => {
+    mountList({}, { 'page:view': true, 'page:drop': true }).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(PageListItems).vm
+      const stat = { data: { id: 'p1' } }
+      const press = (key, opts = {}) => {
+        const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...opts })
+        wrapper.find('.draggable-stub').element.dispatchEvent(ev)
+        return ev.defaultPrevented
+      }
+
+      vm.drop = cy.stub()
+      vm.$refs.tree.activeDescendant = stat
+
+      expect(press(' ')).to.equal(true)
+      expect(stat._checked).to.equal(true)
+      expect(press(' ', { repeat: true })).to.equal(false) // holding Space doesn't toggle repeatedly
+      expect(stat._checked).to.equal(true)
+      expect(press('Delete')).to.equal(true)
+      expect(vm.drop).to.have.been.calledOnceWith(stat)
+
+      // Backspace only deletes on macOS like in the file and element lists
+      press('Backspace')
+      expect(vm.drop.callCount).to.equal(isMac ? 2 : 1)
+
+      // pages already in the trash aren't trashed again
+      vm.drop.resetHistory()
+      stat.data.deleted_at = '2026-01-01 00:00:00'
+      press('Delete')
+      expect(vm.drop).not.to.have.been.called
     })
   })
 

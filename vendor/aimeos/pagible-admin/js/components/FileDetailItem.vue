@@ -15,6 +15,7 @@ import {
 } from '../stores'
 import { mdiContentCopy, mdiTranslate, mdiCreation, mdiMicrophoneOutline, mdiMicrophone } from '@mdi/js'
 import { RELOCATE_FILE } from '../files'
+import { invalidateList } from '../graphql'
 import { fileurl, toBlob, locales, txlocales } from '../utils'
 
 const FileDetailItemImage = defineAsyncComponent(() => import('./FileDetailItemImage.vue'))
@@ -215,6 +216,7 @@ export default {
           }
 
           Object.assign(this.item, response.data.relocateFile[0])
+          invalidateList(this.$apollo.provider.defaultClient.cache, 'files')
           return true
         })
         .catch((error) => {
@@ -386,7 +388,7 @@ export default {
             :modelValue="item.name"
             @update:modelValue="update('name', $event)"
             variant="underlined"
-            :label="$gettext('Name')"
+            :label="$gettext('Name') + ' ‒ ' + $gettext('Name to find the file in the media list')"
             counter="255"
             maxlength="255"
           ></v-text-field>
@@ -399,7 +401,7 @@ export default {
             :modelValue="item.lang"
             @update:modelValue="update('lang', $event)"
             variant="underlined"
-            :label="$gettext('Language')"
+            :label="$gettext('Language') + ' ‒ ' + $gettext('Language of the file content, choose none if used in all languages')"
           ></v-select>
         </v-col>
       </v-row>
@@ -495,7 +497,7 @@ export default {
               <v-textarea
                 ref="description"
                 @update:modelValue="descriptionUpdated(entry.value, $event)"
-                :label="$gettext('Description (%{lang})', { lang: entry.value })"
+                :label="$gettext('Description (%{lang})', { lang: entry.value }) + ' ‒ ' + $gettext('Alternative text for screen readers and search engines, also used as caption')"
                 :modelValue="item.description?.[entry.value] || ''"
                 :readonly="readonly"
                 variant="underlined"
@@ -545,7 +547,7 @@ export default {
               <v-textarea
                 ref="transcription"
                 @update:modelValue="transcriptionUpdated(entry.value, $event)"
-                :label="$gettext('Transcription (%{lang})', { lang: entry.value })"
+                :label="$gettext('Transcription (%{lang})', { lang: entry.value }) + ' ‒ ' + $gettext('Spoken text in WebVTT format, shown as subtitles and transcript')"
                 :modelValue="item.transcription?.[entry.value] || ''"
                 :readonly="readonly"
                 variant="underlined"
@@ -567,13 +569,13 @@ export default {
 
 <style scoped>
 .v-sheet.scroll {
-  max-height: calc(100vh - 96px);
+  height: calc(100vh - 96px);
 }
 
 .file-url-col {
   display: flex;
   align-items: center;
-  background-color: rgb(var(--v-theme-background));
+  background-color: rgb(var(--v-theme-surface));
 }
 
 .file-url {

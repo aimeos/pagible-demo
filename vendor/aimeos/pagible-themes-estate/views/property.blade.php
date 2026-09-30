@@ -12,7 +12,7 @@
     @push('head')
         <meta property="og:title" content="{{ cms($page, 'title') }}">
         <meta property="og:description" content="{{ str(html_entity_decode(strip_tags(\Illuminate\Support\Str::markdown((string) ($data->text ?? ''))), ENT_QUOTES | ENT_HTML5, 'UTF-8'))->squish()->limit(220) }}">
-        <meta property="og:site_name" content="{{ config('app.name') }}">
+        <meta property="og:site_name" content="{{ cmsconfig($page, 'website.data.title', cms($page->ancestorsAndSelf->first() ?? $page, 'name')) }}">
         <meta property="og:url" content="{{ cmsroute($page) }}">
         <meta property="og:type" content="website">
         <meta name="twitter:card" content="summary_large_image">
@@ -265,7 +265,25 @@
         </section>
     @endif
 
-    @if($data->location ?? null)
+    @if(
+        is_numeric(data_get($data, 'map.latitude'))
+        && (float) data_get($data, 'map.latitude') >= -90
+        && (float) data_get($data, 'map.latitude') <= 90
+        && is_numeric(data_get($data, 'map.longitude'))
+        && (float) data_get($data, 'map.longitude') >= -180
+        && (float) data_get($data, 'map.longitude') <= 180
+    )
+        <section class="property-location-description property-map map">
+            @include('cms::map', [
+                'data' => (object) [
+                    'title' => __('Location'),
+                    'text' => $data->location ?? null,
+                    'location' => $data->map,
+                ],
+                'page' => $page,
+            ])
+        </section>
+    @elseif($data->location ?? null)
         <section class="property-location-description">
             <h2>{{ __('Location') }}</h2>
             <div class="cms-text">@markdown($data->location)</div>
@@ -354,7 +372,7 @@
             '@@type' => 'Offer',
             'price' => $data->price,
             'priceCurrency' => $data->currency,
-            'seller' => ($seller = trim((string) config('app.name'))) !== '' && strcasecmp($seller, 'Laravel') !== 0 ? [
+            'seller' => ($seller = trim((string) (cmsconfig($page, 'website.data.title', cms($page->ancestorsAndSelf->first() ?? $page, 'name'))))) !== '' ? [
                 '@@type' => 'Organization',
                 'name' => $seller,
                 'url' => url('/'),

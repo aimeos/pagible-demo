@@ -2,10 +2,20 @@
 
 <script>
 import router from '../routes'
+import { urllogin } from '../config'
 import { useUserStore, useMessageStore } from '../stores'
+import { browser, loginUrl } from '../utils'
 import { mdiEyeOff, mdiEye, mdiAlertOctagon } from '@mdi/js'
 
+// Stops redirecting to the single sign-on page if it didn't sign in the user within that time
+const SSO_RETRY = 60000
+
 export default {
+  props: {
+    // Login page of the application if users don't sign in with a password (cms.admin.login)
+    urllogin: { type: String, default: urllogin }
+  },
+
   data: () => ({
     creds: {
       email: '',
@@ -62,6 +72,10 @@ export default {
         router.replace(this.next())
       })
       .catch((err) => {
+        if (this.urllogin) {
+          return this.sso(true)
+        }
+
         this.login = true
       })
   },
@@ -109,6 +123,43 @@ export default {
         })
     },
 
+    /**
+     * Redirects to the login page of the application for single sign-on
+     *
+     * Without a click, it's only done when the admin panel is opened, not after the user
+     * logged out, and not again if the last redirect didn't sign in the user to avoid loops.
+     *
+     * @param {Boolean} auto TRUE if not requested by the user
+     */
+    sso(auto = false) {
+      const now = Date.now()
+      let last = 0
+
+      try {
+        last = parseInt(sessionStorage.getItem('cms-sso')) || 0
+      } catch {
+        // storage not available, e.g. in private mode
+      }
+
+      if (auto && (window.history.state?.back || now - last < SSO_RETRY)) {
+        if (!window.history.state?.back) {
+          this.error = this.$gettext('Login failed')
+        }
+
+        this.login = true
+        return
+      }
+
+      try {
+        sessionStorage.setItem('cms-sso', String(now))
+      } catch {
+        // storage not available, e.g. in private mode
+      }
+
+      const back = new URL(router.resolve(this.user.intended() || '/').href, window.location.origin)
+      browser.assign(loginUrl(this.urllogin, back.href))
+    },
+
     next() {
       const url =
         this.user.intended() ||
@@ -131,47 +182,61 @@ export default {
 </script>
 
 <template>
-  <v-form ref="form" class="login" :class="{ show: login }" v-model="form" @submit.prevent="cmslogin()">
+  <v-form
+    ref="form"
+    class="login"
+    :class="{ show: login }"
+    v-model="form"
+    @submit.prevent="urllogin ? sso() : cmslogin()"
+  >
     <v-card :loading="loading" :elevation="2" :class="{ error: error }">
       <template v-slot:title><h1>PagibleAI CMS</h1></template>
 
       <v-card-text>
-        <v-text-field
-          v-model="creds.email"
-          :label="$gettext('E-Mail')"
-          :rules="emailRules"
-          autocomplete="username"
-          variant="underlined"
-          validate-on="blur"
-          autofocus
-        />
-        <v-text-field
-          v-model="creds.password"
-          :type="show ? `text` : `password`"
-          :label="$gettext('Password')"
-          :rules="passwordRules"
-          :placeholder="autofilled ? '********' : undefined"
-          :persistent-placeholder="autofilled"
-          autocomplete="current-password"
-          variant="underlined"
-        >
-          <template v-slot:append-inner>
-            <v-btn
-              @click="toggleShow"
-              :aria-label="show ? $gettext('Hide password') : $gettext('Show password')"
-              :icon="show ? mdiEyeOff : mdiEye"
-              density="compact"
-              variant="text"
-            />
+        <template v-if="!urllogin">
+          <v-text-field
+            v-model="creds.email"
+            :label="$gettext('E-Mail')"
+            :rules="emailRules"
+            autocomplete="username"
+            variant="underlined"
+            validate-on="blur"
+            autofocus
+          />
+          <v-text-field
+            v-model="creds.password"
+            :type="show ? `text` : `password`"
+            :label="$gettext('Password')"
+            :rules="passwordRules"
+            :placeholder="autofilled ? '********' : undefined"
+            :persistent-placeholder="autofilled"
+            autocomplete="current-password"
+            variant="underlined"
+          >
+            <template v-slot:append-inner>
+              <v-btn
+                @click="toggleShow"
+                :aria-label="show ? $gettext('Hide password') : $gettext('Show password')"
+                :icon="show ? mdiEyeOff : mdiEye"
+                density="compact"
+                variant="text"
+              />
+            </template>
+          </v-text-field>
+        </template>
+        <v-alert v-show="error" color="surface" border="start" border-color="error">
+          <template v-slot:prepend>
+            <v-icon color="error" :icon="mdiAlertOctagon" />
           </template>
-        </v-text-field>
-        <v-alert v-show="error" color="error" :icon="mdiAlertOctagon">
           {{ $gettext('Error') + ': ' + error }}
         </v-alert>
       </v-card-text>
 
       <v-card-actions>
-        <v-btn type="submit" variant="outlined" :disabled="form != true && !autofilled">
+        <v-btn v-if="urllogin" type="submit" variant="tonal">
+          {{ $gettext('Sign in') }}
+        </v-btn>
+        <v-btn v-else type="submit" variant="tonal" :disabled="form != true && !autofilled">
           {{ $gettext('Login') }}
         </v-btn>
       </v-card-actions>
@@ -184,23 +249,28 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgb(var(--v-theme-background));
+  background: rgb(var(--v-theme-background));
   height: 100vh;
   width: 100%;
 }
 
 .login .v-card {
-  background-color: rgb(var(--v-theme-primary));
+  background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
-  border-radius: 8px;
+  border-radius: 16px;
+  box-shadow:
+    0 24px 48px -16px rgba(var(--v-shadow-color), 0.6),
+    0 0 64px -8px rgba(var(--v-theme-primary), 0.45);
   padding: 8px;
   width: 20rem;
   opacity: 0;
+  transform: translateY(12px);
 }
 
 .login.show .v-card {
   opacity: 1;
-  transition: opacity 0.5s;
+  transform: none;
+  transition: opacity 0.5s, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .login .v-card-title {
@@ -216,10 +286,41 @@ export default {
   justify-content: center;
 }
 
-.login .v-theme--light,
-.login .v-field--error,
-.login .v-field--error:not(.v-field--disabled) .v-field__clearable > .v-icon {
-  --v-theme-error: 255, 167, 38;
+/* the button has no color, so it inherits the foreground color of the card */
+.login .v-card-actions .v-btn--variant-tonal .v-btn__underlay {
+  opacity: 0.16;
+}
+
+/* tonal buttons use the surface text color by default which is dark on the colored card */
+.login .v-card.v-theme--light .v-card-actions .v-btn__content {
+  color: rgb(var(--v-theme-on-primary-darken-1, var(--v-theme-on-primary)));
+}
+
+.login .v-card.v-theme--dark .v-card-actions .v-btn__content {
+  color: rgb(var(--v-theme-on-primary));
+}
+
+/*
+ * WCAG 2.2 AAA (7:1) for text on the colored card: the light card uses the darker primary
+ * shade with its foreground color, labels and input text are fully opaque and the error
+ * color of the fields is the foreground color of the card as no theme color contrasts enough
+ */
+.login .v-card.v-theme--light {
+  background: rgb(var(--v-theme-primary-darken-1, var(--v-theme-primary)));
+  color: rgb(var(--v-theme-on-primary-darken-1, var(--v-theme-on-primary)));
+}
+
+.login .v-card .v-label,
+.login .v-card .v-field__input {
+  opacity: 1;
+}
+
+.login .v-card.v-theme--light .v-input {
+  --v-theme-error: var(--v-theme-on-primary-darken-1, var(--v-theme-on-primary));
+}
+
+.login .v-card.v-theme--dark .v-input {
+  --v-theme-error: var(--v-theme-on-primary);
 }
 
 .login .error {

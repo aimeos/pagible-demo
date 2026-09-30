@@ -2,25 +2,30 @@
  * @license MIT, https://opensource.org/license/mit
  */
 
-import { safeParse } from './utils'
+import { safeParse } from './json'
 
 const el = document.querySelector('#app')
 const dataset = el?.dataset || {}
 
 export const multidomain = parseInt(dataset.multidomain) || 0
-export const urladmin = dataset.urladmin || '/cmsadmin'
+// An explicitly empty base is used by the Vite development page so its routes stay outside the
+// /cmsadmin proxy. Only a missing attribute should fall back to Laravel's admin route.
+export const urladmin = dataset.urladmin ?? '/cmsadmin'
 export const urlasset = dataset.urlasset || '/cmsadminasset/_file_/_variant_'
 export const urlproxy = dataset.urlproxy || '/cmsproxy?url=_url_'
 export const urlpage = dataset.urlpage || '/_path_'
 export const urlfile = dataset.urlfile || '/storage'
 export const urlgraphql = dataset.urlgraphql || '/graphql'
+export const urlcsrf = dataset.urlcsrf || '/cmsapi/csrf'
 // `??` not `||`: the layout emits an empty string when the cms.chat route is absent (feature off),
 // which must stay empty rather than fall back to a path that would 404; only a missing attribute defaults.
 export const urlchat = dataset.urlchat ?? '/cmsapi/chat'
+// Login page of the application for installs signing in without password (e.g. single sign-on)
+export const urllogin = dataset.urllogin || ''
+// Session lifetime in minutes to detect an expired session before the next request fails (0 = off)
+export const sessionlifetime = parseInt(dataset.sessionlifetime) || 0
 
-// Strip prototype-polluting keys from the server-rendered bootstrap data via the shared
-// safeParse(). The import creates a config<->utils cycle (utils -> stores -> config), but it's
-// harmless: safeParse is a hoisted function declaration, so its binding is initialized before any
-// module body runs and these load-time calls resolve it even mid-cycle.
+// Strip prototype-polluting keys from the server-rendered bootstrap data.
 export const locales = safeParse(dataset.locales, ['en'])
+export const plugins = safeParse(dataset.plugins, {})
 export const theme = safeParse(dataset.theme, {})

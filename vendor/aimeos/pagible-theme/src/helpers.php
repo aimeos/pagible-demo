@@ -87,6 +87,32 @@ if( !function_exists( 'cmsasset' ) )
 }
 
 
+if( !function_exists( 'cmsconfig' ) )
+{
+    /**
+     * Returns the nearest configuration value from the page or its ancestors.
+     *
+     * @param \Aimeos\Cms\Models\Page $page The CMS page
+     * @param string $path Property path below "config", e.g. "website.data.title"
+     * @param mixed $default Value returned when no page contains the configuration
+     * @return mixed Inherited configuration value or the default
+     */
+    function cmsconfig( \Aimeos\Cms\Models\Page $page, string $path, mixed $default = null ) : mixed
+    {
+        foreach( $page->ancestorsAndSelf->reverse() as $item )
+        {
+            $value = cms( $item, 'config.' . $path );
+
+            if( $value !== null && ( !is_string( $value ) || trim( $value ) !== '' ) ) {
+                return $value;
+            }
+        }
+
+        return $default;
+    }
+}
+
+
 if( !function_exists( 'cmsattr' ) )
 {
     /**
@@ -113,11 +139,14 @@ if( !function_exists( 'cmsdata' ) )
      */
     function cmsdata( \Aimeos\Cms\Models\Page $page, object $item ) : array
     {
+        $files = cms( $page, 'files', collect() );
+
         if( $item instanceof \Aimeos\Cms\Models\Element ) {
+            $files = $files->union( cms( $item, 'files', collect() ) );
             $item = (object) ['id' => cms($item, 'id'), 'type' => cms($item, 'type'), 'name' => cms($item, 'name'), 'data' => cms($item, 'data')];
         }
 
-        $data = ['files' => cms($page, 'files')];
+        $data = ['files' => $files];
 
         // Resolve the action handler from the trusted schema by element type only. The handler
         // must never be taken from the stored element data, which a content author could set to
@@ -252,19 +281,34 @@ if( !function_exists( 'cmsref' ) )
 if( !function_exists( 'cmsroute' ) )
 {
     /**
-     * Generate a route for a CMS page, using the latest version if the user has permission to view it.
+     * Generate a URL for a CMS page or named route.
      *
-     * @param \Aimeos\Cms\Models\Page $page The CMS page for which to generate the route
-     * @return string The generated route URL for the page
+     * @param \Aimeos\Cms\Models\Page|string $route CMS page or route name
+     * @param array<string, mixed> $params Named route parameters
+     * @param string|null $domain Explicit page domain, or null for the request host
+     * @return string The generated route URL
      */
-    function cmsroute( \Aimeos\Cms\Models\Page $page ) : string
+    function cmsroute( \Aimeos\Cms\Models\Page|string $route, array $params = [], ?string $domain = null ) : string
     {
-        if( \Aimeos\Cms\Permission::can( 'page:view', \Illuminate\Support\Facades\Auth::user() ) ) {
-            $to = $page->latest?->data->to ?? null;
-            return $to ? url( $to ) : route( 'cms.page', ['path' => $page->latest?->data->path ?? $page->path] );
+        if( is_string( $route ) )
+        {
+            if( config( 'cms.multidomain' ) ) {
+                $params['domain'] = $domain ?: ( $params['domain'] ?? null ) ?: request()->getHost();
+            }
+
+            return route( $route, $params );
         }
 
-        return $page->to ? url( $page->to ) : route( 'cms.page', ['path' => $page->path] );
+        $page = $route;
+        $preview = \Aimeos\Cms\Permission::can( 'page:view', \Illuminate\Support\Facades\Auth::user() );
+        $version = $preview ? $page->latest?->data : null;
+        $to = $preview ? ( $version->to ?? null ) : $page->to;
+
+        return $to ? url( $to ) : cmsroute(
+            'cms.page',
+            ['path' => $version->path ?? $page->path],
+            $version->domain ?? $page->domain,
+        );
     }
 }
 

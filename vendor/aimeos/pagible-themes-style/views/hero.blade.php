@@ -3,6 +3,9 @@
 @endPushOnce
 
 @if($bg = cms($files, $data->background?->id ?? null))
+    @pushOnce('head', 'cms-hero-bg-preload')
+    <link rel="preload" as="image" fetchpriority="high" href="{{ cmsasset($page, $bg, current(array_reverse((array) cms($bg, 'previews', []))) ?: cms($bg, 'path')) }}" imagesrcset="{{ cmssrcset($page, $bg) }}" imagesizes="100vw">
+    @endPushOnce
     @include('cms::pic', ['file' => $bg, 'main' => true, 'class' => array_filter(['background', $data->{'background-animation'} ?? null]), 'sizes' => '100vw'])
 @endif
 
@@ -22,10 +25,10 @@
     @if(($data->url ?? null) || ($data->{'url-alternative'} ?? null))
         <div class="actions">
             @if($data->url ?? null)
-                <a class="btn url" href="{{ cmslink($data->url) }}">{{ $data->button ?? '' }}</a>
+                <a class="btn url" href="{{ cmslink($data->url) }}" rel="{{ $data->{'url-rel'} ?? '' }}">{{ $data->button ?? '' }}</a>
             @endif
             @if($data->{'url-alternative'} ?? null)
-                <a class="btn url-alternative" href="{{ cmslink($data->{'url-alternative'}) }}">{{ $data->{'button-alternative'} ?? '' }}</a>
+                <a class="btn url-alternative" href="{{ cmslink($data->{'url-alternative'}) }}" rel="{{ $data->{'url-alternative-rel'} ?? '' }}">{{ $data->{'button-alternative'} ?? '' }}</a>
             @endif
         </div>
     @endif

@@ -47,7 +47,8 @@ class ChatController extends Controller
             abort( 401 );
         }
 
-        if( !Permission::can( 'page:chat', $user ) ) {
+        if( !Permission::can( 'page:chat', $user ) && !Permission::can( 'element:chat', $user )
+            && !Permission::can( 'file:chat', $user ) ) {
             abort( 403 );
         }
 
@@ -105,7 +106,7 @@ class ChatController extends Controller
                 Tools::provider( 'web_fetch' ),
             ] )
             ->withToolChoice( \Aimeos\Prisma\Providers\Base::AUTO )
-            ->withMaxSteps( 10 );
+            ->withMaxSteps( config( 'cms.ai.maxsteps', 10 ) );
 
         if( $history ) {
             $prisma->withMessages( $history );

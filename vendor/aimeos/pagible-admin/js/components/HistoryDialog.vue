@@ -1,957 +1,615 @@
 /** @license MIT, https://opensource.org/license/mit */
 
 <script>
-let diffWordsFn = null
-
-import { mdiClose } from '@mdi/js'
-import { empty, fileurl, filesrcset, stringify } from '../utils'
-
-const SECTION_NAMES = ['meta', 'config', 'content']
-const SKIP_FIELDS = ['previews']
-const EMPTY_SPACE = { value: '\u00a0', highlight: false }
+import { useSchemaStore } from '../stores'
+import { filechanges, plaintext, restore, sections } from '../history'
+import CmsDialog from './Dialog.vue'
+import HistoryField from './HistoryField.vue'
+import LoadingSpinner from './LoadingSpinner.vue'
 
 export default {
+  components: { CmsDialog, HistoryField, LoadingSpinner },
+
   props: {
     modelValue: { type: Boolean, required: true },
-    readonly: { type: Boolean, required: false },
+    readonly: { type: Boolean, default: false },
     current: { type: Object, default: null },
     load: { type: Function, required: true }
   },
 
-  emits: ['update:modelValue', 'apply', 'use', 'revert'],
+  emits: ['update:modelValue', 'apply', 'use'],
 
   setup() {
-    return { fileurl, filesrcset, mdiClose }
+    return { schemas: useSchemaStore() }
   },
 
   data: () => ({
-    labels: null,
-    list: [],
-    latest: null,
+    cards: [],
     loading: false,
-    unchecked: {}
+    failed: false,
+    opened: null
   }),
 
-  created() {
-    this.labels = {
-      data: this.$gettext('Fields'),
-      meta: this.$gettext('Meta data'),
-      config: this.$gettext('Configuration'),
-      content: this.$gettext('Content')
-    }
-  },
-
-  beforeUnmount() {
-    this.list = null
-    this.latest = null
-    this.unchecked = null
-    this.labels = null
-    this.diffCache = null
-  },
-
   computed: {
-    currentDiffs() {
-      if (!this.latest || !this.hasCurrentChanges) return {}
-      return this.sectionDiffs(this.latest.data || {}, this.current.data || {})
+    active() {
+      return this.cards.find(card => this.opened === card.key)
     },
 
-    hasCurrentChanges() {
-      return this.latest && this.isModified(this.latest, this.current)
-    },
-
-    hasPublishedLatest() {
-      return !!this.latest && (this.latest.published || this.latest.publish_at)
-    },
-
-    versions() {
-      return this.list.filter((v) => {
-        return this.isModified(v, this.current) || v.published || v.publish_at
-      })
+    labels() {
+      return {
+        data: this.$gettext('Fields'), meta: this.$gettext('Meta data'),
+        config: this.$gettext('Configuration'), content: this.$gettext('Content')
+      }
     }
+  },
+
+  mounted() {
+    this.fetch()
   },
 
   methods: {
-    apply(idx) {
-      const isCurrent = idx === 'current'
-      const version = isCurrent ? this.latest : this.versions[idx]
-      const later = isCurrent ? this.current : this.laterVersion(idx)
-      const changes = {}
-      const seen = {}
-
-      for (const key in version.data) {
-        if (!SECTION_NAMES.includes(key) && !SKIP_FIELDS.includes(key)) seen[key] = true
-      }
-      for (const key in later?.data) {
-        if (!SECTION_NAMES.includes(key) && !SKIP_FIELDS.includes(key)) seen[key] = true
-      }
-      for (const key in seen) {
-        if (JSON.stringify(version.data?.[key]) !== JSON.stringify(later?.data?.[key])
-            && this.isChecked(idx, `data:${key}`)) {
-          changes[key] = version.data[key]
-        }
-      }
-
-      if ('path' in changes
-          && JSON.stringify(version.data?.previews) !== JSON.stringify(later?.data?.previews)) {
-        changes.previews = version.data?.previews
-      }
-
-      for (const section of ['meta', 'config']) {
-        const vSec = version.data?.[section] || {}
-        const lSec = later?.data?.[section] || {}
-
-        if (JSON.stringify(vSec) === JSON.stringify(lSec)) continue
-
-        const merged = { ...lSec }
-        const sectionSeen = {}
-        let hasChanges = false
-
-        for (const key in vSec) sectionSeen[key] = true
-        for (const key in lSec) sectionSeen[key] = true
-        for (const key in sectionSeen) {
-          if (JSON.stringify(vSec[key]) !== JSON.stringify(lSec[key]) && this.isChecked(idx, `${section}:${key}`)) {
-            merged[key] = vSec[key]
-            hasChanges = true
-          }
-        }
-
-        if (hasChanges) changes[section] = merged
-      }
-
-      if (JSON.stringify(version.data?.content) !== JSON.stringify(later?.data?.content)) {
-        const diffs = isCurrent ? this.currentDiffs : this.versionDiffs(idx)
-
-        if ((diffs.content || []).some(block => this.isChecked(idx, block.diffKey))) {
-          changes.content = version.data.content
-        }
-      }
-
-      this.$emit('apply', changes)
+    apply(card) {
+      if (this.readonly || !this.selected(card)) return
+      const source = this.current || this.cards[0].after
+      const changes = restore(source.data || {}, card.before.data || {}, card.diffs, key => card.selection[key])
+      this.$emit('apply', changes, card.before)
     },
 
-    addedBlock(item) {
-      const fields = this.buildFieldDiffs(this.getChangedFields({}, item?.data || {}))
-
-      return {
-        title: this.blockLabel(item),
-        fields: fields.length ? fields : [{
-          label: '', removed: [EMPTY_SPACE],
-          added: [{ value: this.$gettext('Added'), highlight: true }]
-        }]
-      }
+    blockLabel(card, block) {
+      const item = block.after || block.before
+      const element = Object.values((block.after ? card.after : card.before).elements || {}).find(element => element.id === item?.refid)
+      const title = plaintext(element?.name || item?.data?.title || item?.data?.text || '').replace(/\s+/g, ' ').slice(0, 60)
+      const type = item?.type === 'reference' ? this.$gettext('Shared element')
+        : this.$pgettext('st', this.schemas.content[item?.type]?.label || item?.type || this.$gettext('Content block'))
+      return type + (title ? ': ' + title : '')
     },
 
-    buildFieldDiffs(fields, prefix = '') {
-      return fields.map(({ label, old: oldVal, new: newVal, rootKey }) => {
-        const words = diffWordsFn(oldVal || '', newVal || '')
-        const removed = words.filter(w => !w.added).map(w => ({ value: w.value, highlight: !!w.removed }))
-        const added = words.filter(w => !w.removed).map(w => ({ value: w.value, highlight: !!w.added }))
-
-        return {
-          label,
-          removed: removed.some(w => w.value) ? removed : [EMPTY_SPACE],
-          added: added.some(w => w.value) ? added : [EMPTY_SPACE],
-          diffKey: prefix ? `${prefix}:${rootKey}` : rootKey,
-        }
+    blockLocation(block) {
+      return this.$gettext('Group: %{group} · Position %{num}', {
+        group: this.$pgettext('sg', (block.after || block.before)?.group || 'main'), num: (block.to ?? block.from) + 1
       })
     },
 
-    contentDiffs(aArr, bArr) {
-      const blockKey = (item) => item?.id || item?.refid
-      const hasKeys = aArr.some(blockKey) || bArr.some(blockKey)
-      const blocks = []
+    blockSummary(card, block) {
+      const parts = []
+      const fields = block.fields.filter(field => !field.position)
+      if (block.moved) parts.push(this.$gettext('Moved from position %{from} to %{to}', { from: block.from + 1, to: block.to + 1 }))
+      if (fields.length) parts.push(this.$ngettext('%{num} field changed', '%{num} fields changed', fields.length, { num: fields.length }))
+      if (!this.readonly) parts.push(this.$gettext('%{selected} of %{total} selected', {
+        selected: this.selected(card, block.keys), total: block.keys.length
+      }))
+      return parts.join(' · ')
+    },
 
-      const diffBlock = (aItem, bItem) => {
-        if (JSON.stringify(aItem) === JSON.stringify(bItem)) return
+    date(value) {
+      return value ? new Date(value).toLocaleString(this.$vuetify.locale.current) : this.$gettext('Unknown date')
+    },
 
-        const fields = this.buildFieldDiffs(this.getChangedFields(aItem?.data || aItem || {}, bItem?.data || bItem || {}))
+    async fetch() {
+      this.cards = []
+      this.opened = null
+      this.loading = true
+      this.failed = false
 
-        if (!fields.length) {
-          const top = this.buildFieldDiffs(this.getChangedFields(
-            { type: aItem?.type, group: aItem?.group },
-            { type: bItem?.type, group: bItem?.group }
-          ))
+      try {
+        const versions = await this.load()
+        if (!Array.isArray(versions)) throw new Error('Invalid version response')
 
-          if (top.length) blocks.push({ title: this.blockLabel(bItem || aItem), fields: top })
-        } else {
-          blocks.push({ title: this.blockLabel(bItem || aItem), fields })
-        }
-      }
-
-      if (hasKeys) {
-        const aMap = new Map(aArr.map(i => [blockKey(i), i]).filter(([k]) => k))
-        const bMap = new Map(bArr.map(i => [blockKey(i), i]).filter(([k]) => k))
-
-        for (const [key, aItem] of aMap) {
-          const bItem = bMap.get(key)
-
-          if (!bItem) {
-            blocks.push(this.removedBlock(aItem))
-          } else {
-            diffBlock(aItem, bItem)
+        const snapshots = this.current && versions.length ? [this.current, ...versions] : versions
+        this.cards = snapshots.slice(0, -1).map((after, index) => {
+          const before = snapshots[index + 1]
+          const unsaved = index === 0 && !!this.current
+          const diffs = sections(before.data || {}, after.data || {})
+          const files = filechanges(before, after, diffs)
+          const keys = Object.entries(diffs).flatMap(([section, entries]) => section === 'content' ? entries.flatMap(block => block.keys) : entries.map(entry => entry.key))
+          const blocks = diffs.content || []
+          return {
+            key: unsaved ? 'current' : 'version:' + (after.id || index), before, after, unsaved, diffs, fileCount: files.count, keys,
+            selection: Object.fromEntries(keys.map(key => [key, true])),
+            remaining: files.remaining,
+            expanded: (blocks.length > 5 ? blocks.slice(0, 1) : blocks).map(block => block.key)
           }
-        }
-        for (const [key, bItem] of bMap) {
-          if (!aMap.has(key)) {
-            blocks.push(this.addedBlock(bItem))
-          }
-        }
-      } else {
-        const len = Math.max(aArr.length, bArr.length)
-
-        for (let i = 0; i < len; i++) {
-          const aItem = aArr[i]
-          const bItem = bArr[i]
-
-          if (!aItem) {
-            blocks.push(this.addedBlock(bItem))
-          } else if (!bItem) {
-            blocks.push(this.removedBlock(aItem))
-          } else {
-            diffBlock(aItem, bItem)
-          }
-        }
-      }
-
-      for (let i = 0; i < blocks.length; i++) {
-        blocks[i].diffKey = `content:${i}`
-      }
-
-      return blocks
-    },
-
-    formatDate(dateStr) {
-      return new Date(dateStr).toLocaleString(this.$vuetify.locale.current)
-    },
-
-    diffKeys(idx) {
-      const diffs = idx === 'current' ? this.currentDiffs : this.versionDiffs(idx)
-      const keys = []
-
-      for (const [name, entries] of Object.entries(diffs)) {
-        if (name === 'content') {
-          entries.forEach(block => keys.push(block.diffKey))
-        } else {
-          entries.forEach(entry => keys.push(entry.diffKey))
-        }
-      }
-      return keys
-    },
-
-    filesdiff(map1, map2) {
-      const m1 = map1 || {}
-      const m2 = map2 || {}
-      const result = {}
-
-      for (const key in m1) {
-        if (!(key in m2)) {
-          result[key] = Object.assign({}, m1[key], { css: 'added' })
-        }
-      }
-
-      for (const key in m2) {
-        if (!(key in m1)) {
-          result[key] = Object.assign({}, m2[key], { css: 'removed' })
-        }
-      }
-
-      return result
-    },
-
-    blockLabel(block) {
-      if (!block?.type) return ''
-
-      const title = block.data?.title || block.data?.text || ''
-
-      return this.$pgettext('st', block.type) + (title ? ': ' + title.substring(0, 60) : '')
-    },
-
-    getChangedFields(a, b, rootKey = null) {
-      const fields = []
-      const seen = {}
-      const aObj = a || {}
-      const bObj = b || {}
-
-      for (const k in aObj) seen[k] = true
-      for (const k in bObj) seen[k] = true
-
-      for (const k in seen) {
-        const aVal = aObj[k]
-        const bVal = bObj[k]
-
-        if (JSON.stringify(aVal) === JSON.stringify(bVal)) continue
-        if (empty(aVal) && empty(bVal)) continue
-
-        const rk = rootKey || k
-        const label = this.$pgettext('fn', k)
-
-        if (aVal && bVal && typeof aVal === 'object' && !Array.isArray(aVal)
-            && typeof bVal === 'object' && !Array.isArray(bVal)) {
-          for (const f of this.getChangedFields(aVal, bVal, rk)) {
-            f.label = `${label} › ${f.label}`
-            fields.push(f)
-          }
-        } else {
-          fields.push({ label, old: stringify(aVal), new: stringify(bVal), rootKey: rk })
-        }
-      }
-
-      return fields
-    },
-
-    isAllChecked(idx) {
-      const prefix = `${idx}:`
-      return !Object.keys(this.unchecked).some(k => k.startsWith(prefix))
-    },
-
-    isChecked(idx, diffKey) {
-      return !this.unchecked[`${idx}:${diffKey}`]
-    },
-
-    isModified(v1, v2) {
-      if (!v1 || !v2) return false
-
-      const a = v1.data || {}
-      const b = v2.data || {}
-
-      for (const k in a) {
-        if (SKIP_FIELDS.includes(k)) continue
-        if (JSON.stringify(a[k]) !== JSON.stringify(b[k]) && !(empty(a[k]) && empty(b[k]))) return true
-      }
-
-      for (const k in b) {
-        if (SKIP_FIELDS.includes(k)) continue
-        if (!(k in a) && !empty(b[k])) return true
-      }
-
-      return false
-    },
-
-    laterVersion(idx) {
-      return idx === 0 ? this.latest : this.versions[idx - 1]
-    },
-
-    removedBlock(item) {
-      const fields = this.buildFieldDiffs(this.getChangedFields(item?.data || {}, {}))
-
-      return {
-        title: this.blockLabel(item),
-        fields: fields.length ? fields : [{
-          label: '', removed: [{ value: this.$gettext('Removed'), highlight: true }], added: [EMPTY_SPACE]
-        }]
+        }).filter(card => !card.unsaved || card.keys.length || card.fileCount)
+        const first = this.cards.find(card => card.keys.length || card.fileCount) || this.cards[0]
+        this.opened = first?.key ?? null
+      } catch (error) {
+        this.failed = true
+        this.$log('HistoryDialog::fetch()', error)
+      } finally {
+        this.loading = false
       }
     },
 
-    reset() {
-      this.list = []
-      this.latest = null
-      this.unchecked = {}
-      this.diffCache = {}
+    fieldLabel(card, field, section, block) {
+      if (field.position) return this.$gettext('Block position')
+      const path = field.path.filter((key, index) => !(key === 'data' || (index === 0 && key === section)))
+      const definition = this.schema(card, field, block)
+      if (definition.label) path[path.length - 1] = definition.label
+      else if (path.at(-1) === 'refid') path[path.length - 1] = this.$gettext('Shared element')
+      return path.map(key => this.$pgettext('fn', key).replace(/-|_/g, ' ')).join(' › ') || this.$gettext('Value')
     },
 
-    sectionDiffs(a, b) {
-      const result = {}
-      const dataA = {}
-      const dataB = {}
-
-      for (const k in a) {
-        if (!SECTION_NAMES.includes(k) && !SKIP_FIELDS.includes(k)) dataA[k] = a[k]
-      }
-
-      for (const k in b) {
-        if (!SECTION_NAMES.includes(k) && !SKIP_FIELDS.includes(k)) dataB[k] = b[k]
-      }
-
-      const dataFields = this.getChangedFields(dataA, dataB)
-
-      if (dataFields.length) result.data = Object.freeze(this.buildFieldDiffs(dataFields, 'data'))
-
-      for (const section of ['meta', 'config']) {
-        const fields = this.getChangedFields(a[section] || {}, b[section] || {})
-
-        if (fields.length) result[section] = Object.freeze(this.buildFieldDiffs(fields, section))
-      }
-
-      const contentBlocks = this.contentDiffs(a.content || [], b.content || [])
-
-      if (contentBlocks.length) result.content = Object.freeze(contentBlocks)
-
-      return result
+    inactive(card, key) {
+      return !this.readonly && !card.selection[key]
     },
 
-    toggleAll(idx) {
-      if (this.isAllChecked(idx)) {
-        for (const key of this.diffKeys(idx)) {
-          this.unchecked[`${idx}:${key}`] = true
-        }
-      } else {
-        for (const k of Object.keys(this.unchecked)) {
-          if (k.startsWith(`${idx}:`)) delete this.unchecked[k]
-        }
+    schema(card, field, block) {
+      if (!field.path) return {}
+      let path = [...field.path], definitions
+      if (block && path[0] === 'data') {
+        definitions = this.schemas.content[(block.after || block.before).type]?.fields
+        path.shift()
+      } else if (['meta', 'config'].includes(path[0])) {
+        const [section, key] = path.splice(0, 2)
+        const item = card.after.data?.[section]?.[key] || card.before.data?.[section]?.[key]
+        definitions = this.schemas[section][item?.type || key]?.fields
+        if (path[0] === 'data') path.shift()
+      } else if (path[0] === 'data') {
+        definitions = this.schemas.content[card.after.data?.type || card.before.data?.type]?.fields
+        path.shift()
       }
+      let definition
+      for (const key of path) {
+        definition = definitions?.[key]
+        definitions = definition?.item || definition?.fields
+      }
+      return definition || {}
     },
 
-    toggleDiff(idx, diffKey) {
-      const key = `${idx}:${diffKey}`
-
-      if (this.unchecked[key]) {
-        delete this.unchecked[key]
-      } else {
-        this.unchecked[key] = true
-      }
+    selected(card, keys = card.keys) {
+      return keys.filter(key => card.selection[key]).length
     },
 
-    versionDiffs(idx) {
-      if (this.diffCache?.[idx]) return this.diffCache[idx]
+    summary(card) {
+      const parts = []
+      const count = Object.entries(card.diffs).filter(([section]) => section !== 'content').reduce((sum, [, entries]) => sum + entries.length, 0)
+      if (count) parts.push(this.$ngettext('%{num} field changed', '%{num} fields changed', count, { num: count }))
 
-      const version = this.versions[idx]
-      const later = this.laterVersion(idx)
+      const blocks = card.diffs.content || []
+      const added = blocks.filter(block => block.kind === 'added').length
+      const removed = blocks.filter(block => block.kind === 'removed').length
+      const changed = blocks.filter(block => block.kind === 'changed' && block.fields.some(field => !field.position)).length
+      const moved = blocks.filter(block => block.moved).length
+      if (added) parts.push(this.$ngettext('%{num} block added', '%{num} blocks added', added, { num: added }))
+      if (removed) parts.push(this.$ngettext('%{num} block removed', '%{num} blocks removed', removed, { num: removed }))
+      if (changed) parts.push(this.$ngettext('%{num} block changed', '%{num} blocks changed', changed, { num: changed }))
+      if (moved) parts.push(this.$ngettext('%{num} block moved', '%{num} blocks moved', moved, { num: moved }))
+      if (card.fileCount) parts.push(this.$ngettext('%{num} file changed', '%{num} files changed', card.fileCount, { num: card.fileCount }))
+      return parts.join(' · ') || this.$gettext('No changes')
+    },
 
-      if (!version?.data || !later?.data) return {}
-
-      const result = Object.freeze(this.sectionDiffs(later.data, version.data))
-
-      if (!this.diffCache) this.diffCache = {}
-
-      const keys = Object.keys(this.diffCache)
-
-      if (keys.length >= 3) {
-        delete this.diffCache[keys[0]]
-      }
-
-      this.diffCache[idx] = result
-
-      return result
-    }
-  },
-
-  watch: {
-    modelValue: {
-      immediate: true,
-      async handler(val) {
-        if (!val) {
-          this.list = []
-          this.latest = null
-          this.diffCache = {}
-          return
-        }
-
-        if (val && !this.latest) {
-          this.loading = true
-
-          if (!diffWordsFn) {
-            const mod = await import('diff')
-            diffWordsFn = mod.diffWords
-          }
-
-          this.load()
-            .then((versions) => {
-              this.latest = versions?.[0] || null
-              this.list = Object.freeze(versions?.slice(1) || [])
-            })
-            .finally(() => {
-              this.loading = false
-            })
-        }
-      }
+    toggleAll(card, keys = card.keys) {
+      const selected = keys.every(key => card.selection[key])
+      for (const key of keys) card.selection[key] = !selected
     }
   }
 }
 </script>
 
 <template>
-  <v-dialog
-    :aria-label="$gettext('History')"
-    :modelValue="modelValue"
-    @afterLeave="reset(); $emit('update:modelValue', false)"
+  <CmsDialog
+    :model-value="modelValue"
+    :title="$gettext('History')"
+    @update:model-value="$emit('update:modelValue', $event)"
+    content-class="history-body"
     max-width="1200"
-    scrollable
   >
-    <v-card>
-      <v-toolbar density="compact">
-        <v-toolbar-title>{{ $gettext('History') }}</v-toolbar-title>
-        <v-btn :icon="mdiClose" :aria-label="$gettext('Close')" @click="$emit('update:modelValue', false)" />
-      </v-toolbar>
-      <v-card-text>
-        <v-timeline side="end" align="start">
-          <v-timeline-item v-if="loading" dot-color="grey-lighten-1" size="small" width="100%">
-            <div class="loading" role="status">
-              {{ $gettext('Loading') }}
-              <svg
-                class="spinner"
-                aria-hidden="true"
-                width="32"
-                height="32"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <circle class="spin1" cx="4" cy="12" r="3" />
-                <circle class="spin1 spin2" cx="12" cy="12" r="3" />
-                <circle class="spin1 spin3" cx="20" cy="12" r="3" />
-              </svg>
-            </div>
-          </v-timeline-item>
+    <v-expansion-panels v-model="opened" class="version-panels" elevation="2">
+          <v-timeline side="end" align="start">
+            <v-timeline-item v-if="loading" dot-color="text-secondary" size="small" width="100%">
+              <div class="loading" role="status">{{ $gettext('Loading') }}<LoadingSpinner width="32" height="32" /></div>
+            </v-timeline-item>
+            <v-timeline-item v-else-if="failed" dot-color="error" size="small" width="100%">
+              <div role="alert">{{ $gettext('Error fetching versions') }}</div>
+              <v-btn variant="outlined" @click="fetch">{{ $gettext('Retry') }}</v-btn>
+            </v-timeline-item>
+            <v-timeline-item v-else-if="!cards.length" dot-color="text-secondary" size="small" width="100%">
+              <span role="status">{{ $gettext('No changes') }}</span>
+            </v-timeline-item>
 
-          <v-timeline-item
-            v-if="!loading && !(hasCurrentChanges || versions.length || hasPublishedLatest)"
-            dot-color="grey-lighten-1"
-            width="100%"
-            size="small"
-          >
-            <span role="status">{{ $gettext('No changes') }}</span>
-          </v-timeline-item>
-
-          <v-timeline-item
-            v-if="!loading && hasCurrentChanges"
-            dot-color="blue"
-            width="100%"
-            size="small"
-          >
-            <v-card :elevation="2">
-              <v-card-title>{{ $gettext('Current') }}</v-card-title>
-              <v-card-text>
-                <div class="version-diffs">
-                  <template v-for="(entries, name) in currentDiffs" :key="name">
-                    <h4 class="section-header">
-                      <v-chip size="small" label>{{ labels[name] || name }}</v-chip>
-                    </h4>
-                    <template v-if="name === 'content'">
-                      <template v-for="(block, bi) in entries" :key="bi">
-                        <div role="group" :aria-label="block.title">
-                          <div class="diff-block-title">{{ block.title }}</div>
-                          <div v-for="(entry, ei) in block.fields" :key="ei" class="diff-group" role="group" :aria-label="entry.label">
-                            <div class="diff-row change-old" :aria-label="$gettext('Removed')">
-                              <span class="diff-symbol" aria-hidden="true">−</span>
-                              <span class="diff-label">{{ entry.label }}</span>
-                              <div class="diff-text"><span
-                                v-for="(word, wi) in entry.removed" :key="wi"
-                                :class="{ highlight: word.highlight }"
-                              >{{ word.value }}</span></div>
-                            </div>
-                            <div class="diff-row change-new" :aria-label="$gettext('Added')">
-                              <span class="diff-symbol" aria-hidden="true">+</span>
-                              <span class="diff-label">{{ entry.label }}</span>
-                              <div class="diff-text"><span
-                                v-for="(word, wi) in entry.added" :key="wi"
-                                :class="{ highlight: word.highlight }"
-                              >{{ word.value }}</span></div>
-                            </div>
-                          </div>
-                        </div>
-                        <v-checkbox
-                          class="diff-check"
-                          :model-value="isChecked('current', block.diffKey)"
-                          @update:model-value="toggleDiff('current', block.diffKey)"
-                          :aria-label="block.title"
-                          hide-details
-                          density="compact"
-                        />
-                      </template>
+            <v-timeline-item
+              v-for="card in cards" :key="card.key"
+              :dot-color="card.after.published ? 'success' : 'text-secondary'"
+              width="100%" size="small"
+            >
+              <v-expansion-panel :value="card.key" class="version-panel">
+                <v-expansion-panel-title class="version-heading version-panel-title">
+                  <span class="version-title" role="heading" aria-level="3">
+                    <span class="version-date">{{ card.unsaved ? $gettext('Current changes') : date(card.after.created_at) }}</span>
+                    <span class="version-summary">{{ summary(card) }}</span>
+                  </span>
+                  <span v-if="!card.unsaved" class="version-editor">
+                    {{ card.after.editor }}
+                    <template v-if="!card.after.published && card.after.publish_at">
+                      {{ card.after.editor ? ' · ' : '' }}{{ $gettext('Scheduled for %{date}', { date: date(card.after.publish_at) }) }}
                     </template>
-                    <template v-else>
-                      <template v-for="(entry, ei) in entries" :key="ei">
-                        <div class="diff-group" role="group" :aria-label="entry.label">
-                          <div class="diff-row change-old" :aria-label="$gettext('Removed')">
-                            <span class="diff-symbol" aria-hidden="true">−</span>
-                            <span class="diff-label">{{ entry.label }}</span>
-                            <div class="diff-text"><span
-                              v-for="(word, wi) in entry.removed" :key="wi"
-                              :class="{ highlight: word.highlight }"
-                            >{{ word.value }}</span></div>
-                          </div>
-                          <div class="diff-row change-new" :aria-label="$gettext('Added')">
-                            <span class="diff-symbol" aria-hidden="true">+</span>
-                            <span class="diff-label">{{ entry.label }}</span>
-                            <div class="diff-text"><span
-                              v-for="(word, wi) in entry.added" :key="wi"
-                              :class="{ highlight: word.highlight }"
-                            >{{ word.value }}</span></div>
-                          </div>
-                        </div>
-                        <v-checkbox
-                          class="diff-check"
-                          :model-value="isChecked('current', entry.diffKey)"
-                          @update:model-value="toggleDiff('current', entry.diffKey)"
-                          :aria-label="entry.label"
-                          hide-details
-                          density="compact"
-                        />
-                      </template>
-                    </template>
-                  </template>
-                  <div class="media-list">
-                    <div
-                      v-for="file of filesdiff(current.files, latest?.files)"
-                      :key="file.id"
-                      :class="file.css"
-                      class="file"
-                    >
-                      <v-img
-                        v-if="file.mime?.startsWith('image/')"
-                        :srcset="filesrcset(file)"
-                        :src="fileurl(file, Object.values(file.previews)[0] ?? file.path)"
-                        :alt="file.name"
-                        draggable="false"
-                        loading="lazy"
-                      />
-                      <video
-                        v-else-if="file.mime?.startsWith('video/')"
-                        :poster="fileurl(file, Object.values(file.previews).shift())"
-                        :src="fileurl(file)"
-                        crossorigin="anonymous"
-                        draggable="false"
-                        loading="lazy"
-                        controls
-                      />
-                      <div v-else-if="file.mime?.startsWith('audio/')">
-                        <audio
-                          :src="fileurl(file)"
-                          crossorigin="anonymous"
-                          draggable="false"
-                          loading="lazy"
-                          controls
-                        />
-                        {{ file.name }}
-                      </div>
-                      <div v-else>
-                        {{ file.name }}
-                      </div>
-                    </div>
-                  </div>
-                  <div v-if="!readonly" class="diff-actions">
-                    <v-btn variant="tonal" color="success" @click.stop="$emit('revert', latest)">
-                      {{ $gettext('Revert') }}
-                    </v-btn>
-                    <v-spacer />
-                    <v-btn variant="tonal" color="info" @click.stop="apply('current')">
-                      {{ $gettext('Apply changes') }}
-                    </v-btn>
-                  </div>
+                  </span>
                   <v-checkbox
-                    v-if="!readonly"
-                    class="diff-check"
-                    :model-value="isAllChecked('current')"
-                    @update:model-value="toggleAll('current')"
-                    :aria-label="$gettext('Toggle all')"
-                    hide-details
-                    density="compact"
+                    v-if="!readonly && card.keys.length" class="select-all"
+                    :model-value="selected(card) === card.keys.length"
+                    :indeterminate="selected(card) > 0 && selected(card) < card.keys.length"
+                    :disabled="opened !== card.key"
+                    :aria-label="$gettext('Select all')" @click.stop @update:model-value="toggleAll(card)" hide-details density="compact"
                   />
-                </div>
-              </v-card-text>
-            </v-card>
-          </v-timeline-item>
+                </v-expansion-panel-title>
 
-          <v-timeline-item
-            v-if="!loading && hasPublishedLatest"
-            :dot-color="latest.published ? 'success' : 'grey-lighten-1'"
-            :class="{ publish: latest.publish_at }"
-            width="100%"
-            size="small"
-          >
-            <v-card :elevation="2">
-              <v-card-title>
-                {{ formatDate(latest.publish_at || latest.created_at) }}
-              </v-card-title>
-              <v-card-subtitle>
-                {{ latest.editor }}
-              </v-card-subtitle>
-            </v-card>
-          </v-timeline-item>
-
-          <v-timeline-item
-            v-for="(version, idx) in versions"
-            :key="idx"
-            :dot-color="version.published ? 'success' : 'grey-lighten-1'"
-            :class="{ publish: version.publish_at }"
-            width="100%"
-            size="small"
-          >
-            <v-card :elevation="2">
-              <v-card-title>
-                {{ formatDate(version.publish_at || version.created_at) }}
-              </v-card-title>
-              <v-card-subtitle>
-                {{ version.editor }}
-              </v-card-subtitle>
-              <v-card-text>
-                <div class="version-diffs">
-                  <template v-for="(entries, name) in versionDiffs(idx)" :key="name">
-                    <h4 class="section-header">
-                      <v-chip size="small" label>{{ labels[name] || name }}</v-chip>
-                    </h4>
-                    <template v-if="name === 'content'">
-                      <template v-for="(block, bi) in entries" :key="bi">
-                        <div role="group" :aria-label="block.title">
-                          <div class="diff-block-title">{{ block.title }}</div>
-                          <div v-for="(entry, didx) in block.fields" :key="didx" class="diff-group" role="group" :aria-label="entry.label">
-                            <div class="diff-row change-old" :aria-label="$gettext('Removed')">
-                              <span class="diff-symbol" aria-hidden="true">−</span>
-                              <span class="diff-label">{{ entry.label }}</span>
-                              <div class="diff-text"><span
-                                v-for="(word, wi) in entry.removed" :key="wi"
-                                :class="{ highlight: word.highlight }"
-                              >{{ word.value }}</span></div>
+                <v-expansion-panel-text class="version-diffs">
+                <section v-for="(entries, name) in card.diffs" :key="name" class="diff-section">
+                  <h3 class="section-header">{{ labels[name] }}</h3>
+                  <template v-if="name === 'content'">
+                    <v-expansion-panels v-model="card.expanded" class="block-panels" multiple elevation="0">
+                      <v-expansion-panel v-for="block in entries" :key="block.key" :value="block.key"
+                        class="diff-block" role="group" :aria-label="blockLabel(card, block)" :data-block-key="block.key"
+                        :class="{ 'is-unselected': block.kind !== 'changed' && inactive(card, block.key) }"
+                      >
+                        <v-expansion-panel-title class="diff-heading">
+                          <v-chip v-if="block.kind === 'added'" size="small" color="success" label>{{ $gettext('Block added') }}</v-chip>
+                          <v-chip v-else-if="block.kind === 'removed'" size="small" color="error" label>{{ $gettext('Block removed') }}</v-chip>
+                          <span class="block-title" role="heading" aria-level="4">
+                            <span>{{ blockLabel(card, block) }}</span>
+                            <span v-if="block.kind === 'changed'" class="block-summary">{{ blockSummary(card, block) }}</span>
+                          </span>
+                          <v-checkbox
+                            v-if="!readonly" class="diff-check block-check" :model-value="selected(card, block.keys) === block.keys.length"
+                            :indeterminate="selected(card, block.keys) > 0 && selected(card, block.keys) < block.keys.length"
+                            :aria-label="blockLabel(card, block)" @click.stop @update:model-value="toggleAll(card, block.keys)" hide-details density="compact"
+                          />
+                        </v-expansion-panel-title>
+                        <v-expansion-panel-text>
+                          <div class="block-details">
+                            <p class="block-location">{{ blockLocation(block) }}</p>
+                            <div v-for="field in block.fields" :key="field.key" class="diff-group" role="group" :aria-label="fieldLabel(card, field, name, block)"
+                              :class="{ 'is-unselected': block.kind === 'changed' && inactive(card, field.key) }"
+                            >
+                              <div class="diff-heading">
+                                <h5 class="diff-label">{{ fieldLabel(card, field, name, block) }}</h5>
+                                <span v-if="block.kind === 'changed' && inactive(card, field.key)" class="keep-current">
+                                  {{ field.position ? $gettext('Keep current position') : $gettext('Keep current value') }}
+                                </span>
+                                <v-checkbox v-if="!readonly && block.kind === 'changed'" v-model="card.selection[field.key]" class="diff-check"
+                                  :aria-label="fieldLabel(card, field, name, block)" hide-details density="compact"
+                                />
+                              </div>
+                              <HistoryField :field="field" :type="schema(card, field, block).type" />
                             </div>
-                            <div class="diff-row change-new" :aria-label="$gettext('Added')">
-                              <span class="diff-symbol" aria-hidden="true">+</span>
-                              <span class="diff-label">{{ entry.label }}</span>
-                              <div class="diff-text"><span
-                                v-for="(word, wi) in entry.added" :key="wi"
-                                :class="{ highlight: word.highlight }"
-                              >{{ word.value }}</span></div>
-                            </div>
+                            <HistoryField v-if="block.kind !== 'changed'" class="block-raw" :field="{ before: block.before, after: block.after }" />
                           </div>
-                        </div>
-                        <v-checkbox
-                          class="diff-check"
-                          :model-value="isChecked(idx, block.diffKey)"
-                          @update:model-value="toggleDiff(idx, block.diffKey)"
-                          :aria-label="block.title"
-                          hide-details
-                          density="compact"
-                        />
-                      </template>
-                    </template>
-                    <template v-else>
-                      <template v-for="(entry, didx) in entries" :key="didx">
-                        <div class="diff-group" role="group" :aria-label="entry.label">
-                          <div class="diff-row change-old" :aria-label="$gettext('Removed')">
-                            <span class="diff-symbol" aria-hidden="true">−</span>
-                            <span class="diff-label">{{ entry.label }}</span>
-                            <div class="diff-text"><span
-                              v-for="(word, wi) in entry.removed" :key="wi"
-                              :class="{ highlight: word.highlight }"
-                            >{{ word.value }}</span></div>
-                          </div>
-                          <div class="diff-row change-new" :aria-label="$gettext('Added')">
-                            <span class="diff-symbol" aria-hidden="true">+</span>
-                            <span class="diff-label">{{ entry.label }}</span>
-                            <div class="diff-text"><span
-                              v-for="(word, wi) in entry.added" :key="wi"
-                              :class="{ highlight: word.highlight }"
-                            >{{ word.value }}</span></div>
-                          </div>
-                        </div>
-                        <v-checkbox
-                          class="diff-check"
-                          :model-value="isChecked(idx, entry.diffKey)"
-                          @update:model-value="toggleDiff(idx, entry.diffKey)"
-                          :aria-label="entry.label"
-                          hide-details
-                          density="compact"
-                        />
-                      </template>
-                    </template>
+                        </v-expansion-panel-text>
+                      </v-expansion-panel>
+                    </v-expansion-panels>
                   </template>
-                  <div class="media-list">
-                    <div
-                      v-for="file of filesdiff(version.files, laterVersion(idx)?.files)"
-                      :key="file.id"
-                      :class="file.css"
-                      class="file"
+                  <template v-else>
+                    <div v-for="field in entries" :key="field.key" class="diff-group" :class="{ 'is-unselected': inactive(card, field.key) }"
+                      role="group" :aria-label="fieldLabel(card, field, name)"
                     >
-                      <v-img
-                        v-if="file.mime?.startsWith('image/')"
-                        :srcset="filesrcset(file)"
-                        :src="fileurl(file, Object.values(file.previews)[0] ?? file.path)"
-                        :alt="file.name"
-                        draggable="false"
-                        loading="lazy"
-                      />
-                      <video
-                        v-else-if="file.mime?.startsWith('video/')"
-                        :poster="fileurl(file, Object.values(file.previews).shift())"
-                        :src="fileurl(file)"
-                        crossorigin="anonymous"
-                        draggable="false"
-                        loading="lazy"
-                        controls
-                      />
-                      <div v-else-if="file.mime?.startsWith('audio/')">
-                        <audio
-                          :src="fileurl(file)"
-                          crossorigin="anonymous"
-                          draggable="false"
-                          loading="lazy"
-                          controls
+                      <div class="diff-heading">
+                        <h4 class="diff-label">{{ fieldLabel(card, field, name) }}</h4>
+                        <span v-if="inactive(card, field.key)" class="keep-current">{{ $gettext('Keep current value') }}</span>
+                        <v-checkbox
+                          v-if="!readonly" v-model="card.selection[field.key]" class="diff-check"
+                          :aria-label="fieldLabel(card, field, name)" hide-details density="compact"
                         />
-                        {{ file.name }}
                       </div>
-                      <div v-else>
-                        {{ file.name }}
-                      </div>
+                      <HistoryField :field="field" :type="schema(card, field).type" />
                     </div>
-                  </div>
-                  <div v-if="!readonly" class="diff-actions">
-                    <v-btn variant="tonal" color="success" @click.stop="$emit('use', version)">
-                      {{ $gettext('Revert to version') }}
-                    </v-btn>
-                    <v-spacer />
-                    <v-btn variant="tonal" color="info" @click.stop="apply(idx)">
-                      {{ $gettext('Apply changes') }}
-                    </v-btn>
-                  </div>
-                  <v-checkbox
-                    v-if="!readonly"
-                    class="diff-check"
-                    :model-value="isAllChecked(idx)"
-                    @update:model-value="toggleAll(idx)"
-                    :aria-label="$gettext('Toggle all')"
-                    hide-details
-                    density="compact"
-                  />
-                </div>
-              </v-card-text>
-            </v-card>
-          </v-timeline-item>
-        </v-timeline>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
+                  </template>
+                </section>
+
+                <section v-if="card.remaining.before.length || card.remaining.after.length" class="diff-section" :aria-label="$gettext('Media')"
+                >
+                  <h3 class="section-header">{{ $gettext('Media') }}</h3>
+                  <HistoryField :field="{ media: card.remaining }" />
+                </section>
+                <div v-if="!card.keys.length && !card.fileCount" role="status">{{ $gettext('No changes') }}</div>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+            </v-timeline-item>
+          </v-timeline>
+    </v-expansion-panels>
+
+    <template #footer>
+      <div v-if="active && !readonly" class="history-actions">
+        <div class="restore-source">
+          <span>{{ active.unsaved ? $gettext('Previous version: Latest saved version') : $gettext('Previous version: %{date}', { date: date(active.before.created_at) }) }}</span>
+          <span role="status">{{ $gettext('%{selected} of %{total} selected for reverting', { selected: selected(active), total: active.keys.length }) }}</span>
+        </div>
+        <v-btn class="restore-selected" variant="tonal" color="primary" :disabled="!selected(active)" @click="apply(active)">
+          {{ $gettext('Revert selected changes') }}
+        </v-btn>
+        <v-btn class="restore-whole" variant="outlined" @click="$emit('use', active.before, active.unsaved)">
+          {{ $gettext('Restore previous version') }}
+        </v-btn>
+      </div>
+    </template>
+  </CmsDialog>
 </template>
 
 <style scoped>
 .v-timeline--vertical {
-  grid-template-columns: 0 min-content auto;
+  grid-template-columns: 0 min-content minmax(0, 1fr);
 }
 
-.v-timeline-item__opposite {
-  display: none;
+.v-timeline :deep(.v-timeline-item__body) {
+  min-width: 0;
+  width: 100%;
 }
 
-.v-timeline-item.publish .v-card-title {
-  color: rgb(var(--v-theme-success));
-}
-
-h4.section-header {
-  font-size: inherit;
-  font-weight: normal;
-  margin-bottom: 8px;
-  margin-top: 12px;
-}
-
-h4.section-header:first-child {
-  margin-top: 0;
-}
-
-.version-diffs {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px 8px;
-  align-items: center;
-}
-
-.version-diffs > .section-header {
-  grid-column: 1 / -1;
-}
-
-.diff-block-title {
-  font-weight: 600;
-}
-
-.diff-actions {
-  display: flex;
-  align-items: center;
-  padding-top: 4px;
-}
-
-.diff-check {
-  align-self: center;
-  justify-self: center;
-  min-height: 44px;
-  min-width: 44px;
-}
-
-.diff-group {
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  background-color: rgba(var(--v-theme-on-surface), 0.04);
-  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 6px;
-  padding: 6px 12px;
-  gap: 2px 8px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.5;
-}
-
-.diff-row {
-  display: grid;
-  grid-template-columns: subgrid;
-  grid-column: 1 / -1;
-  align-items: baseline;
-}
-
-.diff-symbol {
-  font-weight: 600;
-  user-select: none;
-}
-
-.diff-label {
-  font-weight: 500;
-  opacity: 0.78;
-  white-space: nowrap;
-}
-
-.diff-text {
+.version-panels, .version-panel {
   min-width: 0;
 }
 
-.change-old .diff-text {
-  background-color: rgba(var(--v-theme-error), 0.08);
-  border-radius: 4px;
-  padding: 2px 6px;
+.version-panels, .block-panels {
+  display: block;
 }
 
-.change-new .diff-text {
-  background-color: rgba(var(--v-theme-success), 0.08);
-  border-radius: 4px;
-  padding: 2px 6px;
+.version-panel::after, .diff-block::after {
+  display: none;
 }
 
-.change-old .highlight {
-  background-color: rgba(var(--v-theme-error), 0.4);
-}
-
-.change-new .highlight {
-  background-color: rgba(var(--v-theme-success), 0.4);
-}
-
-.v-timeline-item .media-list {
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  grid-column: 1 / -1;
+.version-panel :deep(.v-expansion-panel-title.version-heading) {
   display: grid;
-}
-
-.v-timeline-item .file {
-  border: 2px solid transparent;
-  justify-content: center;
+  grid-template-columns: minmax(0, 1fr) auto 48px;
+  grid-template-rows: auto auto;
   align-items: center;
-  position: relative;
-  text-align: center;
-  overflow: hidden;
-  max-height: 150px;
-  display: flex;
-  margin: 4px;
-}
-
-.v-timeline-item .file .v-img {
-  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAIAQMAAAD+wSzIAAAABlBMVEX////Ly8vsgL9iAAAADklEQVQI12P4AIX8EAgALgAD/aNpbtEAAAAASUVORK5CYII=);
-  background-repeat: repeat;
-}
-
-.v-timeline-item .file.added {
-  border: 2px dashed rgb(var(--v-theme-success));
-}
-
-.v-timeline-item .file.removed {
-  border: 2px dashed rgb(var(--v-theme-error));
-  opacity: 0.66;
-}
-
-.v-timeline-item .file video,
-.v-timeline-item .file audio {
+  row-gap: 6px;
+  min-height: 0;
   width: 100%;
+  padding: 16px;
+  text-align: start;
+}
+
+.version-title {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  width: 100%;
+}
+
+.version-date {
+  white-space: nowrap;
+}
+
+.version-panel :deep(.v-expansion-panel-title__icon) {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  justify-content: center;
+  width: 48px;
+  margin-inline-start: 0;
+}
+
+.select-all {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  justify-self: end;
+  width: 48px;
+}
+
+.select-all :deep(.v-selection-control__wrapper) {
+  width: 48px;
+}
+
+.version-editor {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  opacity: var(--v-medium-emphasis-opacity);
+}
+
+.version-summary {
+  min-width: 0;
+  overflow-wrap: normal;
+  text-align: end;
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.version-diffs {
+  min-width: 0;
+}
+
+.version-diffs :deep(.v-expansion-panel-text__wrapper) {
+  padding: 0 16px 16px;
+}
+
+.keep-current {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.diff-block.is-unselected, .diff-group.is-unselected {
+  border-style: dashed;
+}
+
+.is-unselected > .field-comparison, .is-unselected .block-details {
+  filter: grayscale(1);
+}
+
+.is-unselected > .field-comparison :deep(.highlight),
+.is-unselected .block-details :deep(.highlight) {
+  text-decoration: none;
+}
+
+.diff-section {
+  margin-bottom: 20px;
+}
+
+.section-header {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+
+.diff-block, .diff-group {
+  min-width: 0;
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.diff-group {
+  padding: 10px;
+}
+
+.diff-block {
+  border-radius: 6px !important;
+  margin-top: 0 !important;
+}
+
+.diff-block :deep(.v-expansion-panel-title) {
+  min-height: 48px !important;
+  padding: 10px;
+}
+
+.diff-block :deep(.v-expansion-panel-text__wrapper) {
+  padding: 0 10px 10px;
+}
+
+.block-details > .diff-group {
+  margin: 12px 0 0;
+  border: 0;
+}
+
+.block-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.block-summary {
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.diff-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.diff-block :deep(.v-expansion-panel-title.diff-heading) {
+  margin-bottom: 0;
+}
+
+.diff-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+
+.diff-check {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+.block-location {
+  font-size: 0.8rem;
+  opacity: var(--v-medium-emphasis-opacity);
+  margin-bottom: 8px;
+}
+
+
+.history-actions {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: rgb(var(--v-theme-surface));
+  padding: 12px 24px;
+}
+
+.restore-source {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  width: 100%;
+  font-size: 0.8rem;
+}
+
+.restore-selected {
+  order: 2;
+  margin-inline-start: auto;
+}
+
+.restore-whole {
+  order: 1;
+}
+
+.loading {
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .v-timeline {
+    column-gap: 4px;
+  }
+
+  .v-timeline :deep(.v-timeline-item__body) {
+    padding-inline-start: 0;
+  }
+
+  .history-body {
+    padding: 8px !important;
+  }
+
+  .version-panel :deep(.v-expansion-panel-title.version-heading) {
+    padding: 10px;
+    row-gap: 4px;
+  }
+
+  .version-title {
+    font-size: 0.95rem;
+  }
+
+  .version-editor {
+    font-size: 0.75rem;
+    line-height: 1.35;
+  }
+
+  .version-diffs :deep(.v-expansion-panel-text__wrapper) {
+    padding: 0 10px 10px;
+  }
+
+  .history-actions {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .restore-source {
+    font-size: 0.75rem;
+  }
+
+  .restore-selected {
+    order: 1;
+    flex: 1;
+    margin: 0;
+    font-size: 0.8rem;
+    letter-spacing: normal;
+  }
+
 }
 </style>

@@ -62,20 +62,14 @@ export default {
       chatPending: false,
       audio: null,
       help: false,
+      scrollTop: 0,
       dictating: false,
       defaults: defaults,
-      filter: { ...defaults, ...this.user?.getData('page', 'filter') }
+      filter: this.user.filter('page', defaults)
     }
   },
 
   watch: {
-    filter: {
-      deep: true,
-      handler(val) {
-        this.user.saveData('page', 'filter', val)
-      }
-    },
-
     chatOpen(val) {
       // Refresh the list once when the chat closes after a turn (it may have created/changed pages).
       // Reload the current filter rather than overwriting the editor's saved filter.
@@ -119,6 +113,16 @@ export default {
       mdiMicrophoneOutline,
       languageFilter
     }
+  },
+
+  activated() {
+    this.$nextTick(() => {
+      this.$refs.scroll.$el.scrollTop = this.scrollTop
+    })
+  },
+
+  beforeRouteLeave() {
+    this.scrollTop = this.$refs.scroll.$el.scrollTop
   },
 
   beforeUnmount() {
@@ -277,7 +281,7 @@ export default {
 
   <v-main class="page-list" :aria-label="$gettext('Pages')">
     <v-container>
-      <v-sheet class="box scroll">
+      <v-sheet ref="scroll" class="box scroll">
         <v-textarea
           v-if="user.can('page:chat')"
           v-model="chat"
@@ -295,6 +299,7 @@ export default {
             <v-btn
               @click="help = !help"
               :icon="mdiHelpCircleOutline"
+              class="no-rtl"
               :title="help ? $gettext('Hide help') : $gettext('Show help')"
               :aria-expanded="help"
               aria-controls="page-help"
@@ -337,13 +342,13 @@ export default {
           </ul>
         </div>
 
-        <PageListItems ref="pagelist" @select="open($event)" :filter="filter" />
+        <PageListItems ref="pagelist" @select="open($event)" :filter="filter" :defaults="defaults" />
       </v-sheet>
     </v-container>
   </v-main>
 
   <AsideList
-    v-model:filter="filter"
+    :filter="filter"
     :defaults="defaults"
     :content="asideContent"
   />
@@ -363,13 +368,5 @@ export default {
 .v-input--horizontal :deep(.v-input__prepend),
 .v-input--horizontal :deep(.v-input__append) {
   margin: 0;
-}
-
-.help {
-  color: rgb(var(--v-theme-on-surface));
-  background-color: rgb(var(--v-theme-surface-light));
-  padding: 16px 24px 16px 32px;
-  margin-bottom: 16px;
-  border-radius: 8px;
 }
 </style>

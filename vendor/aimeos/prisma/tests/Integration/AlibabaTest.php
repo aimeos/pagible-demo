@@ -4,12 +4,40 @@ namespace Tests\Integration;
 
 use Aimeos\Prisma\Prisma;
 use Aimeos\Prisma\Files\Image;
+use Aimeos\Prisma\Files\Video;
 use Aimeos\Prisma\Schema\Schema;
 use PHPUnit\Framework\TestCase;
 
 
 class AlibabaTest extends TestCase
 {
+    public function testDescribeVideo() : void
+    {
+        $video = Video::fromLocalPath( __DIR__ . '/assets/flower.mp4', 'video/mp4' );
+        $response = Prisma::video()
+            ->using( 'alibaba', ['api_key' => $_ENV['ALIBABA_API_KEY']] )
+            ->ensure( 'describe' )
+            ->describe( $video );
+
+        $this->assertStringContainsStringIgnoringCase( 'flower', $response->text() );
+    }
+
+
+    public function testExtendVideo() : void
+    {
+        $source = Video::fromLocalPath( __DIR__ . '/assets/flower.mp4', 'video/mp4' );
+        $response = Prisma::video()
+            ->using( 'alibaba', ['api_key' => $_ENV['ALIBABA_API_KEY']] )
+            ->ensure( 'extend' )
+            ->extend( $source, 'The camera pulls back to reveal the surrounding garden', ['duration' => 10] );
+
+        $video = $response->first();
+
+        $this->assertInstanceOf( Video::class, $video );
+        $this->assertNotEmpty( $video->url() ?? $video->binary() );
+    }
+
+
     public function testImagine() : void
     {
         $response = Prisma::image()
@@ -20,6 +48,55 @@ class AlibabaTest extends TestCase
         $this->assertGreaterThan( 0, strlen( $response->binary() ) );
 
         file_put_contents( __DIR__ . '/results/qwen_imagine.png', $response->binary() );
+    }
+
+
+    public function testImagineVideo() : void
+    {
+        $response = Prisma::video()
+            ->using( 'alibaba', ['api_key' => $_ENV['ALIBABA_API_KEY']] )
+            ->ensure( 'imagine' )
+            ->imagine( 'A paper boat crossing a rain-filled city street' );
+
+        $video = $response->first();
+
+        $this->assertInstanceOf( Video::class, $video );
+        $this->assertNotEmpty( $video->url() ?? $video->binary() );
+    }
+
+
+    public function testRepaintVideo() : void
+    {
+        $source = Video::fromLocalPath( __DIR__ . '/assets/flower.mp4', 'video/mp4' );
+        $reference = Image::fromLocalPath( __DIR__ . '/assets/photo.jpg', 'image/jpeg' );
+        $response = Prisma::video()
+            ->using( 'alibaba', ['api_key' => $_ENV['ALIBABA_API_KEY']] )
+            ->ensure( 'repaint' )
+            ->repaint( $source, 'Repaint the scene using the colors from the reference image', [
+                'references' => [$reference],
+            ] );
+
+        $video = $response->first();
+
+        $this->assertInstanceOf( Video::class, $video );
+        $this->assertNotEmpty( $video->url() ?? $video->binary() );
+    }
+
+
+    public function testUncropVideo() : void
+    {
+        $source = Video::fromLocalPath( __DIR__ . '/assets/flower.mp4', 'video/mp4' );
+        $response = Prisma::video()
+            ->using( 'alibaba', ['api_key' => $_ENV['ALIBABA_API_KEY']] )
+            ->ensure( 'uncrop' )
+            ->uncrop( $source, 'Extend the flower garden naturally beyond the frame', 0, 0.25, 0, 0.25, [
+                'prompt_extend' => false,
+            ] );
+
+        $video = $response->first();
+
+        $this->assertInstanceOf( Video::class, $video );
+        $this->assertNotEmpty( $video->url() ?? $video->binary() );
     }
 
 

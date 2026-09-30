@@ -8,11 +8,11 @@
     "require": {
         "php": "^8.2",
         "laravel/mcp": "~0.8",
-        "aimeos/pagible-core": "0.12.*",
+        "aimeos/pagible-core": "~0.13",
         "aimeos/laravel-analytics-bridge": "~1.0"
     },
     "require-dev": {
-        "orchestra/testbench": "^9.0||^10.0||^11.0"
+        "orchestra/testbench": "^10.0||^11.0"
     },
     "autoload": {
         "psr-4": {

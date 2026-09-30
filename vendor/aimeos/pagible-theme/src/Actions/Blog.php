@@ -9,6 +9,7 @@ namespace Aimeos\Cms\Actions;
 
 use Aimeos\Cms\Models\File;
 use Aimeos\Cms\Models\Page;
+use Aimeos\Cms\Models\Version;
 use Illuminate\Http\Request;
 
 
@@ -36,27 +37,29 @@ class Blog
 
         $with = $editor ? ['latest' => fn( $q ) => $q->select( 'id', 'tenant_id', 'versionable_id', 'aux' )] : [];
 
-        $builder = Page::where( 'type', $this->type )->with( $with )->orderBy( $order, $dir );
+        $builder = Page::where( 'status', 1 )->with( $with )->orderBy( $order, $dir );
 
         if( $pid = $item->data->{'parent-page'}->value ?? null ) {
             $builder->where( 'parent_id', $pid );
         }
 
         if( $editor ) {
-            $builder->whereLatest( ['status' => 1] );
+            $builder->whereLatest( ['type' => $this->type] );
         } else {
-            $builder->where( 'status', 1 );
+            $builder->where( 'type', $this->type );
         }
 
         $attr = ['id', 'lang', 'path', 'name', 'title', 'to', 'domain', 'content', 'created_at', 'latest_id'];
         $pages = $builder->paginate( $item->data->limit ?? 10, $attr, 'p' );
+        $request->attributes->set( 'cms.pagination', $pages->currentPage() );
 
         // The list shows the first element's image per page, taken from the draft content
         // for editors and the published content otherwise. The file IDs come from that element's
         // "files" list (populated for every writer in Validation), and only those files are loaded
         // in one query, so a blog page with many images doesn't pull its whole file set.
         $fileIds = function( $page ) use ( $editor ) {
-            $content = $editor ? ( $page->latest?->aux->content ?? $page->content ) : $page->content;
+            $latest = $editor ? $page->getRelation( 'latest' ) : null;
+            $content = $latest instanceof Version ? ( $latest->aux->content ?? $page->content ) : $page->content;
             $article = collect( (array) $content )->first( fn( $el ) => ( $el->type ?? null ) === $this->element );
             return $article ? (array) ( $article->files ?? [] ) : [];
         };
@@ -71,7 +74,8 @@ class Blog
             $used = collect( $fileIds( $page ) )->mapWithKeys( fn( $id ) => [$id => $files->get( $id )] )->filter();
 
             $page->setRelation( 'files', $used );
-            $editor && $page->latest ? $page->latest->setRelation( 'files', $used ) : null;
+            $latest = $editor ? $page->getRelation( 'latest' ) : null;
+            $latest instanceof Version ? $latest->setRelation( 'files', $used ) : null;
         } );
 
         return $pages;

@@ -165,9 +165,9 @@ describe('Element List', () => {
 
   // ---- Loading & empty state ----
 
-  it('shows "No entries found" when element list is empty', () => {
+  it('shows "No entries yet" when element list is empty', () => {
     visitElements([])
-    cy.get('.element-list').should('contain', 'No entries found')
+    cy.get('.element-list').should('contain', 'No entries yet')
   })
 
   it('shows element items when elements are returned', () => {
@@ -384,6 +384,8 @@ describe('Element List', () => {
     visitElements([el])
     cy.get('.items .v-list-item .actions .btn-actions .v-btn').first().click()
     cy.contains('.v-card .v-list .v-list-item:visible .v-btn', 'Purge').click()
+    cy.get('.v-dialog .v-list').should('contain', el.name)
+    cy.get('.v-dialog .btn-confirm').click()
     cy.wait('@gql').its('request.body').should((body) => {
       const ops = Array.isArray(body) ? body : [body]
       expect(ops.some((op) => (op.query || '').includes('purgeElement'))).to.be.true

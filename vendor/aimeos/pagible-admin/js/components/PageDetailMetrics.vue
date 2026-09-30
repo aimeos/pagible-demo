@@ -5,6 +5,7 @@ import gql from 'graphql-tag'
 import { defineAsyncComponent, markRaw } from 'vue'
 import { useAppStore } from '../stores'
 import { mdiChevronUp, mdiChevronDown } from '@mdi/js'
+import LoadingSpinner from './LoadingSpinner.vue'
 
 const LineChart = defineAsyncComponent(() =>
   Promise.all([
@@ -52,7 +53,8 @@ const FETCH_METRICS = gql`
 
 export default {
   components: {
-    LineChart
+    LineChart,
+    LoadingSpinner
   },
 
   props: {
@@ -75,7 +77,6 @@ export default {
     clicks: [],
     visits: [],
     views: [],
-    colors: {},
     querypage: 1
   }),
 
@@ -85,8 +86,6 @@ export default {
   },
 
   created() {
-    const theme = this.$vuetify.theme
-    this.colors = theme.themes[theme.name]?.colors
     this.dateFormatter = new Intl.DateTimeFormat(this.$vuetify.locale.current, {
       day: 'numeric',
       month: 'numeric'
@@ -110,14 +109,25 @@ export default {
     this.referrers = null
     this.queries = null
     this.pagespeed = null
-    this.colors = null
   },
 
   computed: {
+    colors() {
+      return this.$vuetify.theme.current.colors
+    },
+
+    palette() {
+      return {
+        primary: this.colors?.primary,
+        secondary: this.colors?.secondary,
+        success: this.colors?.success
+      }
+    },
+
     chartOptions() {
       const isRtl = this.$vuetify.locale.isRtl
-      const tickColor = this.colors?.['surface-variant']
-      const gridColor = this.colors?.['on-surface-variant']
+      const tickColor = this.colors?.['text-secondary'] || this.colors?.['on-surface']
+      const gridColor = this.colors?.['border-light']
 
       return markRaw({
         ...BASE_CHART_OPTIONS,
@@ -138,9 +148,9 @@ export default {
         labels: this.views.map((d) => d.key),
         grouped: true,
         datasets: [
-          this.dataset('#C00000', this.$gettext('Views'), this.views.map((d) => d.value)),
-          this.dataset('#0000C0', this.$gettext('Visits'), this.visits.map((d) => d.value)),
-          this.dataset('#008000', this.$gettext('Conversions'), this.conversions.map((d) => d.value))
+          this.dataset(this.palette.primary, this.$gettext('Views'), this.views.map((d) => d.value)),
+          this.dataset(this.palette.secondary, this.$gettext('Visits'), this.visits.map((d) => d.value)),
+          this.dataset(this.palette.success, this.$gettext('Conversions'), this.conversions.map((d) => d.value))
         ]
       })
     },
@@ -149,7 +159,7 @@ export default {
       return markRaw({
         labels: this.durations.map((d) => d.key),
         datasets: [
-          this.dataset('#0000C0', this.$gettext('Duration'), this.durations.map((d) => d.value))
+          this.dataset(this.palette.primary, this.$gettext('Duration'), this.durations.map((d) => d.value))
         ]
       })
     },
@@ -159,8 +169,8 @@ export default {
         labels: this.impressions.map((d) => d.key),
         grouped: true,
         datasets: [
-          this.dataset('#C00000', this.$gettext('Impressions'), this.impressions.map((d) => d.value)),
-          this.dataset('#0000C0', this.$gettext('Clicks'), this.clicks.map((d) => d.value))
+          this.dataset(this.palette.primary, this.$gettext('Impressions'), this.impressions.map((d) => d.value)),
+          this.dataset(this.palette.secondary, this.$gettext('Clicks'), this.clicks.map((d) => d.value))
         ]
       })
     },
@@ -169,7 +179,7 @@ export default {
       return markRaw({
         labels: this.ctrs.map((d) => d.key),
         datasets: [
-          this.dataset('#008000', this.$gettext('Percentage'), this.ctrs.map((d) => d.value))
+          this.dataset(this.palette.success, this.$gettext('Percentage'), this.ctrs.map((d) => d.value))
         ]
       })
     },
@@ -331,12 +341,12 @@ export default {
     },
 
     toMinutes(item) {
-      item.value = item.value / 60
+      item.value = Math.round(item.value / 6) / 10
       return item
     },
 
     toPercent(item) {
-      item.value = item.value * 100
+      item.value = Math.round(item.value * 1000) / 10
       return item
     },
 
@@ -350,10 +360,18 @@ export default {
     },
 
     url(node) {
-      return this.app.urlpage
-        .replace(/_domain_/, node.domain || '')
-        .replace(/_path_/, node.path || '/')
-        .replace(/\/{2,}$/, '/')
+      const url = new URL(
+        this.app.urlpage
+          .replace(/_domain_/, node.domain || window.location.hostname)
+          .replace(/_path_/, node.path || '/')
+          .replace(/\/{2,}$/, '/'),
+        window.location.origin
+      )
+
+      url.protocol = window.location.protocol
+      url.port = window.location.port
+
+      return url.href
     },
 
     value(v) {
@@ -408,7 +426,7 @@ export default {
       </v-alert>
 
       <div v-if="loading" class="loading-overlay d-flex align-center justify-center">
-        <v-progress-circular indeterminate size="32" />
+        <LoadingSpinner width="32" height="32" />
       </div>
 
       <!-- Overview -->
@@ -555,10 +573,10 @@ export default {
                 <v-col cols="12" sm="6" class="key"></v-col>
                 <v-col cols="12" sm="6">
                   <v-row>
-                    <v-col cols="3">{{ $gettext('Views') }}</v-col>
+                    <v-col cols="3">{{ $gettext('Impressions') }}</v-col>
                     <v-col cols="3">{{ $gettext('Clicks') }}</v-col>
                     <v-col cols="3">{{ $gettext('Percent') }}</v-col>
-                    <v-col cols="3">{{ $gettext('Position') }}</v-col>
+                    <v-col cols="3">{{ $pgettext('search ranking', 'Position') }}</v-col>
                   </v-row>
                 </v-col>
               </v-row>
@@ -607,19 +625,24 @@ export default {
 
 <style scoped>
 .v-sheet.scroll {
-  max-height: calc(100vh - 96px);
+  height: calc(100vh - 96px);
 }
 
 .loading-overlay {
   inset: 0;
   position: absolute;
-  background: color-mix(in oklab, var(--v-theme-surface), transparent 60%);
+  background: rgba(var(--v-theme-surface), 0.4);
   backdrop-filter: blur(2px);
   z-index: 10;
 }
 
 .emphasis-bg {
-  background-color: rgb(var(--v-theme-background));
+  background-color: rgb(var(--v-theme-emphasis, var(--v-theme-surface-light)));
+  color: rgb(var(--v-theme-on-emphasis, var(--v-theme-on-surface-light)));
+}
+
+.emphasis-bg .text-medium-emphasis {
+  color: rgba(var(--v-theme-on-emphasis, var(--v-theme-on-surface-light)), var(--v-medium-emphasis-opacity));
 }
 
 .title,
@@ -648,27 +671,28 @@ export default {
 }
 
 .panel .good {
-  color: #008000;
-}
-
-.v-theme--dark .panel .good {
-  color: #00a000;
+  color: rgb(var(--v-theme-success));
 }
 
 .panel .bad {
-  color: #c00000;
-}
-
-.v-theme--dark .panel .bad {
-  color: #ff4000;
+  color: rgb(var(--v-theme-error));
 }
 
 .panel .warn {
-  color: #b46000;
+  color: rgb(var(--v-theme-warning));
 }
 
-.v-theme--dark .panel .warn {
-  color: #e0a000;
+/* Blend towards the text color so the trend colors keep AA contrast on the tinted panels */
+.emphasis-bg .good {
+  color: color-mix(in srgb, rgb(var(--v-theme-success)) 80%, rgb(var(--v-theme-on-emphasis, var(--v-theme-on-surface))));
+}
+
+.emphasis-bg .bad {
+  color: color-mix(in srgb, rgb(var(--v-theme-error)) 80%, rgb(var(--v-theme-on-emphasis, var(--v-theme-on-surface))));
+}
+
+.emphasis-bg .warn {
+  color: color-mix(in srgb, rgb(var(--v-theme-warning)) 80%, rgb(var(--v-theme-on-emphasis, var(--v-theme-on-surface))));
 }
 
 .panel.chart .v-card-text {

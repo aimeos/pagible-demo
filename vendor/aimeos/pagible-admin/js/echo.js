@@ -7,7 +7,6 @@ let echoPromise = null
 let echoInstance = null
 let idleTimer = null
 let activeChannels = 0
-let wasConnected = false
 let tenant = ''
 
 const IDLE_TIMEOUT = 5 * 60 * 1000
@@ -65,6 +64,7 @@ function getEcho() {
       })
       .catch((err) => {
         console.warn('Laravel Echo not available:', err.message)
+        delete node.dataset.reverb
         echoPromise = null
         echoInstance = null
         return null
@@ -77,11 +77,12 @@ function getEcho() {
 // Re-sync subscribers after an automatic reconnect: pusher fires 'connected' again once the
 // dropped socket comes back; the first 'connected' is the initial connect, so only later ones
 // signal a reconnect during which events may have been missed.
-function bindReconnect(echo) {
+export function bindReconnect(echo, reconnect = resync) {
+  let connected = false
   const conn = echo.connector?.pusher?.connection
   conn?.bind?.('connected', () => {
-    if (wasConnected) { resync() }
-    wasConnected = true
+    if (connected) { reconnect() }
+    connected = true
   })
 }
 
@@ -89,7 +90,6 @@ export async function disconnect() {
   clearTimeout(idleTimer)
   idleTimer = null
   activeChannels = 0
-  wasConnected = false
   subscriptions.clear()
   const pending = echoPromise
   echoPromise = null
@@ -102,6 +102,21 @@ export async function disconnect() {
 }
 
 /**
+ * Subscribes again to the private channels whose authorization failed, e.g. after a reconnect
+ * while the session was expired, and lets the subscribers reload the events they missed.
+ */
+export function resubscribe(echo = echoInstance) {
+  const pusher = echo?.connector?.pusher
+  const failed = (pusher?.allChannels?.() || []).filter((channel) => !channel.subscribed)
+
+  failed.forEach((channel) => pusher.subscribe(channel.name))
+
+  if (failed.length) {
+    resync()
+  }
+}
+
+/**
  * Current socket id of the open websocket connection, or '' when not connected.
  * Sent as the X-Socket-ID header so the server can exclude this tab via toOthers().
  */
@@ -109,10 +124,37 @@ export function socketId() {
   return echoInstance?.socketId?.() || ''
 }
 
-export function setupEcho(vm, type, onEvent, actions = LIST_ACTIONS) {
-  vm.echoPromise = markRaw(subscribe(type, onEvent, actions).then((cleanup) => {
-    if (vm.destroyed) { cleanup?.() } else { vm.echoCleanup = cleanup }
-  }))
+export function setupEcho(vm, type, onEvent, actions = LIST_ACTIONS, connect = subscribe) {
+  const promise = Array.isArray(type)
+    ? Promise.allSettled(type.map((name) => connect(name, (event, action) => onEvent(event, action, name), actions)))
+        .then((results) => {
+          const cleanups = results.filter((result) => result.status === 'fulfilled').map((result) => result.value)
+          const failed = results.find((result) => result.status === 'rejected')
+
+          if (failed) {
+            cleanups.forEach((cleanup) => cleanup?.())
+            throw failed.reason
+          }
+
+          return () => cleanups.forEach((cleanup) => cleanup?.())
+        })
+    : connect(type, onEvent, actions)
+
+  const pending = markRaw(promise
+    .then((cleanup) => {
+      if (vm.echoPromise !== pending || vm.destroyed) return cleanup
+
+      vm.echoCleanup = cleanup
+      vm.echoPromise = null
+      return null
+    })
+    .catch((error) => {
+      if (vm.echoPromise === pending) vm.echoPromise = null
+      console.warn('Echo subscription failed:', error)
+      return null
+    }))
+
+  vm.echoPromise = pending
 }
 
 export function cleanEcho(vm) {

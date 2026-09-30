@@ -4,10 +4,14 @@ namespace Aimeos\Prisma\Providers\Image;
 
 use Aimeos\Prisma\Contracts\Image\Background;
 use Aimeos\Prisma\Contracts\Image\Describe;
+use Aimeos\Prisma\Contracts\Image\Detext;
+use Aimeos\Prisma\Contracts\Image\Erase;
 use Aimeos\Prisma\Contracts\Image\Inpaint;
 use Aimeos\Prisma\Contracts\Image\Imagine;
+use Aimeos\Prisma\Contracts\Image\Isolate;
 use Aimeos\Prisma\Contracts\Image\Repaint;
 use Aimeos\Prisma\Contracts\Image\Upscale;
+use Aimeos\Prisma\Exceptions\BadRequestException;
 use Aimeos\Prisma\Exceptions\PrismaException;
 use Aimeos\Prisma\Files\Image;
 use Aimeos\Prisma\Providers\Base;
@@ -18,8 +22,11 @@ use Psr\Http\Message\ResponseInterface;
 
 class Ideogram
     extends Base
-    implements Background, Describe, Imagine, Inpaint, Repaint, Upscale
+    implements Background, Describe, Detext, Erase, Imagine, Inpaint, Isolate, Repaint, Upscale
 {
+    protected int $pollTimeout = 900;
+
+
     public function __construct( array $config )
     {
         if( !isset( $config['api_key'] ) ) {
@@ -28,11 +35,20 @@ class Ideogram
 
         $this->header( 'Api-Key', $this->config( $config, 'api_key' ) );
         $this->baseUrl( 'https://api.ideogram.ai' );
+
+        $timeout = $config['poll_timeout'] ?? null;
+
+        if( is_int( $timeout ) && $timeout >= 0 ) {
+            $this->pollTimeout = $timeout;
+        } elseif( is_string( $timeout ) && preg_match( '/^\d+$/D', $timeout ) ) {
+            $this->pollTimeout = (int) $timeout;
+        }
     }
 
 
     public function background( Image $image, string $prompt, array $options = [] ) : FileResponse
     {
+        $this->rejectAsync( $options );
         $allowed = $this->allowed( $options, [
             'color_palette', 'magic_prompt', 'rendering_speed', 'seed', 'style_codes',
             'style_preset', 'style_reference_images'
@@ -50,35 +66,113 @@ class Ideogram
 
     public function describe( Image $image, ?string $lang = null, array $options = [] ) : TextResponse
     {
-        $allowed = $this->allowed( $options, ['describe_model_version'] );
-
-        $request = $this->payload( $allowed, ['image_file' => $image] );
-        $response = $this->client()->post( 'describe', ['multipart' => $request] );
+        $this->rejectAsync( $options );
+        $request = $this->payload( [], ['image_file' => $image] );
+        $response = $this->client()->post( 'v1/ideogram-v4/describe', ['multipart' => $request] );
 
         $this->validate( $response );
 
         /** @var array<string, mixed> $result */
         $result = $this->fromJson( $response );
-        /** @var array<string|null> $texts */
-        $texts = [];
+        $jsonPrompt = $result['json_prompt'] ?? null;
 
-        /** @var array<int, array<string, mixed>> $descriptions */
-        $descriptions = $result['descriptions'] ?? [];
-
-        foreach( $descriptions as $item )
-        {
-            if( $text = $item['text'] ?? null ) {
-                /** @var string $text */
-                $texts[] = $text;
-            }
+        if( !is_array( $jsonPrompt ) || !is_string( $jsonPrompt['high_level_description'] ?? null ) ) {
+            throw new PrismaException( 'No image description found in response' );
         }
 
-        return TextResponse::fromTexts( $texts );
+        return TextResponse::fromText( $jsonPrompt['high_level_description'] )
+            ->withStructured( $jsonPrompt )
+            ->withMeta( $result );
+    }
+
+
+    public function detext( Image $image, array $options = [] ) : FileResponse
+    {
+        $this->rejectAsync( $options );
+        $allowed = $this->allowed( $options, ['prompt', 'seed'] );
+
+        $request = $this->payload( $allowed, ['image' => $image] );
+        $response = $this->client()->post( 'v1/ideogram-v3/layerize-text', ['multipart' => $request] );
+
+        $this->validate( $response );
+
+        /** @var array<string, mixed> $result */
+        $result = $this->fromJson( $response );
+        $url = $result['base_image_url'] ?? null;
+
+        if( !is_string( $url ) || $url === '' ) {
+            throw new PrismaException( 'No image data found in response' );
+        }
+
+        return FileResponse::fromFiles( [Image::fromUrl( $url )] )->withMeta( $result );
+    }
+
+
+    public function erase( Image $image, Image $mask, array $options = [] ) : FileResponse
+    {
+        $this->rejectAsync( $options );
+        $allowed = $this->allowed( $options, [
+            'guidance_scale', 'num_inference_steps', 'rendering_speed', 'seed'
+        ] );
+        $allowed = $this->sanitize( $allowed, $this->options() );
+
+        $request = $this->payload( $allowed, ['image' => $image, 'mask' => $mask] );
+        $response = $this->client()->post( 'v1/remove-object', ['multipart' => $request] );
+
+        return $this->toFileResponse( $response );
     }
 
 
     public function imagine( string $prompt, array $images = [], array $options = [] ) : FileResponse
     {
+        $async = ( $options['async'] ?? false ) === true;
+        unset( $options['async'] );
+
+        if( ( $options['transparent'] ?? false ) === true )
+        {
+            if( $images ) {
+                throw new BadRequestException( 'Transparent generation does not support reference images; generate the image first, then call isolate()' );
+            }
+
+            $allowed = $this->transparentOptions( $options, [
+                'aspect_ratio', 'enable_copyright_detection', 'output_resolution', 'rendering_speed'
+            ] );
+            $allowed = $this->sanitize( $allowed, [
+                'output_resolution' => ['1K', '2K', '4K', '8K'],
+                'rendering_speed' => ['TURBO', 'DEFAULT', 'QUALITY'],
+            ] );
+
+            $request = $this->payload( ['text_prompt' => $prompt] + $allowed );
+            $path = $async ? 'async/generate-transparent' : 'generate-transparent';
+            $response = $this->client()->post( 'v1/ideogram-v4/' . $path, ['multipart' => $request] );
+
+            return $async ? $this->toAsyncResponse( $response ) : $this->toFileResponse( $response );
+        }
+
+        $v3options = $this->allowed( $options, [
+            'aspect_ratio', 'character_reference_images', 'character_reference_images_mask', 'color_palette',
+            'magic_prompt', 'negative_prompt', 'seed', 'style_codes', 'style_preset', 'style_type'
+        ] );
+        $v3options = $this->sanitize( $v3options, $this->options() );
+
+        if( empty( $images ) && empty( $v3options ) )
+        {
+            $allowed = $this->allowed( $options, [
+                'enable_copyright_detection', 'rendering_speed', 'resolution'
+            ] );
+            $allowed = $this->sanitize( $allowed, $this->v4Options() );
+
+            $request = $this->payload( ['text_prompt' => $prompt] + $allowed );
+            $path = $async ? 'async/generate' : 'generate';
+            $response = $this->client()->post( 'v1/ideogram-v4/' . $path, ['multipart' => $request] );
+
+            return $async ? $this->toAsyncResponse( $response ) : $this->toFileResponse( $response );
+        }
+
+        if( $async ) {
+            throw new BadRequestException( 'Async generation does not support reference images or V3 options' );
+        }
+
         $allowed = $this->allowed( $options, [
             'aspect_ratio', 'character_reference_images', 'character_reference_images_mask', 'color_palette',
             'magic_prompt', 'negative_prompt', 'rendering_speed', 'resolution', 'seed', 'style_codes',
@@ -96,6 +190,7 @@ class Ideogram
 
     public function inpaint( Image $image, Image $mask, string $prompt, array $options = [] ) : FileResponse
     {
+        $this->rejectAsync( $options );
         $allowed = $this->allowed( $options, [
             'character_reference_images', 'character_reference_images_mask', 'color_palette',
             'magic_prompt', 'rendering_speed', 'seed', 'style_codes', 'style_preset',
@@ -111,8 +206,58 @@ class Ideogram
     }
 
 
+    public function isolate( Image $image, array $options = [] ) : FileResponse
+    {
+        $this->rejectAsync( $options );
+        $request = $this->payload( [], ['image' => $image] );
+        $response = $this->client()->post( 'v1/remove-background', ['multipart' => $request] );
+
+        return $this->toFileResponse( $response );
+    }
+
+
     public function repaint( Image $image, string $prompt, array $options = [] ) : FileResponse
     {
+        $this->rejectAsync( $options );
+
+        if( ( $options['transparent'] ?? false ) === true )
+        {
+            $allowed = $this->transparentOptions( $options, [
+                'aspect_ratio', 'magic_prompt', 'num_images', 'resolution', 'seed'
+            ] );
+            $allowed = $this->sanitize( $allowed, $this->options() );
+
+            if( isset( $allowed['aspect_ratio'], $allowed['resolution'] ) ) {
+                throw new BadRequestException( 'Transparent repaint cannot combine aspect_ratio and resolution' );
+            }
+
+            // The edit endpoint expects the repeated field "images", not "image" or "images[0]".
+            $request = $this->payload( ['prompt' => $prompt, 'transparent_background' => 'true'] + $allowed, ['images' => $image] );
+            $response = $this->client()->post( 'v1/edit', ['multipart' => $request] );
+
+            return $this->toFileResponse( $response );
+        }
+
+        $v3options = $this->allowed( $options, [
+            'aspect_ratio', 'character_reference_images', 'character_reference_images_mask', 'color_palette',
+            'magic_prompt', 'negative_prompt', 'seed', 'style_codes', 'style_preset',
+            'style_reference_images', 'style_type'
+        ] );
+        $v3options = $this->sanitize( $v3options, $this->options() );
+
+        if( empty( $v3options ) )
+        {
+            $allowed = $this->allowed( $options, [
+                'enable_copyright_detection', 'image_weight', 'rendering_speed', 'resolution'
+            ] );
+            $allowed = $this->sanitize( $allowed, $this->v4Options() );
+
+            $request = $this->payload( ['text_prompt' => $prompt] + $allowed, ['image' => $image] );
+            $response = $this->client()->post( 'v1/ideogram-v4/remix', ['multipart' => $request] );
+
+            return $this->toFileResponse( $response );
+        }
+
         $allowed = $this->allowed( $options, [
             'aspect_ratio', 'character_reference_images', 'character_reference_images_mask', 'color_palette',
             'image_weight', 'magic_prompt', 'negative_prompt', 'rendering_speed', 'resolution', 'seed',
@@ -130,6 +275,7 @@ class Ideogram
 
     public function upscale( Image $image, int $factor, array $options = [] ) : FileResponse
     {
+        $this->rejectAsync( $options );
         $allowed = $this->allowed( $options, ['detail', 'magic_prompt_option', 'prompt', 'resemblance', 'seed'] );
         $allowed = $this->sanitize( $allowed, $this->options() );
 
@@ -184,6 +330,112 @@ class Ideogram
 
 
     /**
+     * Returns the options supported by Ideogram V4 endpoints.
+     *
+     * @return array<string, array<int, mixed>|null> List of option names and their possible values
+     */
+    protected function v4Options() : array
+    {
+        return [
+            'rendering_speed' => ['FLASH', 'TURBO', 'DEFAULT', 'QUALITY'],
+            'resolution' => null,
+        ];
+    }
+
+
+    /**
+     * Validates options for transparent endpoints and encodes boolean multipart values.
+     *
+     * @param array<string, mixed> $options Provider specific options
+     * @param array<string> $names Supported option names
+     * @return array<string, mixed> Options to send to Ideogram
+     */
+    protected function transparentOptions( array $options, array $names ) : array
+    {
+        unset( $options['transparent'], $options['async'] );
+        $allowed = $this->allowed( $options, $names );
+        $unsupported = array_diff_key( $options, $allowed );
+
+        if( $unsupported ) {
+            throw new BadRequestException( 'Unsupported options with transparent=true: ' . implode( ', ', array_keys( $unsupported ) ) );
+        }
+
+        foreach( $allowed as $key => $value )
+        {
+            if( $value === null ) {
+                unset( $allowed[$key] );
+            } elseif( is_bool( $value ) ) {
+                $allowed[$key] = $value ? 'true' : 'false';
+            }
+        }
+
+        return $allowed;
+    }
+
+
+    /**
+     * Rejects async requests for methods without a pollable endpoint.
+     *
+     * @param array<string, mixed> $options Provider specific options
+     */
+    protected function rejectAsync( array $options ) : void
+    {
+        if( ( $options['async'] ?? false ) === true ) {
+            throw new BadRequestException( 'Async is only supported by Ideogram V4 imagine()' );
+        }
+    }
+
+
+    /**
+     * Converts an accepted generation into a deferred FileResponse.
+     *
+     * @param ResponseInterface $response Guzzle HTTP response
+     * @return FileResponse File response that polls its own generation
+     */
+    protected function toAsyncResponse( ResponseInterface $response ) : FileResponse
+    {
+        $this->validate( $response );
+        $result = $this->fromJson( $response );
+        $id = $result['generation_id'] ?? null;
+
+        if( !is_string( $id ) || $id === '' ) {
+            throw new PrismaException( 'No generation ID found in response' );
+        }
+
+        return FileResponse::fromAsync( function( FileResponse $file ) use ( $id ) : bool {
+            $response = $this->client()->get( 'v1/generations/' . rawurlencode( $id ) );
+            $this->validate( $response );
+            $result = $this->fromJson( $response );
+            $file->withMeta( ['generation_id' => $id] + $result );
+
+            if( ( $result['status'] ?? null ) === 'pending' ) {
+                return false;
+            }
+
+            if( ( $result['status'] ?? null ) === 'failed' ) {
+                $reason = $result['failure_reason'] ?? null;
+                throw new PrismaException( 'Ideogram generation failed' . ( is_string( $reason ) ? ': ' . $reason : '' ) );
+            }
+
+            if( ( $result['status'] ?? null ) !== 'completed' ) {
+                throw new PrismaException( 'Unknown Ideogram generation status' );
+            }
+
+            $generated = $this->fromResult( $result );
+
+            foreach( $generated->files() as $image ) {
+                $file->add( $image );
+            }
+
+            $file->withDescription( $generated->description() )
+                ->withMeta( ['generation_id' => $id] + $result + $generated->meta()->all() );
+
+            return true;
+        }, 2, $this->pollTimeout )->withMeta( ['generation_id' => $id] );
+    }
+
+
+    /**
      * Converts the HTTP response into a FileResponse instance.
      *
      * @param ResponseInterface $response Guzzle HTTP response
@@ -193,36 +445,39 @@ class Ideogram
     {
         $this->validate( $response );
 
-        /** @var array<string, mixed> $result */
-        $result = $this->fromJson( $response );
-        $files = [];
+        return $this->fromResult( $this->fromJson( $response ) );
+    }
 
-        /** @var array<int, array<string, mixed>> $dataItems */
+
+    /**
+     * Maps completed synchronous or asynchronous generation data to image files.
+     *
+     * @param array<string, mixed> $result Decoded generation result
+     * @return FileResponse Generated images with their description and metadata
+     */
+    protected function fromResult( array $result ) : FileResponse
+    {
+        $files = [];
+        $first = [];
+
         $dataItems = $result['data'] ?? [];
 
-        foreach( $dataItems as $item )
+        foreach( is_array( $dataItems ) ? $dataItems : [] as $item )
         {
-            if( !empty( $item['url'] ) ) {
-                /** @var string $url */
-                $url = $item['url'];
-                $files[] = Image::fromUrl( $url );
+            if( is_array( $item ) && is_string( $item['url'] ?? null ) && $item['url'] !== '' ) {
+                $files[] = Image::fromUrl( $item['url'] );
+                $first = $first ?: $item;
             }
         }
 
         if( empty( $files ) ) {
-            throw new \Aimeos\Prisma\Exceptions\PrismaException( 'No image data found in response' );
+            throw new PrismaException( 'No image data found in response' );
         }
 
-        /** @var array<int, array<string, mixed>> $dataArr */
-        $dataArr = $result['data'] ?? [];
-        /** @var array<string, mixed> $first */
-        $first = current( $dataArr ) ?: [];
-
-        /** @var string|null $prompt */
         $prompt = $first['prompt'] ?? null;
 
         return FileResponse::fromFiles( $files )
-            ->withDescription( $prompt )
+            ->withDescription( is_string( $prompt ) ? $prompt : null )
             ->withMeta( $first + ['created' => $result['created'] ?? null] );
     }
 

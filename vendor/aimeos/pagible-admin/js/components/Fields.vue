@@ -3,13 +3,13 @@
 <script>
 import gql from 'graphql-tag'
 import { markRaw } from 'vue'
+import ActionMenu from './ActionMenu.vue'
 import { useUserStore, useMessageStore } from '../stores'
 import { changedState } from '../merge'
-import { fieldTypes, protectTypes } from '../fieldtypes'
+import { fieldTypes, hintTypes, protectTypes } from '../fieldtypes'
 import { hasTrue, txlocales } from '../utils'
 import {
   mdiTranslate,
-  mdiClose,
   mdiArrowRightThin,
   mdiCreation,
   mdiMicrophoneOutline,
@@ -18,6 +18,8 @@ import {
 } from '@mdi/js'
 
 export default {
+  components: { ActionMenu },
+
   props: {
     data: { type: Object, default: () => {} },
     files: { type: Array, default: () => [] },
@@ -41,8 +43,7 @@ export default {
       composing: {},
       errors: {},
       lastError: false,
-      audio: {},
-      menu: {}
+      audio: {}
     }
   },
 
@@ -55,12 +56,12 @@ export default {
       messages,
       changedState,
       mdiTranslate,
-      mdiClose,
       mdiArrowRightThin,
       mdiCreation,
       mdiMicrophoneOutline,
       mdiMicrophone,
       mdiUndoVariant,
+      hintTypes,
       protectTypes,
       txlocales
     }
@@ -80,7 +81,6 @@ export default {
     this.dictating = null
     this.composing = null
     this.errors = null
-    this.menu = null
   },
 
   methods: {
@@ -195,18 +195,30 @@ export default {
     resetField(code) {
       if (code in this.original) {
         const value = this.original[code]
+        const rel = code + '-rel'
+        const data = { ...this.data, [code]: value }
+
+        if (rel in this.original) {
+          data[rel] = this.original[rel]
+          delete this.original[rel]
+        }
+
         this.dirty.delete(code)
         delete this.original[code]
-        this.$emit('update:data', { ...this.data, [code]: value })
+        this.$emit('update:data', data)
         this.$emit('change', value)
       }
     },
 
-    update(code, value) {
-      if (!this.dirty.has(code)) {
+    update(code, value, dirty = code) {
+      if (!(code in this.original)) {
         this.original[code] = this.data[code]
       }
-      this.dirty.add(code)
+      if (!(dirty in this.original)) {
+        this.original[dirty] = this.data[dirty]
+      }
+
+      this.dirty.add(dirty)
       this.$emit('update:data', { ...this.data, [code]: value })
       this.$emit('change', value)
     },
@@ -218,6 +230,7 @@ export default {
         this.fields[code].min ? 'minimum characters: ' + this.fields[code].min : null,
         this.fields[code].max ? 'maximum characters: ' + this.fields[code].max : null,
         this.fields[code].placeholder ? 'hint text: ' + this.fields[code].placeholder : null,
+        this.fields[code].hint ? 'field description: ' + this.fields[code].hint : null,
         'context information as JSON: ' + JSON.stringify(this.data)
       ]
 
@@ -266,13 +279,10 @@ export default {
       >
         <template v-if="['markdown', 'plaintext', 'string', 'text'].includes(field.type)">
           <span class="btn-translate">
-            <component
-              :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
-              :aria-label="$gettext('Translate')"
-              v-model="menu[code]"
-              transition="scale-transition"
+            <ActionMenu
+              v-if="user.can('text:translate')"
+              :title="$gettext('Translate')"
               location="end center"
-              max-width="300"
             >
               <template #activator="{ props }">
                 <v-btn
@@ -284,24 +294,15 @@ export default {
                 />
               </template>
 
-              <v-card v-if="user.can('text:translate')">
-                <v-toolbar density="compact">
-                  <v-toolbar-title>{{ $gettext('Translate') }}</v-toolbar-title>
-                  <v-btn :icon="mdiClose" :aria-label="$gettext('Close')" @click="menu[code] = false" />
-                </v-toolbar>
-
-                <v-list @click="menu[code] = false">
-                  <v-list-item v-for="lang in txlocales()" :key="lang.code">
-                    <v-btn
-                      @click="translateText(code, lang.code)"
-                      :prepend-icon="mdiArrowRightThin"
-                      variant="text"
-                      >{{ lang.name }}</v-btn
-                    >
-                  </v-list-item>
-                </v-list>
-              </v-card>
-            </component>
+              <v-list-item v-for="lang in txlocales()" :key="lang.code">
+                <v-btn
+                  @click="translateText(code, lang.code)"
+                  :prepend-icon="mdiArrowRightThin"
+                  variant="text"
+                  >{{ lang.name }}</v-btn
+                >
+              </v-list-item>
+            </ActionMenu>
           </span>
           <v-btn
             v-if="user.can('text:write')"
@@ -324,7 +325,7 @@ export default {
         </template>
         <v-btn
           v-if="isDirty(code)"
-          :title="$gettext('Reset')"
+          :title="$gettext('Revert')"
           @click="resetField(code)"
           :icon="mdiUndoVariant"
           variant="text"
@@ -347,6 +348,8 @@ export default {
       :label="protectTypes.has(toName(field.type)) ? $pgettext('fn', field.label || code).replace(/-|_/g, ' ') : null"
       :readonly="readonly"
       :modelValue="data[code]"
+      v-bind="field.rel ? { rel: data[code + '-rel'] } : {}"
+      v-on="field.rel ? { 'update:rel': value => update(code + '-rel', value, code) } : {}"
       @addFile="addFile($event)"
       @removeFile="removeFile($event)"
       @update:modelValue="update(code, $event)"
@@ -355,13 +358,21 @@ export default {
       <template v-if="protectTypes.has(toName(field.type))" #label>
         <v-btn
           v-if="isDirty(code)"
-          :title="$gettext('Reset')"
+          :title="$gettext('Revert')"
           @click="resetField(code)"
           :icon="mdiUndoVariant"
           variant="text"
         />
       </template>
     </component>
+    <div
+      v-if="field.hint && field.type !== 'hidden' && !hintTypes.has(toName(field.type))"
+      class="v-input__details hint"
+    >
+      <div class="v-messages">
+        <div class="v-messages__message">{{ $pgettext('fh', field.hint) }}</div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -369,7 +380,7 @@ export default {
 .item {
   margin: 24px 0;
   padding-inline-start: 8px;
-  border-inline-start: 3px solid #d0d8e0;
+  border-inline-start: 3px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .item.protected {
@@ -408,6 +419,5 @@ export default {
   text-transform: capitalize;
   font-weight: bold;
   margin-bottom: 4px;
-  min-height: 48px;
 }
 </style>

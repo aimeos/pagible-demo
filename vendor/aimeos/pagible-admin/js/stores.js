@@ -3,21 +3,24 @@
  */
 
 import gql from 'graphql-tag'
-import { defineAsyncComponent, h, markRaw, reactive } from 'vue'
+import { defineAsyncComponent, h, markRaw, reactive, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { apolloClient, clearUploadLink } from './graphql'
-import { disconnect } from './echo'
+import { disconnect, resubscribe } from './echo'
 import gettext from './i18n'
+import { safeParse, sanitize } from './json'
 import {
   urladmin,
   urlasset,
   urlproxy,
   urlpage,
+  urlcsrf,
   urlfile,
   multidomain,
-  locales as appLocales
+  sessionlifetime,
+  locales as appLocales,
+  plugins
 } from './config'
-import { safeParse, sanitize } from './utils'
 
 const FETCH_ME = gql`
   query {
@@ -88,9 +91,61 @@ export const useAppStore = defineStore('app', {
   })
 })
 
+// Tells the other admin tabs that the user signed in so they can continue with the new session
+const authChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('cms-auth') : null
+
+// Pending requests waiting for the user to sign in again after the session expired
+let reauthWaiting = []
+let reauthListener = null
+// Checks the session after it would have expired without further requests
+let sessionTimer = null
+
+function reauthListen(fn) {
+  if (reauthListener) {
+    window.removeEventListener('focus', reauthListener)
+  }
+
+  reauthListener = fn
+  window.addEventListener('focus', reauthListener)
+
+  if (authChannel) {
+    authChannel.onmessage = reauthListener
+  }
+}
+
+function reauthSettle(ok) {
+  if (reauthListener) {
+    window.removeEventListener('focus', reauthListener)
+    reauthListener = null
+
+    if (authChannel) {
+      authChannel.onmessage = null
+    }
+  }
+
+  const waiting = reauthWaiting
+  reauthWaiting = []
+  waiting.forEach(({ resolve, reject }) => (ok ? resolve() : reject(new Error('Unauthenticated'))))
+}
+
+function csrf() {
+  return fetch(urlcsrf, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    credentials: 'same-origin'
+  }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`CSRF endpoint returned ${response.status}`)
+    }
+    return response.json()
+  })
+}
+
 export const useUserStore = defineStore('user', {
   state: () => ({
+    expired: false,
     me: null,
+    session: 0,
     urlintended: null,
     saveTimer: null,
     tokenTimer: null
@@ -108,6 +163,36 @@ export const useUserStore = defineStore('user', {
         }
       }
       return false
+    },
+
+    async clear() {
+      this.expired = false
+      reauthSettle(false)
+
+      clearTimeout(sessionTimer)
+      sessionTimer = null
+
+      clearTimeout(this.saveTimer)
+      this.saveTimer = null
+
+      clearTimeout(this.tokenTimer)
+      this.tokenTimer = null
+
+      useAppStore().urlproxy = urlproxy
+      useClipboardStore().$reset()
+      useChangeStore().$reset()
+      useConfirmStore().close(false)
+      const dirty = useDirtyStore()
+      dirty.unregister()
+      dirty.$reset()
+      useDrawerStore().$reset()
+      useSchemaStore().clear()
+      useSideStore().$reset()
+      useViewStack().$reset()
+      clearUploadLink()
+
+      await disconnect()
+      await apolloClient.clearStore()
     },
 
     intended(url) {
@@ -139,17 +224,17 @@ export const useUserStore = defineStore('user', {
     refreshToken() {
       if (!this.me) return
 
-      apolloClient
-        .query({ query: FETCH_TOKEN, fetchPolicy: 'network-only' })
-        .then((response) => {
-          if (response.data?.me?.token) {
-            this.me.token = response.data.me.token
-            this.applyProxyToken()
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to refresh proxy token', error)
-        })
+      apolloClient.query({
+        query: FETCH_TOKEN,
+        fetchPolicy: 'network-only'
+      }).then((response) => {
+        if (response.data?.me?.token) {
+          this.me.token = response.data.me.token
+          this.applyProxyToken()
+        }
+      }).catch((error) => {
+        console.error('Failed to refresh proxy token', error)
+      })
     },
 
     async isAuthenticated(force = false) {
@@ -157,40 +242,36 @@ export const useUserStore = defineStore('user', {
         return !!this.me
       }
 
-      await apolloClient
-        .query({
-          query: FETCH_ME,
-          fetchPolicy: force ? 'network-only' : 'cache-first'
-        })
-        .then((response) => {
-          if (response.errors) {
-            throw response
-          }
+      await apolloClient.query({
+        query: FETCH_ME,
+        fetchPolicy: force ? 'network-only' : 'cache-first'
+      }).then((response) => {
+        if (response.errors) {
+          throw response
+        }
 
-          this.me = response.data.me
-            ? { ...response.data.me, permission: safeParse(response.data.me.permission), settings: safeParse(response.data.me.settings) }
-            : false
+        this.me = response.data.me
+          ? { ...response.data.me, permission: safeParse(response.data.me.permission), settings: safeParse(response.data.me.settings) }
+          : false
 
-          this.applyProxyToken()
-        })
-        .catch((error) => {
-          console.error('Failed to fetch user data', error)
-          this.me = false
-        })
+        this.applyProxyToken()
+      }).catch((error) => {
+        console.error('Failed to fetch user data', error)
+        this.me = false
+      })
 
       return !!this.me
     },
 
     login(email, password) {
-      return apolloClient
-        .mutate({
+      return csrf().then(() => {
+        return apolloClient.mutate({
           mutation: LOGIN,
           variables: {
             email: email,
             password: password
           }
-        })
-        .then((response) => {
+        }).then((response) => {
           if (response.errors) {
             throw response.errors
           }
@@ -201,42 +282,167 @@ export const useUserStore = defineStore('user', {
           }
 
           this.me = null
-          return this.isAuthenticated(true).then(() => this.me)
-        })
-        .catch((error) => {
+          // Invalidate kept-alive views while the login route is still active, before the next
+          // authenticated route is rendered.
+          this.session++
+          return this.clear()
+            .then(() => this.isAuthenticated(true))
+            .then(() => {
+              authChannel?.postMessage('login')
+              return this.me
+            })
+        }).catch((error) => {
           this.me = false
           throw error
         })
+      })
     },
 
     logout() {
-      clearTimeout(this.saveTimer)
-      this.saveTimer = null
+      return apolloClient.mutate({
+        mutation: LOGOUT
+      }).then((response) => {
+        if (response.errors) {
+          throw response.errors
+        }
 
-      clearTimeout(this.tokenTimer)
-      this.tokenTimer = null
+        return response.data.cmsLogout || false
+      }).finally(() => {
+        this.me = null
+        return this.clear()
+      })
+    },
 
-      return apolloClient
-        .mutate({
-          mutation: LOGOUT
+    /**
+     * Waits until the expired session is renewed by relogin()/resume() or given up by expire()
+     *
+     * The session can also be renewed in another tab, which is checked when this tab gets
+     * the focus again or the other tab reports a login.
+     *
+     * @returns {Promise} Resolved after the user signed in again, rejected otherwise
+     */
+    reauth() {
+      this.expired = true
+      reauthListen(() => this.resume().catch(() => {}))
+
+      return new Promise((resolve, reject) => reauthWaiting.push({ resolve, reject }))
+    },
+
+    /**
+     * Signs in the current user again without resetting the open views and retries
+     * the requests which failed because the session expired
+     *
+     * @param {String} password Password of the current user
+     */
+    relogin(password) {
+      return csrf().then(() => {
+        return apolloClient.mutate({
+          mutation: LOGIN,
+          variables: { email: this.me?.email, password },
+          context: { relogin: true }
         })
-        .then((response) => {
-          if (response.errors) {
-            throw response.errors
-          }
+      }).then((response) => {
+        if (response.errors) {
+          throw response.errors
+        }
 
-          return response.data.cmsLogout || false
-        })
-        .finally(() => {
-          this.me = null
+        return this.resume()
+      }).then((resumed) => {
+        // not resumed but no longer expired: another tab renewed the session meanwhile
+        if (!resumed && this.expired) {
+          throw new Error(gettext.$gettext('Login failed'))
+        }
 
-          useClipboardStore().$reset()
-          useSideStore().$reset()
-          clearUploadLink()
-          disconnect()
+        authChannel?.postMessage('login')
+      })
+    },
 
-          return apolloClient.clearStore()
-        })
+    /**
+     * Continues with the current session if the same user is signed in again
+     *
+     * @returns {Promise<Boolean>} TRUE if the waiting requests are retried, FALSE if still expired
+     */
+    resume() {
+      if (!this.expired) {
+        return Promise.resolve(false)
+      }
+
+      const email = this.me?.email
+
+      return apolloClient.query({
+        query: FETCH_ME,
+        fetchPolicy: 'network-only',
+        context: { relogin: true }
+      }).then((response) => {
+        const me = response.data?.me
+
+        if (!this.expired || !me || me.email !== email) {
+          return false
+        }
+
+        this.me.permission = safeParse(me.permission)
+        this.me.token = me.token
+        this.applyProxyToken()
+        this.expired = false
+
+        reauthSettle(true)
+        resubscribe()
+
+        return true
+      })
+    },
+
+    /**
+     * Checks if the session is still valid and asks the user to sign in again if not
+     *
+     * Opens the re-login dialog before the next save fails instead of after it.
+     *
+     * @returns {Promise<Boolean>} TRUE if the session is valid, FALSE if expired
+     */
+    check() {
+      if (!this.me || this.expired) {
+        return Promise.resolve(!this.expired)
+      }
+
+      const email = this.me.email
+
+      return apolloClient.query({
+        query: FETCH_ME,
+        fetchPolicy: 'network-only',
+        context: { relogin: true }
+      }).then((response) => {
+        return response.data?.me?.email === email
+      }, (error) => {
+        // offline or server errors don't mean the session expired
+        return ![401, 419].includes(error?.networkError?.statusCode)
+      }).then((valid) => {
+        if (!valid && this.me && !this.expired) {
+          this.reauth().catch(() => {})
+        }
+
+        return valid
+      })
+    },
+
+    /**
+     * Notes the session was used, which extends its lifetime on the server
+     */
+    touch() {
+      if (!sessionlifetime) {
+        return
+      }
+
+      clearTimeout(sessionTimer)
+      // a bit later so the server has surely expired the session before it's checked
+      sessionTimer = setTimeout(() => this.check(), sessionlifetime * 60000 + 5000)
+    },
+
+    /**
+     * Gives up the expired session, rejects the waiting requests and resets the state
+     */
+    async expire() {
+      this.me = false
+      await this.clear()
     },
 
     async user() {
@@ -245,6 +451,35 @@ export const useUserStore = defineStore('user', {
       }
 
       return null
+    },
+
+    /**
+     * Returns the reactive list filter of the panel, saved per user on every change
+     *
+     * Call it while a component is set up, e.g. in data(), so the watcher stops on unmount.
+     *
+     * @param {String} panel Settings key of the panel, e.g. "page"
+     * @param {Object} defaults Filter values used if nothing is saved yet
+     */
+    filter(panel, defaults) {
+      const filter = reactive({ ...defaults, ...this.getData(panel, 'filter') })
+      watch(filter, (value) => this.saveData(panel, 'filter', value))
+      return filter
+    },
+
+    /**
+     * Returns a ref of the panel setting, saved per user on every change
+     *
+     * Call it while a component is set up, e.g. in data(), so the watcher stops on unmount.
+     *
+     * @param {String} panel Settings key of the panel, e.g. "page"
+     * @param {String} key Name of the setting, e.g. "sort"
+     * @param {*} defval Value used if nothing is saved yet
+     */
+    setting(panel, key, defval) {
+      const value = ref(this.getData(panel, key, defval))
+      watch(value, (val) => this.saveData(panel, key, val), { deep: true })
+      return value
     },
 
     getData(panel, key, defval = null) {
@@ -276,22 +511,19 @@ export const useUserStore = defineStore('user', {
 
       const messages = useMessageStore()
 
-      apolloClient
-        .mutate({
-          mutation: SAVE_SETTINGS,
-          variables: {
-            settings: JSON.stringify(this.me.settings)
-          }
-        })
-        .then((response) => {
-          if (response.errors) {
-            throw response.errors
-          }
-        })
-        .catch((error) => {
-          messages.add('Failed to save user settings:\n' + error, 'error')
-          console.error('Failed to save user data', error)
-        })
+      apolloClient.mutate({
+        mutation: SAVE_SETTINGS,
+        variables: {
+          settings: JSON.stringify(this.me.settings)
+        }
+      }).then((response) => {
+        if (response.errors) {
+          throw response.errors
+        }
+      }).catch((error) => {
+        messages.add('Failed to save user settings:\n' + error, 'error')
+        console.error('Failed to save user data', error)
+      })
     }
   }
 })
@@ -350,14 +582,17 @@ export const useDrawerStore = defineStore('drawer', {
  * not make them reactive.
  */
 const PluginError = markRaw({
-  render: () => h('div', { class: 'pa-4 text-error' }, gettext.$gettext('Failed to load plugin'))
+  render: () => h('div', { class: 'pa-4 plugin-error' }, gettext.$gettext('Failed to load plugin'))
 })
 
 function pluginComponent(def) {
   return {
     ...def,
     component: markRaw(defineAsyncComponent({
-      loader: () => import(/* @vite-ignore */ def.component).then((mod) => mod.default),
+      loader: () => Promise.all([
+        import(/* @vite-ignore */ def.component),
+        import('./plugin')
+      ]).then(([mod, host]) => host.pluginUi(mod.default)),
       errorComponent: PluginError
     }))
   }
@@ -365,15 +600,14 @@ function pluginComponent(def) {
 
 export const usePluginStore = defineStore('plugin', {
   state: () => {
-    const data = safeParse(document.getElementById('app')?.dataset.plugins)
     const panels = {}
     const subpanels = {}
 
-    for (const [key, def] of Object.entries(data.panels || {})) {
-      panels[key] = pluginComponent(def)
+    for (const [key, def] of Object.entries(plugins.panels || {})) {
+      panels[key] = pluginComponent({ ...def, key })
     }
 
-    for (const [host, group] of Object.entries(data.subpanels || {})) {
+    for (const [host, group] of Object.entries(plugins.subpanels || {})) {
       subpanels[host] = {}
       for (const [key, def] of Object.entries(group)) {
         subpanels[host][key] = pluginComponent(def)
@@ -405,24 +639,56 @@ export const useLanguageStore = defineStore('language', {
 /**
  * Store for queued messages to display to the user
  */
+// message actions are kept outside of the queue items because the items are passed as props
+// to the snackbars; only their id is stored in the item as harmless data attribute
+const messageActions = new Map()
+let messageId = 0
+
 export const useMessageStore = defineStore('message', {
   state: () => ({
     queue: []
   }),
 
   actions: {
-    add(msg, type = 'info', timeout = null) {
+    /**
+     * Adds a message to the queue
+     *
+     * @param {String} msg Message text
+     * @param {String} type Message type (info, success, warning, error)
+     * @param {Number|null} timeout Display duration in milliseconds
+     * @param {Object|null} action Optional button as { label, handler }
+     */
+    add(msg, type = 'info', timeout = null, action = null) {
       if (this.queue.length >= 10) {
         console.warn('Message queue overflow, dropping message:', msg)
         return
       }
 
-      this.queue.push({
+      const item = {
         text: msg,
         color: type,
         contentClass: 'text-pre-line',
-        timeout: timeout || (type === 'error' ? 10000 : 3000)
-      })
+        timeout: timeout || (type === 'error' ? 10000 : action ? 8000 : 3000)
+      }
+
+      if (action) {
+        const id = ++messageId
+        messageActions.set(id, action)
+        item['data-action'] = id
+        item.onDismiss = () => messageActions.delete(id)
+      }
+
+      this.queue.push(item)
+    },
+
+    action(id) {
+      return messageActions.get(id) || null
+    },
+
+    run(id) {
+      const action = messageActions.get(id)
+      messageActions.delete(id)
+      action?.handler()
     }
   }
 })
@@ -430,17 +696,33 @@ export const useMessageStore = defineStore('message', {
 /**
  * Available element schemas fetched from GraphQL
  */
+let _generation = 0
 let _loading = null
+
+function restart() {
+  _generation++
+  _loading = null
+}
 
 export const useSchemaStore = defineStore('schema', {
   state: () => ({ themes: {}, content: {}, meta: {}, config: {} }),
   actions: {
-    load() {
+    clear() {
+      restart()
+      this.$reset()
+    },
+
+    load(fresh = false) {
       if (_loading) return _loading instanceof Promise ? _loading : Promise.resolve()
 
+      const generation = _generation
+
       _loading = apolloClient.query({
-        query: FETCH_SCHEMAS
+        query: FETCH_SCHEMAS,
+        fetchPolicy: fresh ? 'network-only' : 'cache-first'
       }).then((result) => {
+        if (generation !== _generation) return
+
         const content = {}, meta = {}, config = {}
         const parse = (v) => typeof v === 'string' ? safeParse(v) : sanitize(v || {})
         const list = (result.data?.schemas || []).map(t => markRaw({
@@ -464,11 +746,16 @@ export const useSchemaStore = defineStore('schema', {
 
         _loading = true
       }).catch((err) => {
-        _loading = null
+        if (generation === _generation) _loading = null
         throw err
-      }).then(() => _loading)
+      }).then(() => generation === _generation ? _loading : null)
 
       return _loading
+    },
+
+    reload() {
+      restart()
+      return this.load(true)
     }
   }
 })
@@ -514,6 +801,34 @@ export const useSideStore = defineStore('side', {
         this.show[key] = {}
       }
       this.show[key][what] = !this.show[key][what]
+    }
+  }
+})
+
+export const useConfirmStore = defineStore('confirm', {
+  state: () => ({
+    hint: '',
+    items: [],
+    pendingResolve: null,
+    show: false
+  }),
+
+  actions: {
+    close(value) {
+      const fn = this.pendingResolve
+      this.pendingResolve = null
+      this.show = false
+
+      if (fn) fn(value)
+    },
+
+    purge(items, hint = '') {
+      this.close(false)
+      Object.assign(this, { items, hint, show: true })
+
+      return new Promise((resolve) => {
+        this.pendingResolve = resolve
+      })
     }
   }
 })

@@ -53,6 +53,20 @@ export default {
       this.$refs.config?.reset()
     },
 
+    async showError() {
+      const tab = ['details', 'meta', 'config', 'access'].find((key) => this.errors[key])
+
+      if (!tab) {
+        return
+      }
+
+      this.tab = tab
+      this.$emit('update:aside', tab === 'details' ? 'meta' : 'count')
+
+      await this.$nextTick()
+      await this.$refs[tab]?.showError?.()
+    },
+
     update(what) {
       this.changed[what] = true
       this.$emit('update:item', this.item)
@@ -160,6 +174,6 @@ export default {
 }
 
 .v-sheet.scroll {
-  max-height: calc(100vh - 96px);
+  height: calc(100vh - 96px);
 }
 </style>

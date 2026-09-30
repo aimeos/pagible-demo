@@ -3,11 +3,10 @@
 @endPushOnce
 
 @if(count($heroFiles = (array) ($data->files ?? [])) > 1)
-    @pushOnce('foot')
-    <link href="{{ cmstheme($page, 'slideshow.css') }}" rel="preload" as="style">
+    @pushOnce('head', 'cms-slideshow-head')
+    <link href="{{ cmstheme($page, 'slideshow.css') }}" rel="stylesheet">
     @endPushOnce
-
-    @pushOnce('foot')
+    @pushOnce('foot', 'cms-slideshow')
     <script defer src="{{ cmstheme($page, 'slideshow.js') }}"></script>
     @endPushOnce
 @endif
@@ -32,10 +31,10 @@
     @if(($data->url ?? null) || ($data->{'url-alternative'} ?? null))
         <div class="actions">
             @if($data->url ?? null)
-                <a class="btn url" href="{{ cmslink($data->url) }}">{{ $data->button ?? '' }}</a>
+                <a class="btn url" href="{{ cmslink($data->url) }}" rel="{{ $data->{'url-rel'} ?? '' }}">{{ $data->button ?? '' }}</a>
             @endif
             @if($data->{'url-alternative'} ?? null)
-                <a class="btn url-alternative" href="{{ cmslink($data->{'url-alternative'}) }}">{{ $data->{'button-alternative'} ?? '' }}</a>
+                <a class="btn url-alternative" href="{{ cmslink($data->{'url-alternative'}) }}" rel="{{ $data->{'url-alternative-rel'} ?? '' }}">{{ $data->{'button-alternative'} ?? '' }}</a>
             @endif
         </div>
     @endif

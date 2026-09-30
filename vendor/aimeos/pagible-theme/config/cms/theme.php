@@ -52,7 +52,7 @@ return [
     'csp' => [
         'media-src' => env( 'CMS_CSP_MEDIA_SRC', 'https://images.unsplash.com https://media.w3.org https://api.iconify.design' ),
         'style-src' => env( 'CMS_CSP_STYLE_SRC', 'https://hcaptcha.com https://*.hcaptcha.com' ),
-        'frame-src' => env( 'CMS_CSP_FRAME_SRC', 'https://hcaptcha.com https://*.hcaptcha.com' ),
+        'frame-src' => env( 'CMS_CSP_FRAME_SRC', 'https://hcaptcha.com https://*.hcaptcha.com https://www.openstreetmap.org' ),
         'script-src' => env( 'CMS_CSP_SCRIPT_SRC', 'https://hcaptcha.com https://*.hcaptcha.com' ),
         'connect-src' => env( 'CMS_CSP_CONNECT_SRC', 'https://hcaptcha.com https://*.hcaptcha.com' ),
     ],
@@ -98,7 +98,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | The URL path prefix for the XML sitemap. The sitemap index will be
-    | available at /{sitemap}.xml and chunks at /{sitemap}-{page}.xml.
+    | available at /{sitemap}.xml, news at /{sitemap}-news.xml and chunks at
+    | /{sitemap}-{page}.xml.
     |
     */
     'sitemap' => env( 'CMS_SITEMAP', 'sitemap' ),

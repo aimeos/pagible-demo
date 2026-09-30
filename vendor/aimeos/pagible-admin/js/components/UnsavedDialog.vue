@@ -1,13 +1,18 @@
 /** @license MIT, https://opensource.org/license/mit */
 
 <script>
-import { mdiAlertCircleOutline, mdiClose } from '@mdi/js'
+import { mdiAlertCircleOutline } from '@mdi/js'
+import CmsDialog from './Dialog.vue'
 import { useDirtyStore } from '../stores'
 
 export default {
+  components: {
+    CmsDialog
+  },
+
   setup() {
     const dirtyStore = useDirtyStore()
-    return { dirtyStore, mdiAlertCircleOutline, mdiClose }
+    return { dirtyStore, mdiAlertCircleOutline }
   },
 
   watch: {
@@ -23,68 +28,52 @@ export default {
 </script>
 
 <template>
-  <v-dialog
+  <CmsDialog
     :model-value="dirtyStore.show"
+    :title="$gettext('Unsaved changes')"
+    @update:model-value="!$event && dirtyStore.cancel()"
+    toolbar-color="warning"
     max-width="440"
     persistent
     role="alertdialog"
-    :aria-label="$gettext('Unsaved changes')"
     aria-describedby="unsaved-description"
   >
-    <v-card>
-      <v-toolbar density="compact" class="unsaved-toolbar">
-        <v-toolbar-title>
-          {{ $gettext('Unsaved changes') }}
-        </v-toolbar-title>
-        <v-btn :icon="mdiClose" :aria-label="$gettext('Close')" @click="dirtyStore.cancel()" />
-      </v-toolbar>
+    <div class="unsaved-body">
+      <v-icon :icon="mdiAlertCircleOutline" color="warning" size="40" aria-hidden="true" />
+      <p id="unsaved-description" class="unsaved-text">
+        {{ $gettext('You have unsaved changes that will be lost if you leave.') }}
+      </p>
+    </div>
 
-      <v-card-text class="unsaved-body">
-        <v-icon :icon="mdiAlertCircleOutline" color="warning" size="40" aria-hidden="true" />
-        <p id="unsaved-description" class="unsaved-text">
-          {{ $gettext('You have unsaved changes that will be lost if you leave.') }}
-        </p>
-      </v-card-text>
+    <template #actions-start>
+      <v-btn @click="dirtyStore.discard()" variant="tonal" color="error">
+        {{ $gettext('Discard') }}
+      </v-btn>
+    </template>
 
-      <v-card-actions class="unsaved-actions">
-        <v-btn @click="dirtyStore.discard()" variant="tonal" color="error">
-          {{ $gettext('Discard') }}
-        </v-btn>
-        <v-spacer />
-        <v-btn @click="dirtyStore.cancel()" variant="text">
-          {{ $gettext('Cancel') }}
-        </v-btn>
-        <v-btn ref="saveBtn" @click="dirtyStore.saveAndLeave()" variant="flat" color="blue-darken-1">
-          {{ $gettext('Save & leave') }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+    <template #actions>
+      <v-btn @click="dirtyStore.cancel()" variant="text">
+        {{ $gettext('Cancel') }}
+      </v-btn>
+      <v-btn ref="saveBtn" @click="dirtyStore.saveAndLeave()" variant="tonal" color="primary">
+        {{ $gettext('Save & leave') }}
+      </v-btn>
+    </template>
+  </CmsDialog>
 </template>
 
 <style scoped>
-.unsaved-toolbar {
-  background: rgb(var(--v-theme-warning));
-  color: #000;
-}
-
-.unsaved-toolbar :deep(.v-btn) {
-  color: #000;
-}
-
 .unsaved-body {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
-  padding: 20px 24px 12px;
 }
 
+/* the text wraps below the icon only if the dialog is too narrow */
 .unsaved-text {
+  flex: 1 1 12rem;
   margin: 0;
   line-height: 1.5;
-}
-
-.unsaved-actions {
-  padding: 8px 16px 16px;
 }
 </style>

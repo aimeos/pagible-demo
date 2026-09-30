@@ -11,8 +11,6 @@ export default {
     filter: { type: Object, required: true }
   },
 
-  emits: ['update:filter'],
-
   setup() {
     const drawer = useDrawerStore()
     return { drawer, mdiCloseCircleOutline }
@@ -29,7 +27,7 @@ export default {
     this.initial = { ...(this.defaults || this.filter) }
     this.open = this.content
       .map((group, index) => {
-        return this.has(group.key) ? index : false
+        return group.open || this.has(group.key) ? index : false
       })
       .filter((idx) => idx !== false)
   },
@@ -54,12 +52,14 @@ export default {
       return this.filter[key] !== null ? true : false
     },
 
+    reset() {
+      Object.assign(this.filter, this.initial)
+    },
+
     toggle(item) {
       for (const key in item.value) {
         this.filter[key] = item.value[key]
       }
-
-      this.$emit('update:filter', this.filter)
     }
   }
 }
@@ -70,7 +70,7 @@ export default {
     <v-btn
       class="reset"
       :disabled="disabled"
-      @click="$emit('update:filter', { ...initial })"
+      @click="reset()"
       :prepend-icon="mdiCloseCircleOutline"
       variant="text"
       >{{ $gettext('Reset') }}</v-btn
@@ -101,12 +101,7 @@ export default {
 
 <style scoped>
 .v-navigation-drawer {
-  border-top-left-radius: 8px;
-}
-
-.v-locale--is-rtl .v-navigation-drawer {
-  border-top-left-radius: 0;
-  border-top-right-radius: 8px;
+  border-start-start-radius: 8px;
 }
 
 .v-btn.reset {
@@ -123,7 +118,7 @@ export default {
 }
 
 .v-list-item.active:before {
-  color: rgb(var(--v-theme-warning));
+  color: rgb(var(--v-theme-primary));
   margin-inline-end: 4px;
   font-size: 150%;
   content: '•';

@@ -5,7 +5,6 @@ import { markRaw } from 'vue'
 import gql from 'graphql-tag'
 import {
   mdiDotsVertical,
-  mdiClose,
   mdiPublish,
   mdiDelete,
   mdiDeleteRestore,
@@ -14,13 +13,19 @@ import {
   mdiMagnify,
   mdiClockOutline,
   mdiRefresh,
-  mdiPencil
+  mdiPencil,
+  mdiCloseCircleOutline
 } from '@mdi/js'
-import SchemaItems from './SchemaItems.vue'
+import ActionMenu from './ActionMenu.vue'
+import ListSkeleton from './ListSkeleton.vue'
+import LoadingSpinner from './LoadingSpinner.vue'
+import SchemaDialog from './SchemaDialog.vue'
 import EditBulkDialog from './EditBulkDialog.vue'
 import ListSort from './ListSort.vue'
 import { FILE_FIELDS, normalizeFile } from '../files'
-import { useUserStore, useMessageStore, useChangeStore } from '../stores'
+import { invalidateList, listFetchPolicy } from '../graphql'
+import { useUserStore, useMessageStore, useChangeStore, useConfirmStore } from '../stores'
+import { useListKeys, useListShortcuts } from '../lists'
 import { debounce, frozenParse, safeParse } from '../utils'
 import { setupEcho, cleanEcho, listEcho } from '../echo'
 
@@ -142,13 +147,17 @@ const SORT_OPTIONS = Object.freeze([
 
 export default {
   components: {
-    SchemaItems,
+    ActionMenu,
+    ListSkeleton,
+    LoadingSpinner,
+    SchemaDialog,
     EditBulkDialog,
     ListSort
   },
 
   props: {
     embed: { type: Boolean, default: false },
+    defaults: { type: Object, default: null },
     filter: { type: Object, default: () => ({}) }
   },
 
@@ -157,15 +166,13 @@ export default {
   data() {
     return {
       items: [],
-      menu: [],
       checked: new Set(),
       term: '',
-      sort: this.user.getData('element', 'sort') || { column: 'ID', order: 'DESC' },
+      sort: this.user.setting('element', 'sort', { column: 'ID', order: 'DESC' }),
       page: 1,
       last: 1,
       limit: 100,
       vschemas: false,
-      actions: false,
       editDialog: false,
       editIds: [],
       editSelected: false,
@@ -179,16 +186,22 @@ export default {
   },
 
   setup() {
+    useListShortcuts('element', (vm) => (vm.vschemas = true))
+
+    const listKey = useListKeys()
+
     const messages = useMessageStore()
     const user = useUserStore()
     const changes = useChangeStore()
+    const confirm = useConfirmStore()
 
     return {
+      listKey,
       user,
       changes,
+      confirm,
       messages,
       mdiDotsVertical,
-      mdiClose,
       mdiPublish,
       mdiDelete,
       mdiDeleteRestore,
@@ -198,6 +211,7 @@ export default {
       mdiClockOutline,
       mdiRefresh,
       mdiPencil,
+      mdiCloseCircleOutline,
       sortOptions: SORT_OPTIONS,
       debounce
     }
@@ -221,15 +235,28 @@ export default {
     cleanEcho(this)
 
     this.items = null
-    this.menu = null
     this.checked = null
   },
 
   activated() {
     this.sync()
+    this.revalidate()
   },
 
   computed: {
+    filtered() {
+      if (this.term || !this.defaults) {
+        return true
+      }
+
+      return Object.keys({ ...this.filter, ...this.defaults }).some((key) => {
+        return (
+          key !== 'view' &&
+          JSON.stringify(this.filter[key] ?? null) !== JSON.stringify(this.defaults[key] ?? null)
+        )
+      })
+    },
+
     canTrash() {
       return this.items.some((item) => this.checked.has(item.id) && !item.deleted_at)
     },
@@ -244,6 +271,22 @@ export default {
   },
 
   methods: {
+    resetFilter() {
+      this.term = ''
+
+      if (this.defaults) {
+        const filter = {}
+
+        for (const key in this.filter) {
+          if (key !== 'view') {
+            filter[key] = this.defaults[key] ?? null
+          }
+        }
+
+        Object.assign(this.filter, filter)
+      }
+    },
+
     add(item) {
       if (this.embed || !this.user.can('element:add')) {
         this.messages.add(this.$gettext('Permission denied'), 'error')
@@ -309,6 +352,16 @@ export default {
 
           this.invalidate()
           this.search()
+          this.messages.add(
+            this.$ngettext('Moved to trash', '%{num} entries moved to trash', list.length, {
+              num: list.length
+            }),
+            'success',
+            null,
+            this.user.can('element:keep')
+              ? { label: this.$gettext('Undo'), handler: () => this.keep(list) }
+              : null
+          )
         })
         .catch((error) => {
           this.messages.add(this.$gettext('Error trashing shared element') + ':\n' + error, 'error')
@@ -320,8 +373,25 @@ export default {
       this.outdated = false
       this.items = []
       this.loading = true
-      this.invalidate()
-      this.search()
+      return this.$apollo.provider.defaultClient.clearStore().then(() => this.search())
+    },
+
+    revalidate() {
+      if (this.loading) return
+
+      const options = this.options()
+      const cache = this.$apollo.provider.defaultClient.cache
+
+      if (
+        options.fetchPolicy === 'network-only' ||
+        !cache.diff({
+          query: options.query,
+          variables: options.variables,
+          returnPartialData: true
+        }).complete
+      ) {
+        return this.search()
+      }
     },
 
     patch(item) {
@@ -358,7 +428,8 @@ export default {
     },
 
     sync() {
-      const ids = this.changes.get('element')
+      const ids = this.changes
+        .get('element')
         .filter((item) => this.patch(item))
         .map((item) => item.id)
 
@@ -366,9 +437,39 @@ export default {
     },
 
     invalidate() {
-      const cache = this.$apollo.provider.defaultClient.cache
-      cache.evict({ id: 'ROOT_QUERY', fieldName: 'elements' })
-      cache.gc()
+      invalidateList(this.$apollo.provider.defaultClient.cache, 'elements')
+    },
+
+    options() {
+      const publish = this.filter.publish || null
+      const trashed = this.filter.trashed || 'WITHOUT'
+      const filter = { ...this.filter }
+
+      delete filter.publish
+      delete filter.trashed
+
+      for (const key in filter) {
+        if (filter[key] === null) {
+          delete filter[key]
+        }
+      }
+
+      if (this.term) {
+        filter.any = this.term
+      }
+
+      return {
+        query: FETCH_ELEMENTS,
+        fetchPolicy: listFetchPolicy(),
+        variables: {
+          filter: filter,
+          page: this.page,
+          limit: this.limit,
+          sort: [this.sort],
+          trashed: trashed,
+          publish: publish
+        }
+      }
     },
 
     keep(item) {
@@ -377,7 +478,11 @@ export default {
         return
       }
 
-      const list = item ? [item] : this.items.filter((item) => this.checked.has(item.id))
+      const list = Array.isArray(item)
+        ? item
+        : item
+          ? [item]
+          : this.items.filter((item) => this.checked.has(item.id))
 
       if (!list.length) {
         return
@@ -447,7 +552,7 @@ export default {
         })
     },
 
-    purge(item) {
+    async purge(item) {
       if (!this.user.can('element:purge')) {
         this.messages.add(this.$gettext('Permission denied'), 'error')
         return
@@ -455,7 +560,10 @@ export default {
 
       const list = item ? [item] : this.items.filter((item) => this.checked.has(item.id))
 
-      if (!list.length) {
+      if (
+        !list.length ||
+        !(await this.confirm.purge(list.map((item) => ({ name: item.name, info: item.type }))))
+      ) {
         return
       }
 
@@ -483,7 +591,6 @@ export default {
     edit(item = null) {
       this.editIds = item ? [item.id] : [...this.checked]
       this.editSelected = !item
-      this.actions = false
       this.editDialog = this.editIds.length > 0
     },
 
@@ -538,38 +645,10 @@ export default {
         return Promise.resolve([])
       }
 
-      const publish = this.filter.publish || null
-      const trashed = this.filter.trashed || 'WITHOUT'
-      const filter = { ...this.filter }
-
-      delete filter.publish
-      delete filter.trashed
-
-      for(const key in filter) {
-        if(filter[key] === null) {
-          delete filter[key]
-        }
-      }
-
-      if (this.term) {
-        filter.any = this.term
-      }
-
       this.loading = true
 
       return this.$apollo
-        .query({
-          query: FETCH_ELEMENTS,
-          fetchPolicy: 'no-cache',
-          variables: {
-            filter: filter,
-            page: this.page,
-            limit: this.limit,
-            sort: [this.sort],
-            trashed: trashed,
-            publish: publish
-          }
-        })
+        .query(this.options())
         .then((result) => {
           if (result.errors) {
             throw result.errors
@@ -605,6 +684,7 @@ export default {
           })
 
           this.checked = new Set()
+          this.outdated = false
           this.loading = false
 
           return this.items
@@ -669,12 +749,8 @@ export default {
       this.search()
     },
 
-    sort: {
-      deep: true,
-      handler() {
-        this.user.saveData('element', 'sort', this.sort)
-        this.search()
-      }
+    sort() {
+      this.search()
     }
   }
 }
@@ -683,61 +759,49 @@ export default {
 <template>
   <div class="header">
     <div class="bulk">
-      <v-checkbox-btn :model-value="checked.size > 0" @click.stop="toggle()" :aria-label="$gettext('Toggle selection')" />
+      <v-checkbox-btn
+        :model-value="checked.size > 0"
+        @click.stop="toggle()"
+        :aria-label="$gettext('Toggle selection')"
+      />
 
       <span class="btn-actions">
-        <component
-          :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
-          :aria-label="$gettext('Actions')"
-          v-model="actions"
-          transition="scale-transition"
-          location="end center"
-          max-width="300"
-        >
-          <template v-slot:activator="{ props }">
+        <ActionMenu>
+          <template #activator="{ props, label }">
             <v-btn
               v-bind="props"
               :disabled="!isChecked || embed || !user.can('element:add')"
-              :title="$gettext('Actions')"
+              :title="label"
               :icon="mdiDotsVertical"
               variant="text"
             />
           </template>
-          <v-card>
-            <v-toolbar density="compact">
-              <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
-              <v-btn :icon="mdiClose" :aria-label="$gettext('Close')" @click="actions = false" />
-            </v-toolbar>
-
-            <v-list @click="actions = false">
-              <v-list-item v-show="isChecked && user.can('element:publish')">
-                <v-btn :prepend-icon="mdiPublish" variant="text" @click="publish()">{{
-                  $gettext('Publish')
-                }}</v-btn>
-              </v-list-item>
-              <v-list-item v-show="isChecked && user.can('element:save')">
-                <v-btn :prepend-icon="mdiPencil" variant="text" @click="edit()">{{
-                  $gettext('Edit properties')
-                }}</v-btn>
-              </v-list-item>
-              <v-list-item v-show="canTrash && user.can('element:drop')">
-                <v-btn :prepend-icon="mdiDelete" variant="text" @click="drop()">{{
-                  $gettext('Delete')
-                }}</v-btn>
-              </v-list-item>
-              <v-list-item v-show="isTrashed && user.can('element:keep')">
-                <v-btn :prepend-icon="mdiDeleteRestore" variant="text" @click="keep()">{{
-                  $gettext('Restore')
-                }}</v-btn>
-              </v-list-item>
-              <v-list-item v-show="isChecked && user.can('element:purge')">
-                <v-btn :prepend-icon="mdiDeleteForever" variant="text" @click="purge()">{{
-                  $gettext('Purge')
-                }}</v-btn>
-              </v-list-item>
-            </v-list>
-          </v-card>
-        </component>
+          <v-list-item v-show="isChecked && user.can('element:publish')">
+            <v-btn :prepend-icon="mdiPublish" variant="text" @click="publish()">{{
+              $gettext('Publish')
+            }}</v-btn>
+          </v-list-item>
+          <v-list-item v-show="isChecked && user.can('element:save')">
+            <v-btn :prepend-icon="mdiPencil" variant="text" @click="edit()">{{
+              $gettext('Edit properties')
+            }}</v-btn>
+          </v-list-item>
+          <v-list-item v-show="canTrash && user.can('element:drop')">
+            <v-btn :prepend-icon="mdiDelete" variant="text" @click="drop()">{{
+              $gettext('Delete')
+            }}</v-btn>
+          </v-list-item>
+          <v-list-item v-show="isTrashed && user.can('element:keep')">
+            <v-btn :prepend-icon="mdiDeleteRestore" variant="text" @click="keep()">{{
+              $gettext('Restore')
+            }}</v-btn>
+          </v-list-item>
+          <v-list-item v-show="isChecked && user.can('element:purge')">
+            <v-btn :prepend-icon="mdiDeleteForever" variant="text" @click="purge()">{{
+              $gettext('Purge')
+            }}</v-btn>
+          </v-list-item>
+        </ActionMenu>
       </span>
 
       <v-btn
@@ -754,6 +818,7 @@ export default {
 
     <div class="search">
       <v-text-field
+        ref="search"
         v-model="term"
         :prepend-inner-icon="mdiMagnify"
         variant="underlined"
@@ -769,15 +834,17 @@ export default {
         @click="reload()"
         :prepend-icon="mdiRefresh"
         :title="$gettext('Updated by another user')"
-        color="primary"
+        color="warning"
         variant="tonal"
         size="small"
         rounded="lg"
         class="btn-outdated"
-      >{{ $gettext('Refresh') }}</v-btn>
+        >{{ $gettext('Refresh') }}</v-btn
+      >
 
       <v-btn
         @click="reload()"
+        :loading="loading"
         :title="$gettext('Reload elements')"
         :icon="mdiRefresh"
         class="btn-reload"
@@ -788,8 +855,8 @@ export default {
     </div>
   </div>
 
-  <v-list class="items">
-    <v-list-item v-for="(item, idx) in items" :key="idx">
+  <v-list class="items" @keydown="listKey">
+    <v-list-item v-for="item in items" :key="item.id" :data-id="item.id">
       <div class="actions">
         <v-checkbox-btn
           :model-value="checked.has(item.id)"
@@ -799,72 +866,51 @@ export default {
         />
 
         <span class="btn-actions">
-          <component
-            :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
-            :aria-label="$gettext('Actions')"
-            v-model="menu[idx]"
-            transition="scale-transition"
-            location="end center"
-            max-width="300"
-          >
-            <template v-slot:activator="{ props }">
-              <v-btn
-                v-bind="props"
-                :title="$gettext('Actions')"
-                :icon="mdiDotsVertical"
-                variant="text"
-              />
+          <ActionMenu>
+            <template #activator="{ props, label }">
+              <v-btn v-bind="props" :title="label" :icon="mdiDotsVertical" variant="text" />
             </template>
-            <v-card>
-              <v-toolbar density="compact">
-                <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
-                <v-btn :icon="mdiClose" :aria-label="$gettext('Close')" @click="menu[idx] = false" />
-              </v-toolbar>
+            <v-list-item
+              v-show="!item.deleted_at && !item.published && this.user.can('element:publish')"
+            >
+              <v-btn :prepend-icon="mdiPublish" variant="text" @click="publish(item)">{{
+                $gettext('Publish')
+              }}</v-btn>
+            </v-list-item>
 
-              <v-list @click="menu[idx] = false">
-                <v-list-item
-                  v-show="!item.deleted_at && !item.published && this.user.can('element:publish')"
-                >
-                  <v-btn :prepend-icon="mdiPublish" variant="text" @click="publish(item)">{{
-                    $gettext('Publish')
-                  }}</v-btn>
-                </v-list-item>
+            <v-divider
+              v-if="
+                !item.deleted_at &&
+                !item.published &&
+                user.can('element:publish') &&
+                user.can('element:save')
+              "
+            ></v-divider>
 
-                <v-divider
-                  v-if="
-                    !item.deleted_at &&
-                    !item.published &&
-                    user.can('element:publish') &&
-                    user.can('element:save')
-                  "
-                ></v-divider>
+            <v-list-item v-if="user.can('element:save')">
+              <v-btn :prepend-icon="mdiPencil" variant="text" @click="edit(item)">{{
+                $gettext('Edit properties')
+              }}</v-btn>
+            </v-list-item>
 
-                <v-list-item v-if="user.can('element:save')">
-                  <v-btn :prepend-icon="mdiPencil" variant="text" @click="edit(item)">{{
-                    $gettext('Edit properties')
-                  }}</v-btn>
-                </v-list-item>
+            <v-divider v-if="user.can('element:save')"></v-divider>
 
-                <v-divider v-if="user.can('element:save')"></v-divider>
-
-                <v-list-item v-if="!item.deleted_at && this.user.can('element:drop')">
-                  <v-btn :prepend-icon="mdiDelete" variant="text" @click="drop(item)">{{
-                    $gettext('Delete')
-                  }}</v-btn>
-                </v-list-item>
-                <v-list-item v-if="item.deleted_at && this.user.can('element:keep')">
-                  <v-btn :prepend-icon="mdiDeleteRestore" variant="text" @click="keep(item)">{{
-                    $gettext('Restore')
-                  }}</v-btn>
-                </v-list-item>
-                <v-list-item v-if="this.user.can('element:purge')">
-                  <v-btn :prepend-icon="mdiDeleteForever" variant="text" @click="purge(item)">{{
-                    $gettext('Purge')
-                  }}</v-btn>
-                </v-list-item>
-              </v-list>
-            </v-card>
-          </component>
+            <v-list-item v-if="!item.deleted_at && this.user.can('element:drop')">
+              <v-btn :prepend-icon="mdiDelete" variant="text" @click="drop(item)">{{
+                $gettext('Delete')
+              }}</v-btn>
+            </v-list-item>
+            <v-list-item v-if="item.deleted_at && this.user.can('element:keep')">
+              <v-btn :prepend-icon="mdiDeleteRestore" variant="text" @click="keep(item)">{{
+                $gettext('Restore')
+              }}</v-btn>
+            </v-list-item>
+            <v-list-item v-if="this.user.can('element:purge')">
+              <v-btn :prepend-icon="mdiDeleteForever" variant="text" @click="purge(item)">{{
+                $gettext('Purge')
+              }}</v-btn>
+            </v-list-item>
+          </ActionMenu>
         </span>
       </div>
 
@@ -894,23 +940,24 @@ export default {
     </v-list-item>
   </v-list>
 
-  <p v-if="loading" class="loading">
+  <ListSkeleton v-if="loading && !items?.length" />
+  <p v-else-if="loading" class="loading">
     {{ $gettext('Loading') }}
-    <svg
-      class="spinner"
-      width="32"
-      height="32"
-      fill="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle class="spin1" cx="4" cy="12" r="3" />
-      <circle class="spin1 spin2" cx="12" cy="12" r="3" />
-      <circle class="spin1 spin3" cx="20" cy="12" r="3" />
-    </svg>
+    <LoadingSpinner width="32" height="32" />
   </p>
   <p v-if="!loading && !items.length" class="notfound">
-    {{ $gettext('No entries found') }}
+    <template v-if="filtered">
+      {{ $gettext('No entries found') }}
+      <v-btn
+        v-if="term || defaults"
+        class="btn-reset-filter"
+        variant="text"
+        :prepend-icon="mdiCloseCircleOutline"
+        @click="resetFilter()"
+        >{{ $gettext('Reset') }}</v-btn
+      >
+    </template>
+    <template v-else>{{ $gettext('No entries yet') }}</template>
   </p>
 
   <v-pagination v-if="last > 1" v-model="page" :length="last"></v-pagination>
@@ -927,30 +974,19 @@ export default {
     />
   </div>
 
-  <Teleport to="body">
-    <v-dialog v-model="vschemas" @afterLeave="vschemas = false" scrollable width="auto">
-      <v-card>
-        <v-card-text>
-          <SchemaItems type="content" @add="add($event)" />
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-  </Teleport>
+  <SchemaDialog v-model="vschemas" :elements="false" @add="add($event)" />
 
   <EditBulkDialog v-model="editDialog" :count="editIds.length" @apply="save" />
 </template>
 
 <style scoped>
-.layoout .v-list-item {
-  text-transform: uppercase;
-}
-
 .items {
   margin: 0;
 }
 
 .items .v-list-item {
-  border-bottom: 1px solid rgba(var(--v-border-color), 0.38);
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 0;
   contain-intrinsic-size: auto 56px;
   content-visibility: auto;
   padding: 4px 0;

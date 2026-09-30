@@ -3,6 +3,8 @@
 <script>
 import gql from 'graphql-tag'
 import { markRaw } from 'vue'
+import ActionMenu from './ActionMenu.vue'
+import CmsDialog from './Dialog.vue'
 import { useUserStore, useMessageStore } from '../stores'
 import { fileurl, toBlob } from '../utils'
 import {
@@ -60,6 +62,8 @@ const UPSCALE_IMAGE = gql`
 `
 
 export default {
+  components: { ActionMenu, CmsDialog },
+
   props: {
     item: { type: Object, required: true },
     readonly: { type: Boolean, default: false }
@@ -638,14 +642,9 @@ export default {
         :icon="mdiClose"
         class="no-rtl"
       />
-      <component
+      <ActionMenu
         v-else
-        :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
-        :aria-label="$gettext('Select area')"
-        v-model="menu['select']"
-        transition="scale-transition"
-        location="end center"
-        max-width="300"
+        :title="$gettext('Select area')"
       >
         <template #activator="{ props }">
           <v-btn
@@ -656,79 +655,66 @@ export default {
           />
         </template>
 
-        <v-card>
-          <v-toolbar density="compact">
-            <v-toolbar-title>{{ $gettext('Select area') }}</v-toolbar-title>
-            <v-btn
-              :icon="mdiClose"
-              :aria-label="$gettext('Close')"
-              @click="menu['select'] = false"
-            />
-          </v-toolbar>
-
-          <v-list @click="menu['select'] = false">
-            <v-list-item>
-              <v-btn
-                :prepend-icon="mdiCropFree"
-                class="no-rtl"
-                variant="text"
-                @click="aspect(ratio)"
-                >{{ $gettext('Original ratio') }}</v-btn
-              >
-            </v-list-item>
-            <v-list-item>
-              <v-btn
-                :prepend-icon="mdiCropFree"
-                class="no-rtl"
-                variant="text"
-                @click="aspect(NaN)"
-                >{{ $gettext('No ratio') }}</v-btn
-              >
-            </v-list-item>
-            <v-list-item>
-              <v-btn :prepend-icon="mdiCropFree" class="no-rtl" variant="text" @click="aspect(1)">{{
-                $gettext('Square')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item>
-              <v-btn
-                :prepend-icon="mdiCropFree"
-                class="no-rtl"
-                variant="text"
-                @click="aspect(3 / 2)"
-                >3:2</v-btn
-              >
-            </v-list-item>
-            <v-list-item>
-              <v-btn
-                :prepend-icon="mdiCropFree"
-                class="no-rtl"
-                variant="text"
-                @click="aspect(4 / 3)"
-                >4:3</v-btn
-              >
-            </v-list-item>
-            <v-list-item>
-              <v-btn
-                :prepend-icon="mdiCropFree"
-                class="no-rtl"
-                variant="text"
-                @click="aspect(5 / 3)"
-                >5:3</v-btn
-              >
-            </v-list-item>
-            <v-list-item>
-              <v-btn
-                :prepend-icon="mdiCropFree"
-                class="no-rtl"
-                variant="text"
-                @click="aspect(16 / 9)"
-                >16:9</v-btn
-              >
-            </v-list-item>
-          </v-list>
-        </v-card>
-      </component>
+        <v-list-item>
+          <v-btn
+            :prepend-icon="mdiCropFree"
+            class="no-rtl"
+            variant="text"
+            @click="aspect(ratio)"
+            >{{ $gettext('Original ratio') }}</v-btn
+          >
+        </v-list-item>
+        <v-list-item>
+          <v-btn
+            :prepend-icon="mdiCropFree"
+            class="no-rtl"
+            variant="text"
+            @click="aspect(NaN)"
+            >{{ $gettext('No ratio') }}</v-btn
+          >
+        </v-list-item>
+        <v-list-item>
+          <v-btn :prepend-icon="mdiCropFree" class="no-rtl" variant="text" @click="aspect(1)">{{
+            $gettext('Square')
+          }}</v-btn>
+        </v-list-item>
+        <v-list-item>
+          <v-btn
+            :prepend-icon="mdiCropFree"
+            class="no-rtl"
+            variant="text"
+            @click="aspect(3 / 2)"
+            >3:2</v-btn
+          >
+        </v-list-item>
+        <v-list-item>
+          <v-btn
+            :prepend-icon="mdiCropFree"
+            class="no-rtl"
+            variant="text"
+            @click="aspect(4 / 3)"
+            >4:3</v-btn
+          >
+        </v-list-item>
+        <v-list-item>
+          <v-btn
+            :prepend-icon="mdiCropFree"
+            class="no-rtl"
+            variant="text"
+            @click="aspect(5 / 3)"
+            >5:3</v-btn
+          >
+        </v-list-item>
+        <v-list-item>
+          <v-btn
+            :prepend-icon="mdiCropFree"
+            class="no-rtl"
+            variant="text"
+            @click="aspect(16 / 9)"
+            >16:9</v-btn
+          >
+        </v-list-item>
+      </ActionMenu>
 
       <v-btn
         @click="crop()"
@@ -748,50 +734,39 @@ export default {
         class="btn-erase no-rtl"
       />
 
-      <v-dialog
+      <template
         v-if="(selected && user.can('image:inpaint')) || (!selected && user.can('image:repaint'))"
-        v-model="menu['paint']"
-        transition="scale-transition"
-        max-width="600"
       >
-        <template #activator="{ props }">
-          <v-btn
-            v-bind="props"
-            :loading="loading['image:inpaint'] || loading['image:repaint']"
-            :title="$gettext('Edit image')"
-            :icon="mdiImageEdit"
-            class="no-rtl"
-          />
-        </template>
+        <v-btn
+          @click="menu['paint'] = true"
+          :loading="loading['image:inpaint'] || loading['image:repaint']"
+          :title="$gettext('Edit image')"
+          :icon="mdiImageEdit"
+          class="no-rtl"
+        />
 
-        <v-card>
-          <v-toolbar density="compact">
-            <v-toolbar-title>{{ $gettext('Edit image') }}</v-toolbar-title>
-            <v-btn
-              :icon="mdiClose"
-              :aria-label="$gettext('Close')"
-              @click="menu['paint'] = false"
-            />
-          </v-toolbar>
+        <CmsDialog
+          v-model="menu['paint']"
+          :title="$gettext('Edit image')"
+          transition="scale-transition"
+          max-width="600"
+        >
+          <v-textarea
+            v-model="edittext"
+            :label="$gettext('Describe the changes') + ' ‒ ' + $gettext('Describe what should be changed in the image, e.g. make the sky blue')"
+            variant="underlined"
+            autofocus
+            clearable
+            auto-grow
+          ></v-textarea>
 
-          <v-card-text>
-            <v-textarea
-              v-model="edittext"
-              :label="$gettext('Describe the changes')"
-              variant="underlined"
-              autofocus
-              clearable
-              auto-grow
-            ></v-textarea>
-          </v-card-text>
-
-          <v-card-actions>
-            <v-btn variant="outlined" :disabled="!edittext" @click="painted">{{
+          <template #actions>
+            <v-btn variant="tonal" color="primary" :disabled="!edittext" @click="painted">{{
               $gettext('Edit image')
             }}</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+          </template>
+        </CmsDialog>
+      </template>
 
       <v-btn
         v-if="user.can('image:isolate')"
@@ -802,95 +777,80 @@ export default {
         class="btn-remove-bg no-rtl"
       />
 
-      <v-dialog
-        v-if="user.can('image:uncrop')"
-        v-model="menu['uncrop']"
-        transition="scale-transition"
-        max-width="300"
-      >
-        <template #activator="{ props }">
-          <v-btn
-            v-bind="props"
-            :loading="loading['image:uncrop']"
-            :title="$gettext('Expand image')"
-            :icon="mdiArrowExpandAll"
-            class="btn-expand no-rtl"
-          />
-        </template>
+      <template v-if="user.can('image:uncrop')">
+        <v-btn
+          @click="menu['uncrop'] = true"
+          :loading="loading['image:uncrop']"
+          :title="$gettext('Expand image')"
+          :icon="mdiArrowExpandAll"
+          class="btn-expand no-rtl"
+        />
 
-        <v-card class="uncrop">
-          <v-toolbar density="compact">
-            <v-toolbar-title>{{ $gettext('Expand image') }}</v-toolbar-title>
-            <v-btn
-              :icon="mdiClose"
-              :aria-label="$gettext('Close')"
-              @click="menu['uncrop'] = false"
-            />
-          </v-toolbar>
+        <CmsDialog
+          v-model="menu['uncrop']"
+          :title="$gettext('Expand image')"
+          content-class="uncrop"
+          transition="scale-transition"
+          max-width="300"
+        >
+          <v-row class="single">
+            <v-col cols="6">
+              <v-number-input
+                v-model="extend.top"
+                variant="outlined"
+                controlVariant="hidden"
+                :label="$pgettext('image edge', 'Top') + ' ‒ ' + $gettext('Number of pixels added at this side of the image')"
+                :max="2000"
+                :min="0"
+              />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="6">
+              <v-number-input
+                v-model="extend.left"
+                variant="outlined"
+                controlVariant="hidden"
+                :label="$pgettext('image edge', 'Left') + ' ‒ ' + $gettext('Number of pixels added at this side of the image')"
+                :max="2000"
+                :min="0"
+              />
+            </v-col>
+            <v-col cols="6">
+              <v-number-input
+                v-model="extend.right"
+                variant="outlined"
+                controlVariant="hidden"
+                :label="$pgettext('image edge', 'Right') + ' ‒ ' + $gettext('Number of pixels added at this side of the image')"
+                :max="2000"
+                :min="0"
+              />
+            </v-col>
+          </v-row>
+          <v-row class="single">
+            <v-col cols="6">
+              <v-number-input
+                v-model="extend.bottom"
+                variant="outlined"
+                controlVariant="hidden"
+                :label="$pgettext('image edge', 'Bottom') + ' ‒ ' + $gettext('Number of pixels added at this side of the image')"
+                :max="2000"
+                :min="0"
+              />
+            </v-col>
+          </v-row>
 
-          <v-card-text>
-            <v-row class="single">
-              <v-col cols="6">
-                <v-number-input
-                  v-model="extend.top"
-                  variant="outlined"
-                  controlVariant="hidden"
-                  :label="$gettext('Top')"
-                  :max="2000"
-                  :min="0"
-                />
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col cols="6">
-                <v-number-input
-                  v-model="extend.left"
-                  variant="outlined"
-                  controlVariant="hidden"
-                  :label="$gettext('Left')"
-                  :max="2000"
-                  :min="0"
-                />
-              </v-col>
-              <v-col cols="6">
-                <v-number-input
-                  v-model="extend.right"
-                  variant="outlined"
-                  controlVariant="hidden"
-                  :label="$gettext('Right')"
-                  :max="2000"
-                  :min="0"
-                />
-              </v-col>
-            </v-row>
-            <v-row class="single">
-              <v-col cols="6">
-                <v-number-input
-                  v-model="extend.bottom"
-                  variant="outlined"
-                  controlVariant="hidden"
-                  :label="$gettext('Bottom')"
-                  :max="2000"
-                  :min="0"
-                />
-              </v-col>
-            </v-row>
-          </v-card-text>
+          <template #actions>
+            <v-btn variant="tonal" color="primary" @click="uncropped">{{
+              $gettext('Expand image')
+            }}</v-btn>
+          </template>
+        </CmsDialog>
+      </template>
 
-          <v-card-actions>
-            <v-btn variant="outlined" @click="uncropped">{{ $gettext('Expand image') }}</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-
-      <component
+      <ActionMenu
         v-if="user.can('image:upscale')"
-        :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
-        :aria-label="$gettext('Upscale')"
-        v-model="menu['upscale']"
-        transition="scale-transition"
-        location="end center"
-        max-width="300"
+        :title="$gettext('Upscale image')"
       >
         <template #activator="{ props }">
           <v-btn
@@ -903,60 +863,47 @@ export default {
           />
         </template>
 
-        <v-card>
-          <v-toolbar density="compact">
-            <v-toolbar-title>{{ $gettext('Upscale image') }}</v-toolbar-title>
-            <v-btn
-              :icon="mdiClose"
-              :aria-label="$gettext('Close')"
-              @click="menu['upscale'] = false"
-            />
-          </v-toolbar>
-
-          <v-list @click="menu['upscale'] = false">
-            <v-list-item v-if="width * 16 <= 4096 && height * 16 <= 4096">
-              <v-btn
-                :prepend-icon="mdiMagnifyExpand"
-                class="no-rtl"
-                variant="text"
-                @click="upscale(16)"
-              >
-                {{ $gettext('Scale %{factor}', { factor: '16x' }) }}
-              </v-btn>
-            </v-list-item>
-            <v-list-item v-if="width * 8 <= 4096 && height * 8 <= 4096">
-              <v-btn
-                :prepend-icon="mdiMagnifyExpand"
-                class="no-rtl"
-                variant="text"
-                @click="upscale(8)"
-              >
-                {{ $gettext('Scale %{factor}', { factor: '8x' }) }}
-              </v-btn>
-            </v-list-item>
-            <v-list-item v-if="width * 4 <= 4096 && height * 4 <= 4096">
-              <v-btn
-                :prepend-icon="mdiMagnifyExpand"
-                class="no-rtl"
-                variant="text"
-                @click="upscale(4)"
-              >
-                {{ $gettext('Scale %{factor}', { factor: '4x' }) }}
-              </v-btn>
-            </v-list-item>
-            <v-list-item v-if="width * 2 <= 4096 && height * 2 <= 4096">
-              <v-btn
-                :prepend-icon="mdiMagnifyExpand"
-                class="no-rtl"
-                variant="text"
-                @click="upscale(2)"
-              >
-                {{ $gettext('Scale %{factor}', { factor: '2x' }) }}
-              </v-btn>
-            </v-list-item>
-          </v-list>
-        </v-card>
-      </component>
+        <v-list-item v-if="width * 16 <= 4096 && height * 16 <= 4096">
+          <v-btn
+            :prepend-icon="mdiMagnifyExpand"
+            class="no-rtl"
+            variant="text"
+            @click="upscale(16)"
+          >
+            {{ $gettext('Scale %{factor}', { factor: '16x' }) }}
+          </v-btn>
+        </v-list-item>
+        <v-list-item v-if="width * 8 <= 4096 && height * 8 <= 4096">
+          <v-btn
+            :prepend-icon="mdiMagnifyExpand"
+            class="no-rtl"
+            variant="text"
+            @click="upscale(8)"
+          >
+            {{ $gettext('Scale %{factor}', { factor: '8x' }) }}
+          </v-btn>
+        </v-list-item>
+        <v-list-item v-if="width * 4 <= 4096 && height * 4 <= 4096">
+          <v-btn
+            :prepend-icon="mdiMagnifyExpand"
+            class="no-rtl"
+            variant="text"
+            @click="upscale(4)"
+          >
+            {{ $gettext('Scale %{factor}', { factor: '4x' }) }}
+          </v-btn>
+        </v-list-item>
+        <v-list-item v-if="width * 2 <= 4096 && height * 2 <= 4096">
+          <v-btn
+            :prepend-icon="mdiMagnifyExpand"
+            class="no-rtl"
+            variant="text"
+            @click="upscale(2)"
+          >
+            {{ $gettext('Scale %{factor}', { factor: '2x' }) }}
+          </v-btn>
+        </v-list-item>
+      </ActionMenu>
 
       <v-btn
         :icon="mdiRotateLeft"
@@ -993,14 +940,7 @@ export default {
 
       <v-btn :icon="mdiDownload" class="btn-download no-rtl" @click="download()" :title="$gettext('Download')" />
 
-      <component
-        :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
-        :aria-label="$gettext('Undo')"
-        v-model="menu['undo']"
-        transition="scale-transition"
-        location="end center"
-        max-width="300"
-      >
+      <ActionMenu :title="$gettext('Undo')">
         <template #activator="{ props }">
           <v-btn
             v-bind="props"
@@ -1011,26 +951,17 @@ export default {
           />
         </template>
 
-        <v-card>
-          <v-toolbar density="compact">
-            <v-toolbar-title>{{ $gettext('Undo') }}</v-toolbar-title>
-            <v-btn :icon="mdiClose" :aria-label="$gettext('Close')" @click="menu['undo'] = false" />
-          </v-toolbar>
-
-          <v-list @click="menu['undo'] = false">
-            <v-list-item v-for="(img, idx) in images" :key="img.url">
-              <v-img
-                :src="img.url"
-                :alt="$gettext('Previous edit')"
-                @click="replace(img.blob, idx)"
-              />
-            </v-list-item>
-            <v-list-item>
-              <v-img :src="fileurl(item)" :alt="$gettext('Original')" @click="use([item])" />
-            </v-list-item>
-          </v-list>
-        </v-card>
-      </component>
+        <v-list-item v-for="(img, idx) in images" :key="img.url">
+          <v-img
+            :src="img.url"
+            :alt="$gettext('Previous edit')"
+            @click="replace(img.blob, idx)"
+          />
+        </v-list-item>
+        <v-list-item>
+          <v-img :src="fileurl(item)" :alt="$gettext('Original')" @click="use([item])" />
+        </v-list-item>
+      </ActionMenu>
     </div>
   </div>
 </template>
@@ -1051,8 +982,13 @@ export default {
   width: 100%;
   min-height: 180px;
   object-fit: contain;
-  background-color: #fff;
-  background-image: conic-gradient(#ccc 25%, #fff 0 50%, #ccc 0 75%, #fff 0);
+  background-color: rgb(var(--v-theme-surface));
+  background-image: conic-gradient(
+    rgba(var(--v-theme-on-surface), 0.12) 25%,
+    transparent 0 50%,
+    rgba(var(--v-theme-on-surface), 0.12) 0 75%,
+    transparent 0
+  );
   background-repeat: repeat;
   background-size: 16px 16px;
 }
@@ -1065,7 +1001,7 @@ export default {
   position: absolute;
   top: calc(50% + 16px);
   left: 50%;
-  color: #fff;
+  color: rgb(var(--v-theme-on-background));
   font-size: 14px;
   line-height: 1.2;
   padding: 12px 6px;
@@ -1073,36 +1009,15 @@ export default {
   white-space: nowrap;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(var(--v-theme-background), 0.72);
+  backdrop-filter: blur(8px);
 }
 
-.toolbar {
-  gap: 8px;
-  width: 100%;
-  display: flex;
-  padding: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-  background-color: rgb(var(--v-theme-background));
-}
-
-@media (max-width: 768px) {
-  .toolbar {
-    width: auto;
-  }
-}
-
-.uncrop .single,
-.v-card.uncrop .v-card-actions {
+.uncrop .single {
   justify-content: center;
 }
 
 .uncrop .v-number-input :deep(.v-field__input) {
   text-align: center;
-}
-
-.v-dialog .v-btn {
-  display: block;
-  margin: auto;
 }
 </style>

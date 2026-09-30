@@ -3,24 +3,32 @@
 <script>
 /**
  * Configuration:
+ * - `hint`: string, description shown below the field while it has focus
+ * - `absolute`: boolean, if true, relative paths and fragment/query links are rejected
  * - `allowed`: array of strings, allowed URL schemas (e.g., ['http', 'https'])
  * - `placeholder`: string, placeholder text for the input field
+ * - `rel`: boolean, if true, show relationship options for external links
  * - `required`: boolean, if true, the field is required
+ *
+ * The `rel` prop carries the selected relationship. Its parent stores the value
+ * in a sibling `<field>-rel` data property, keeping the URL itself a string.
  */
 
 import gql from 'graphql-tag'
+import { required } from '../rules'
 import { debounce } from '../utils'
 
 export default {
   props: {
     modelValue: { type: String },
+    rel: { type: String, default: '' },
     config: { type: Object, default: () => {} },
     assets: { type: Object, default: () => {} },
     readonly: { type: Boolean, default: false },
     context: { type: Object }
   },
 
-  emits: ['update:modelValue', 'error'],
+  emits: ['update:modelValue', 'update:rel', 'error'],
 
   setup() {
     return { debounce }
@@ -34,6 +42,7 @@ export default {
 
     return {
       lastError: null,
+      relItems: [],
       loading: false,
       pages: [],
       // Dot-separated labels keep this linear (no nested, ambiguous quantifiers)
@@ -46,9 +55,18 @@ export default {
 
   created() {
     this.searchd = this.debounce(this.search, 300)
+    this.relItems = [
+      { key: '', val: this.$gettext('None') },
+      { key: 'sponsored', val: this.$gettext('Sponsored') },
+      { key: 'nofollow', val: this.$gettext('Nofollow') }
+    ]
   },
 
   computed: {
+    external() {
+      return this.config.rel && /^(?:https?:)?\/\//i.test(this.modelValue ?? this.config.default ?? '')
+    },
+
     hasError() {
       const val = this.modelValue ?? this.config.default ?? ''
       return !this.rules.every((rule) => rule(val) === true)
@@ -56,7 +74,7 @@ export default {
 
     rules() {
       return [
-        (v) => !this.config.required || !!v || this.$gettext(`Value is required`),
+        required(this.$gettext, this.config.required),
         (v) => this.check(v) || this.$gettext(`Not a valid URL`)
       ]
     }
@@ -70,11 +88,22 @@ export default {
         return this.$gettext('Invalid URL schema configuration')
       }
 
+      if (v && this.config.absolute) {
+        try {
+          const url = new URL(v)
+          const scheme = url.protocol.slice(0, -1)
+
+          return allowed.includes(scheme) && v.toLowerCase().startsWith(`${scheme}://`) && !!url.hostname
+        } catch {
+          return false
+        }
+      }
+
       return v ? /^[#?][^\s]*$/.test(v) || this.regex.test(v) : true
     },
 
     search(value) {
-      if (!value) {
+      if (!value || this.config.absolute) {
         this.pages = []
         return
       }
@@ -125,21 +154,96 @@ export default {
 </script>
 
 <template>
-  <v-combobox
-    :error="hasError"
-    :rules="rules"
-    :items="pages"
-    :loading="loading"
-    :readonly="readonly"
-    :placeholder="config.placeholder || ''"
-    :no-data-text="!loading ? $gettext('No pages found') : $gettext('Loading') + ' ...'"
-    :modelValue="modelValue ?? config.default ?? ''"
-    @update:modelValue="$emit('update:modelValue', $event)"
-    @update:search="searchd($event)"
-    density="comfortable"
-    hide-details="auto"
-    variant="outlined"
-    class="ltr"
-    clearable
-  ></v-combobox>
+  <div class="url-field" :class="{ external }">
+    <div class="url-row">
+      <v-combobox
+        :hint="config.hint && $pgettext('fh', config.hint)"
+        :error="hasError"
+        :rules="rules"
+        :items="pages"
+        :loading="loading"
+        :readonly="readonly"
+        :placeholder="config.placeholder || ''"
+        :no-data-text="!loading ? $gettext('No pages found') : $gettext('Loading') + ' ...'"
+        :modelValue="modelValue ?? config.default ?? ''"
+        @update:modelValue="$emit('update:modelValue', $event)"
+        @update:search="searchd($event)"
+        density="comfortable"
+        hide-details="auto"
+        variant="outlined"
+        class="url-input ltr"
+        clearable
+      ></v-combobox>
+      <v-select
+        v-if="external"
+        :aria-label="$gettext('Link attribute')"
+        :items="relItems"
+        :readonly="readonly"
+        :modelValue="rel"
+        @update:modelValue="$emit('update:rel', $event)"
+        density="comfortable"
+        hide-details="auto"
+        variant="outlined"
+        item-title="val"
+        item-value="key"
+        class="link-rel"
+      ></v-select>
+    </div>
+  </div>
 </template>
+
+<style scoped>
+/* Layout depends on the width available to the field, not on the viewport */
+.url-field {
+  container-type: inline-size;
+}
+
+.url-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.url-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.link-rel {
+  margin-top: -1px;
+}
+
+@container (width < 576px) {
+  .external :deep(.url-input .v-field) {
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  :deep(.link-rel .v-field) {
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
+  }
+}
+
+@container (width >= 576px) {
+  .url-row {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .link-rel {
+    flex: 0 0 10rem;
+    margin-top: 0;
+    margin-inline-start: -1px;
+  }
+
+  .external :deep(.url-input .v-field) {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  :deep(.link-rel .v-field) {
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+  }
+}
+</style>

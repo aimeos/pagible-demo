@@ -1,5 +1,6 @@
 import ChatDialog from '../../../js/components/ChatDialog.vue'
 import { useUserStore } from '../../../js/stores'
+import '../../../js/assets/base.css'
 
 function mountDialog(props = {}, perms = {}) {
   return cy
@@ -40,6 +41,14 @@ describe('ChatDialog', () => {
     cy.get('@update').should('have.been.calledWith', false)
   })
 
+  it('shows square buttons in the message input', () => {
+    mountDialog({}, { 'audio:transcribe': true })
+    cy.get('.chat-input .v-btn').should('have.length', 2).each(($btn) => {
+      const { width, height } = $btn[0].getBoundingClientRect()
+      expect(width, 'width').to.equal(height)
+    })
+  })
+
   it('renders the message input textarea', () => {
     mountDialog()
     cy.get('textarea').should('exist')
@@ -48,6 +57,25 @@ describe('ChatDialog', () => {
   it('shows the empty state prompt', () => {
     mountDialog()
     cy.contains('.chat-empty', 'What shall I do for you?').should('exist')
+  })
+
+  it('removes the dialog body padding', () => {
+    mountDialog()
+    cy.get('.dialog-body.chat-body').should('have.css', 'padding', '0px')
+  })
+
+  it('shows AI and user messages without avatars on opposite sides', () => {
+    mountDialog()
+    cy.then(() => {
+      const vm = Cypress.vueWrapper.findComponent(ChatDialog).vm
+      vm.messages = [
+        { id: 1, role: 'assistant', content: 'How can I help?', blocks: ['How can I help?'] },
+        { id: 2, role: 'user', content: 'Create a landing page' },
+      ]
+    })
+    cy.get('.chat-avatar').should('not.exist')
+    cy.get('.chat-row.user').should('have.css', 'justify-content', 'flex-end')
+    cy.get('.chat-row.user .chat-bubble').should('have.css', 'background-image', 'none')
   })
 
   it('disables the send button when the input is empty', () => {
@@ -60,6 +88,31 @@ describe('ChatDialog', () => {
     // force past Vuetify's .v-field overlay covering the textarea center (autofocused on open)
     cy.get('textarea').first().type('Create a page about cats', { force: true })
     cy.get('button[aria-label="Send"]').should('not.be.disabled')
+  })
+
+  it('navigates user input history with the up and down cursor keys', () => {
+    mountDialog()
+    cy.then(() => {
+      const vm = Cypress.vueWrapper.findComponent(ChatDialog).vm
+      vm.messages = [
+        { id: 1, role: 'user', content: 'Create the first page' },
+        { id: 2, role: 'assistant', content: 'Done', blocks: ['Done'] },
+        { id: 3, role: 'user', content: 'Create the second page' },
+      ]
+    })
+    cy.get('textarea')
+      .first()
+      .type('Keep this draft', { force: true })
+      .type('{uparrow}', { force: true })
+      .should('have.value', 'Create the second page')
+      .type('{uparrow}', { force: true })
+      .should('have.value', 'Create the first page')
+      .type('{uparrow}', { force: true })
+      .should('have.value', 'Create the first page')
+      .type('{downarrow}', { force: true })
+      .should('have.value', 'Create the second page')
+      .type('{downarrow}', { force: true })
+      .should('have.value', 'Keep this draft')
   })
 
   it('shows the dictate button with audio:transcribe permission', () => {

@@ -8,12 +8,15 @@ import ElementDetailRefs from '../components/ElementDetailRefs.vue'
 import ElementDetailItem from '../components/ElementDetailItem.vue'
 import { useDirtyStore, useSideStore, useUserStore, useMessageStore, usePluginStore, useSchemaStore, useViewStack, useChangeStore } from '../stores'
 import { applyResult, hasUnresolved } from '../merge'
-import { FILE_FIELDS, normalizeFile } from '../files'
+import { FILE_FIELDS, fileMap } from '../files'
+import { invalidateList } from '../graphql'
+import { references } from '../history'
+import { pluginLabel } from '../i18n'
 import { publishDate, publishItem } from '../publish'
 import { setupReload, cleanEcho } from '../echo'
-import { reloadVersion } from '../version'
+import { loadVersions, reloadVersion } from '../version'
 import { defineAsyncComponent, markRaw } from 'vue'
-import { frozenParse, itemTitle, safeParse } from '../utils'
+import { focusInvalid, frozenParse, itemTitle, safeParse } from '../utils'
 
 const ChangesDialog = defineAsyncComponent(() => import('../components/ChangesDialog.vue'))
 const HistoryDialog = defineAsyncComponent(() => import('../components/HistoryDialog.vue'))
@@ -176,18 +179,15 @@ export default {
     historyCurrent() {
       const item = this.item
       const ids = new Set(item.files || [])
-      const files = {}
-
-      for (const key in this.assets) {
-        if (ids.has(key)) files[key] = this.assets[key]
-      }
+      const files = Object.fromEntries(Object.entries(this.assets).filter(([id]) => ids.has(id)))
 
       return markRaw({
         data: Object.freeze({
+          data: item.data || {},
+          scheduled: item.publish_at ? 1 : 0,
           lang: item.lang,
           type: item.type,
           name: item.name,
-          data: item.data
         }),
         files: markRaw(files)
       })
@@ -195,6 +195,10 @@ export default {
   },
 
   methods: {
+    label(panel) {
+      return pluginLabel(panel, this)
+    },
+
     // loads the latest version into the open editor; resolves true on success so the caller
     // can defer the websocket subscription until the initial load completed
     reload() {
@@ -205,21 +209,16 @@ export default {
         this.item.updated_at = element.latest?.created_at
         this.latestId = element.latest?.id
 
-        const files = []
-        const assets = {}
-
-        for (const entry of element.latest?.files || element.files || []) {
-          assets[entry.id] = normalizeFile(entry)
-          files.push(entry.id)
-        }
-
-        this.assets = markRaw(assets)
-        this.item.files = files
+        const files = element.latest?.files || element.files || []
+        this.assets = markRaw(fileMap(files))
+        this.item.files = files.map(file => file.id)
       }, () => !this.dirty)
     },
 
-    apply(changes) {
+    apply(changes, version) {
+      if (version) this.assets = { ...version.files, ...this.assets }
       Object.assign(this.item, changes)
+      if ('data' in changes) this.item.files = references(this.item.data)
       this.dirty = true
       this.vhistory = false
     },
@@ -228,14 +227,10 @@ export default {
       this.error = event
     },
 
-    files(entries) {
-      const map = {}
+    files: fileMap,
 
-      for (const entry of entries) {
-        map[entry.id] = normalizeFile(entry)
-      }
-
-      return map
+    invalidate() {
+      invalidateList(this.$apollo.provider.defaultClient.cache, 'elements')
     },
 
     itemUpdated() {
@@ -243,31 +238,22 @@ export default {
       this.dirty = true
     },
 
-    loadVersions() {
-      return this.versions(this.item.id)
-    },
-
-    publish(at = null) {
+    publish(at = null, close = false) {
       publishItem(this, 'element', {
         success: this.$gettext('Element published successfully'),
         scheduled: (d) => this.$gettext('Element scheduled for publishing at %{date}', { date: d.toLocaleDateString() }),
         error: this.$gettext('Error publishing element')
-      }, at)
+      }, at, close)
     },
 
-    published() {
-      this.publish(publishDate(this.publishAt, this.publishTime))
+    schedule(close = false) {
+      this.publish(publishDate(this.publishAt, this.publishTime), close)
     },
 
     reset() {
       this.dirty = false
       this.changed = null
       this.error = false
-    },
-
-    revertVersion(event) {
-      this.use(event)
-      this.reset()
     },
 
     save(quiet = false) {
@@ -281,6 +267,8 @@ export default {
           this.$gettext('There are invalid fields, please resolve the errors first'),
           'error'
         )
+        this.tab = 'element'
+        this.$nextTick(() => focusInvalid(this.$refs.form))
         return Promise.resolve(false)
       }
 
@@ -328,6 +316,7 @@ export default {
           this.item.editor = version?.editor ?? this.item.editor
           this.item.updated_at = version?.created_at ?? this.item.updated_at
           this.item.latestId = this.latestId
+          this.invalidate()
           this.changes.notify('element', this.item)
 
           return true
@@ -356,7 +345,7 @@ export default {
       return import('../ai').then(({ write }) => write(prompt, context, files))
     },
 
-    use(version) {
+    use(version, clean = false) {
       Object.assign(this.item, version.data)
 
       this.assets = version.files || {}
@@ -364,6 +353,7 @@ export default {
 
       this.vhistory = false
       this.dirty = true
+      if (clean) this.reset()
     },
 
     translateText(texts, to, from = null) {
@@ -371,43 +361,13 @@ export default {
     },
 
     versions(id) {
-      if (!this.user.can('element:view')) {
-        this.messages.add(this.$gettext('Permission denied'), 'error')
-        return Promise.resolve([])
-      }
-
-      if (!id) {
-        return Promise.resolve([])
-      }
-
-      return this.$apollo
-        .query({
-          query: FETCH_ELEMENT_VERSIONS,
-          fetchPolicy: 'no-cache',
-          variables: {
-            id: id
-          }
+      return loadVersions(this, FETCH_ELEMENT_VERSIONS, 'element', id, v => {
+        return Object.freeze({
+          ...v,
+          data: frozenParse(v.data),
+          files: Object.freeze(this.files(v.files || []))
         })
-        .then((result) => {
-          if (result.errors || !result.data.element) {
-            throw result
-          }
-
-          return (result.data.element.versions || []).map((v) => {
-            return Object.freeze({
-              ...v,
-              data: frozenParse(v.data),
-              files: Object.freeze(this.files(v.files || []))
-            })
-          })
-        })
-        .catch((error) => {
-          this.messages.add(
-            this.$gettext('Error fetching element versions') + ':\n' + error,
-            'error'
-          )
-          this.$log(`ElementDetail::versions(): Error fetching element versions`, id, error)
-        })
+      })
     }
   },
 
@@ -436,22 +396,22 @@ export default {
     v-model:publish-at="publishAt"
     v-model:publish-time="publishTime"
     @save="save()"
-    @publish="publish()"
-    @schedule="published"
+    @publish="publish(null, $event)"
+    @schedule="schedule"
     @history="vhistory = true"
     @changes="vchanged = true"
   />
 
   <v-main class="element-details" :aria-label="$gettext('Element')">
     <v-progress-linear v-if="loading" indeterminate color="primary" />
-    <v-form v-else @submit.prevent>
-      <v-tabs fixed-tabs v-model="tab">
+    <v-form v-else ref="form" @submit.prevent>
+      <v-tabs class="detail-tabs" fixed-tabs hide-slider v-model="tab">
         <v-tab value="element" :class="{ changed: dirty, error: error }">{{
           $gettext('Element')
         }}</v-tab>
         <v-tab value="refs">{{ $gettext('Used by') }}</v-tab>
         <v-tab v-for="(sp, key) in subpanels" :key="key" :value="'ext-' + key">
-          {{ sp.label }}
+          {{ label(sp) }}
         </v-tab>
       </v-tabs>
 
@@ -480,13 +440,13 @@ export default {
 
   <Teleport to="body">
     <HistoryDialog
+      v-if="vhistory"
       v-model="vhistory"
       :readonly="!user.can('element:save')"
       :current="historyCurrent"
-      :load="loadVersions"
-      @revert="revertVersion"
+      :load="() => versions(item.id)"
       @apply="apply"
-      @use="use($event)"
+      @use="use"
     />
     <ChangesDialog v-model="vchanged" :changed="changed"
       :targets="changeTargets"

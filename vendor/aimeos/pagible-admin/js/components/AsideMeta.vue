@@ -18,7 +18,7 @@ export default {
       const map = {}
 
       if (this.item.id) {
-        map[this.$gettext('id')] = this.item.id
+        map[this.$gettext('ID')] = this.item.id
       }
 
       if (this.item.mime) {
@@ -67,12 +67,7 @@ export default {
 
 <style scoped>
 .v-navigation-drawer {
-  border-top-left-radius: 8px;
-}
-
-.v-locale--is-rtl .v-navigation-drawer {
-  border-top-left-radius: 0;
-  border-top-right-radius: 8px;
+  border-start-start-radius: 8px;
 }
 
 :deep(.v-list-group__items) {

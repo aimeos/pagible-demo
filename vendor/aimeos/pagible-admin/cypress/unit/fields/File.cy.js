@@ -10,33 +10,36 @@ const fileAsset = {
   editor: 'admin',
   updated_at: '2024-01-01T00:00:00Z',
   description: { en: 'Test document' },
-  previews: {},
+  previews: {}
 }
 
 const stubs = {
   FileDialog: { template: '<div />' },
   FileUrlDialog: { template: '<div />' },
   FileListItems: { template: '<div />' },
-  FileDetail: { template: '<div />' },
+  FileDetail: { template: '<div />' }
 }
 
 function mountFile(props = {}, perms = {}, apollo = {}) {
-  return cy.mount(FileField, {
-    props: { config: {}, assets: {}, ...props },
-    global: {
-      stubs,
-      mocks: {
-        $apollo: {
-          query: () => Promise.resolve({ data: {} }),
-          mutate: () => Promise.resolve({ data: {} }),
-          ...apollo,
-        },
-      },
-    },
-  }).then(() => {
-    const user = useUserStore()
-    user.me = { permission: perms }
-  })
+  return cy
+    .mount(FileField, {
+      props: { config: {}, assets: {}, ...props },
+      global: {
+        stubs,
+        mocks: {
+          $apollo: {
+            query: () => Promise.resolve({ data: {} }),
+            mutate: () => Promise.resolve({ data: {} }),
+            provider: { defaultClient: { cache: { evict() {}, gc() {} } } },
+            ...apollo
+          }
+        }
+      }
+    })
+    .then(() => {
+      const user = useUserStore()
+      user.me = { permission: perms }
+    })
 }
 
 describe('File', () => {
@@ -82,7 +85,7 @@ describe('File', () => {
     mountFile({
       label: 'Download',
       modelValue: { id: '1', type: 'file' },
-      assets: { '1': { ...fileAsset, disk: 'private' } },
+      assets: { 1: { ...fileAsset, disk: 'private' } }
     })
 
     cy.get('.field-label > .field-lock + span').should('contain', 'Download')
@@ -108,22 +111,24 @@ describe('File', () => {
   it('relocates an existing file when protection is enabled', () => {
     const mutate = cy.stub().resolves({
       data: {
-        relocateFile: [{
-          id: fileAsset.id,
-          disk: 'private',
-          editor: 'admin',
-          updated_at: '2024-01-02T00:00:00Z',
-        }],
-      },
+        relocateFile: [
+          {
+            id: fileAsset.id,
+            disk: 'private',
+            editor: 'admin',
+            updated_at: '2024-01-02T00:00:00Z'
+          }
+        ]
+      }
     })
 
     mountFile(
       {
         modelValue: { id: '1', type: 'file' },
-        assets: { '1': fileAsset },
+        assets: { 1: fileAsset }
       },
       { 'file:relocate': true },
-      { mutate },
+      { mutate }
     ).then(({ wrapper }) => {
       const vm = wrapper.findComponent(FileField).vm
 
@@ -131,7 +136,7 @@ describe('File', () => {
         expect(mutate).to.have.been.calledOnce
         expect(mutate.firstCall.args[0].variables).to.deep.equal({
           id: ['1'],
-          disk: 'private',
+          disk: 'private'
         })
         expect(vm.file.disk).to.equal('private')
         expect(vm.file.path).to.equal(fileAsset.path)
@@ -153,25 +158,92 @@ describe('File', () => {
   it('shows file name when loaded via assets', () => {
     mountFile({
       modelValue: { id: '1', type: 'file' },
-      assets: { '1': fileAsset },
+      assets: { 1: fileAsset }
     })
     cy.contains('document.pdf').should('exist')
+  })
+
+  it('uses a native button for the editable preview', () => {
+    mountFile({
+      modelValue: { id: '1', type: 'file' },
+      assets: { 1: fileAsset }
+    })
+
+    cy.get('.file').should('not.have.attr', 'role')
+    cy.get('button.file-preview').should('have.attr', 'aria-label', 'Edit')
+  })
+
+  it('does not mutate the selected files array', () => {
+    mountFile().then(({ wrapper }) => {
+      const items = [fileAsset]
+
+      wrapper.findComponent(FileField).vm.select(items)
+
+      expect(items).to.deep.equal([fileAsset])
+    })
+  })
+
+  it('releases a failed upload preview', () => {
+    const createObjectURL = cy.stub(URL, 'createObjectURL').returns('blob:upload')
+    const revokeObjectURL = cy.stub(URL, 'revokeObjectURL')
+    const mutate = cy.stub().rejects(new Error('Upload failed'))
+
+    mountFile({}, { 'file:add': true }, { mutate }).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(FileField).vm
+      const file = new File(['content'], 'document.pdf', { type: 'application/pdf' })
+
+      return vm.add(file).then(() => {
+        expect(createObjectURL).to.have.been.calledOnceWith(file)
+        expect(revokeObjectURL).to.have.been.calledOnceWith('blob:upload')
+        expect(vm.file).to.deep.equal({})
+      })
+    })
   })
 
   it('shows file metadata when file is present', () => {
     mountFile({
       modelValue: { id: '1', type: 'file' },
-      assets: { '1': fileAsset },
+      assets: { 1: fileAsset }
     })
     cy.get('.meta').should('exist')
     cy.contains('application/pdf').should('exist')
     cy.contains('admin').should('exist')
   })
 
+  it('keeps paired columns at least 360px wide and fills the row when wrapped', () => {
+    cy.viewport(1200, 800)
+    mountFile({
+      modelValue: { id: '1', type: 'file' },
+      assets: { 1: fileAsset }
+    })
+
+    cy.get('.field-columns').invoke('css', 'width', '800px')
+    cy.get('.field-columns > .v-col').then(($columns) => {
+      const first = $columns[0].getBoundingClientRect()
+      const second = $columns[1].getBoundingClientRect()
+
+      expect(first.top).to.equal(second.top)
+      expect(first.width).to.be.at.least(360)
+      expect(second.width).to.be.at.least(360)
+    })
+
+    cy.get('.field-columns').invoke('css', 'width', '700px')
+    cy.get('.field-columns').then(($row) => {
+      const row = $row[0].getBoundingClientRect()
+      const columns = $row[0].querySelectorAll(':scope > .v-col')
+      const first = columns[0].getBoundingClientRect()
+      const second = columns[1].getBoundingClientRect()
+
+      expect(second.top).to.be.greaterThan(first.top)
+      expect(first.width).to.equal(row.width)
+      expect(second.width).to.equal(row.width)
+    })
+  })
+
   it('shows file description from first locale', () => {
     mountFile({
       modelValue: { id: '1', type: 'file' },
-      assets: { '1': fileAsset },
+      assets: { 1: fileAsset }
     })
     cy.contains('Test document').should('exist')
   })
@@ -190,8 +262,8 @@ describe('File', () => {
   it('hides overlay menu in readonly mode when file is present', () => {
     mountFile({
       modelValue: { id: '1', type: 'file' },
-      assets: { '1': fileAsset },
-      readonly: true,
+      assets: { 1: fileAsset },
+      readonly: true
     })
     cy.get('.btn-overlay').should('not.exist')
   })
@@ -207,8 +279,8 @@ describe('File', () => {
     mountFile({
       config: { required: true },
       modelValue: { id: '1', type: 'file' },
-      assets: { '1': fileAsset },
-      onError,
+      assets: { 1: fileAsset },
+      onError
     })
     cy.get('@error').should('have.been.calledWith', false)
   })
@@ -222,7 +294,7 @@ describe('File', () => {
   it('shows the file icon SVG when file is loaded', () => {
     mountFile({
       modelValue: { id: '1', type: 'file' },
-      assets: { '1': fileAsset },
+      assets: { 1: fileAsset }
     })
     cy.get('.file svg').should('exist')
   })

@@ -17,7 +17,7 @@ const MESSAGE_HEADERS = ['x-error-message', 'x-status-message', 'x-message']
 
 const retryLink = new RetryLink({
   delay: { initial: 300, max: 5000, jitter: true },
-  attempts: { max: 2, retryIf: (error) => !!error }
+  attempts: { max: 2, retryIf: retry }
 })
 
 // Forwards Laravel's XSRF-TOKEN cookie as the X-XSRF-TOKEN header so cookie
@@ -51,21 +51,7 @@ const socketLink = new ApolloLink((operation, forward) => {
   return forward(operation)
 })
 
-const errorLink = onError(({ errors }) => {
-  if (!errors) return
-
-  for (const err of errors) {
-    if (
-      err.message === 'This action is unauthorized.' ||
-      err.extensions?.code === 'UNAUTHENTICATED' ||
-      err.extensions?.http?.status === 401
-    ) {
-      useUserStore().me = null
-      router.push({ name: 'login' })
-      break
-    }
-  }
-})
+const errorLink = onError(handleError)
 
 let uploadLink = null
 
@@ -79,8 +65,56 @@ export function graphqlFetch(input, init) {
       throw graphqlError(response)
     }
 
+    // each request extends the session, so check it again after it would expire without one
+    useUserStore().touch()
+
     return response
   })
+}
+
+export function handleError({ graphQLErrors, networkError, operation, forward }) {
+  const unauthorized = [401, 419].includes(networkError?.statusCode) || graphQLErrors?.some((err) =>
+    err.message === 'Unauthenticated.' ||
+    err.extensions?.code === 'UNAUTHENTICATED' ||
+    err.extensions?.http?.status === 401
+  )
+
+  if (!unauthorized || operation?.getContext().relogin) return
+
+  const user = useUserStore()
+
+  // Session expired while editing: keep the open views and retry the request after
+  // the user signed in again instead of dropping all unsaved changes
+  if (user.me && forward) {
+    return new Observable((observer) => {
+      let sub = null
+
+      user.reauth()
+        .then(() => { sub = forward(operation).subscribe(observer) })
+        .catch(() => observer.error(networkError || new Error(graphQLErrors?.[0]?.message || 'Unauthenticated')))
+
+      return () => sub?.unsubscribe()
+    })
+  }
+
+  user.me = false
+  apolloClient.clearStore().catch((error) => console.error('Failed to clear Apollo cache', error))
+  router.push({ name: 'login' })
+}
+
+/** Removes every cached variant of a root list field. */
+export function invalidateList(cache, field) {
+  cache.evict({ id: 'ROOT_QUERY', fieldName: field })
+  cache.gc()
+}
+
+/** Uses cached lists only when remote invalidation is configured. */
+export function listFetchPolicy() {
+  return document.querySelector('#app')?.dataset?.reverb ? 'cache-first' : 'network-only'
+}
+
+export function retry(error) {
+  return !!error && error.statusCode !== 419
 }
 
 const lazyUploadLink = new ApolloLink((operation, forward) => {

@@ -91,12 +91,7 @@ export default {
 
 <style scoped>
 .v-navigation-drawer {
-  border-top-left-radius: 8px;
-}
-
-.v-locale--is-rtl .v-navigation-drawer {
-  border-top-left-radius: 0;
-  border-top-right-radius: 8px;
+  border-start-start-radius: 8px;
 }
 
 :deep(.v-list-group__items) {
@@ -108,7 +103,7 @@ export default {
 }
 
 :deep(.v-list-item--active:not(.v-list-group__header) .v-list-item__content) {
-  color: rgba(var(--v-theme-on-surface-light), 0.7);
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
   text-decoration: line-through;
 }
 

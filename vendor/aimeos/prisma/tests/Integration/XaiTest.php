@@ -3,12 +3,28 @@
 namespace Tests\Integration;
 
 use Aimeos\Prisma\Prisma;
+use Aimeos\Prisma\Files\Video;
 use Aimeos\Prisma\Schema\Schema;
 use PHPUnit\Framework\TestCase;
 
 
 class XaiTest extends TestCase
 {
+    public function testExtendVideo() : void
+    {
+        $source = Video::fromLocalPath( __DIR__ . '/assets/flower.mp4', 'video/mp4' );
+        $response = Prisma::video()
+            ->using( 'xai', ['api_key' => $_ENV['XAI_API_KEY']] )
+            ->ensure( 'extend' )
+            ->extend( $source, 'The camera pulls back to reveal the surrounding garden', ['duration' => 4] );
+
+        $video = $response->first();
+
+        $this->assertInstanceOf( Video::class, $video );
+        $this->assertNotEmpty( $video->url() ?? $video->binary() );
+    }
+
+
     public function testImagine() : void
     {
         $response = Prisma::image()
@@ -19,6 +35,35 @@ class XaiTest extends TestCase
         $this->assertGreaterThan( 0, strlen( $response->binary() ) );
 
         file_put_contents( __DIR__ . '/results/xai_imagine.png', $response->binary() );
+    }
+
+
+    public function testImagineVideo() : void
+    {
+        $response = Prisma::video()
+            ->using( 'xai', ['api_key' => $_ENV['XAI_API_KEY']] )
+            ->ensure( 'imagine' )
+            ->imagine( 'A paper boat crossing a rain-filled city street' );
+
+        $video = $response->first();
+
+        $this->assertInstanceOf( Video::class, $video );
+        $this->assertNotEmpty( $video->url() ?? $video->binary() );
+    }
+
+
+    public function testRepaintVideo() : void
+    {
+        $source = Video::fromLocalPath( __DIR__ . '/assets/flower.mp4', 'video/mp4' );
+        $response = Prisma::video()
+            ->using( 'xai', ['api_key' => $_ENV['XAI_API_KEY']] )
+            ->ensure( 'repaint' )
+            ->repaint( $source, 'Turn the flowers bright blue' );
+
+        $video = $response->first();
+
+        $this->assertInstanceOf( Video::class, $video );
+        $this->assertNotEmpty( $video->url() ?? $video->binary() );
     }
 
 

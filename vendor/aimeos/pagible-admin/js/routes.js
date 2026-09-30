@@ -2,12 +2,11 @@
  * @license MIT, https://opensource.org/license/mit
  */
 
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import { useClipboardStore, useDirtyStore, useUserStore, useMessageStore, usePluginStore, useViewStack } from './stores'
-import { apolloClient } from './graphql'
 import { urladmin } from './config'
-import gettext from './i18n'
+import gettext, { pluginLabel } from './i18n'
 
 function itemProps() {
   let item
@@ -27,7 +26,7 @@ const router = createRouter({
       name: 'login',
       component: () => import('./views/Login.vue'),
       meta: {
-        title: gettext.$gettext('Login')
+        title: 'Login'
       }
     },
     {
@@ -36,7 +35,7 @@ const router = createRouter({
       component: () => import('./views/PageList.vue'),
       meta: {
         auth: true,
-        title: gettext.$gettext('Pages')
+        title: 'Pages'
       }
     },
     {
@@ -47,27 +46,7 @@ const router = createRouter({
       meta: {
         auth: true,
         permission: 'page:view',
-        title: gettext.$gettext('Page')
-      }
-    },
-    {
-      path: '/elements',
-      name: 'element:view',
-      component: () => import('./views/ElementList.vue'),
-      meta: {
-        auth: true,
-        title: gettext.$gettext('Shared elements')
-      }
-    },
-    {
-      path: '/elements/:id',
-      name: 'element:detail',
-      component: () => import('./views/ElementDetail.vue'),
-      props: itemProps(),
-      meta: {
-        auth: true,
-        permission: 'element:view',
-        title: gettext.$gettext('Element')
+        title: 'Page'
       }
     },
     {
@@ -76,7 +55,7 @@ const router = createRouter({
       component: () => import('./views/FileList.vue'),
       meta: {
         auth: true,
-        title: gettext.$gettext('Files')
+        title: 'Media'
       }
     },
     {
@@ -87,7 +66,27 @@ const router = createRouter({
       meta: {
         auth: true,
         permission: 'file:view',
-        title: gettext.$gettext('File')
+        title: 'File'
+      }
+    },
+    {
+      path: '/elements',
+      name: 'element:view',
+      component: () => import('./views/ElementList.vue'),
+      meta: {
+        auth: true,
+        title: 'Shared elements'
+      }
+    },
+    {
+      path: '/elements/:id',
+      name: 'element:detail',
+      component: () => import('./views/ElementDetail.vue'),
+      props: itemProps(),
+      meta: {
+        auth: true,
+        permission: 'element:view',
+        title: 'Element'
       }
     },
     {
@@ -97,42 +96,51 @@ const router = createRouter({
       meta: {
         auth: true,
         permission: ['access:view', 'user:access', 'user:permission', 'user:create'],
-        title: gettext.$gettext('Access')
+        title: 'Users'
       }
     }
   ]
 })
 
-router.beforeEach(async (to) => {
-  const dirtyStore = useDirtyStore()
-  const user = useUserStore()
-  const message = useMessageStore()
+export async function guard(to) {
+  const dirty = useDirtyStore()
 
-  if (dirtyStore.dirty) {
-    const allowed = await dirtyStore.confirm()
+  if (dirty.dirty) {
+    const allowed = await dirty.confirm()
     if (!allowed) return false
     return
   }
 
-  const authenticated = await user.isAuthenticated()
+  if (!to.matched.some((record) => record.meta.auth)) return
 
-  if (to.matched.some((record) => record.meta.auth) && !authenticated) {
+  const user = useUserStore()
+
+  if (!await user.isAuthenticated()) {
     user.intended(to.fullPath)
     return { name: 'login' }
   }
 
   const permission = to.meta.permission || to.name
-  if (to.name !== 'login' && !user.can(permission)) {
-    message.add(
+  if (!user.can(permission)) {
+    useMessageStore().add(
       gettext.$gettext('You do not have permission to access %{path}', { path: to.fullPath }),
       'error'
     )
     return false
   }
-})
+}
+
+router.beforeEach(guard)
+
+function title(route) {
+  const value = route.meta.title
+    ? pluginLabel({ label: route.meta.title, i18n: route.meta.i18n })
+    : route.path
+  document.title = value + ' — PagibleAI CMS'
+}
 
 router.afterEach((to, from) => {
-  document.title = (to.meta.title || to.path) + ' — PagibleAI CMS'
+  title(to)
 
   useViewStack().stack = []
 
@@ -141,10 +149,6 @@ router.afterEach((to, from) => {
 
   if (toSection !== fromSection) {
     useClipboardStore().clear()
-    apolloClient.cache.evict({ fieldName: 'pages' })
-    apolloClient.cache.evict({ fieldName: 'elements' })
-    apolloClient.cache.evict({ fieldName: 'files' })
-    apolloClient.cache.gc()
   }
 })
 
@@ -162,15 +166,21 @@ export function addPluginRoutes() {
     router.addRoute({
       path: '/' + key,
       name: key,
-      component: panel.component,
+      component: () => import('./views/PluginPanel.vue'),
       props: { panel },
       meta: {
         auth: true,
         permission: panel.permission,
-        title: panel.label
+        title: panel.label,
+        i18n: panel.i18n
       }
     })
   }
 }
+
+watch(
+  () => gettext.translations,
+  () => title(router.currentRoute.value)
+)
 
 export default router

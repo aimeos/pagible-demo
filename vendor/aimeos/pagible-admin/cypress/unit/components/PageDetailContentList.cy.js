@@ -1,12 +1,11 @@
+import { h, reactive } from 'vue'
+import VirtualList from 'vue-virtual-sortable'
 import PageDetailContentList from '../../../js/components/PageDetailContentList.vue'
 import { useUserStore, useSchemaStore } from '../../../js/stores'
 
 const stubs = {
-  Fields: { template: '<div class="fields-stub" />' },
+  Fields: { render: () => h('div', { class: 'fields-stub', style: { height: '300px' } }) },
   SchemaDialog: { template: '<div class="schema-dialog-stub" />' },
-  VueDraggable: {
-    render() { return this.$slots.default?.() || [] },
-  },
 }
 
 const schemas = {
@@ -21,11 +20,37 @@ const content = [
   { id: 'c2', type: 'text', group: 'main', data: { text: 'World' } },
 ]
 
+function contentItems(length) {
+  return Array.from({ length }, (_, idx) => ({
+    id: `c${idx}`,
+    type: 'heading',
+    group: 'main',
+    data: { title: `Item ${idx}` },
+  }))
+}
+
 function setupSchemaPlugin() {
   return {
     install() {
       const store = useSchemaStore()
       Object.assign(store, schemas)
+    },
+  }
+}
+
+function globalOptions(apollo = {}) {
+  return {
+    stubs,
+    plugins: [setupSchemaPlugin()],
+    provide: {
+      transcribe: () => Promise.resolve({ asText: () => '' }),
+    },
+    mocks: {
+      $apollo: {
+        mutate: () => Promise.resolve({ data: {} }),
+        provider: { defaultClient: { cache: { evict() {}, gc() {} } } },
+        ...apollo,
+      },
     },
   }
 }
@@ -39,25 +64,32 @@ function mountList(props = {}, perms = {}, apollo = {}) {
       elements: {},
       ...props,
     },
-    global: {
-      stubs,
-      plugins: [setupSchemaPlugin()],
-      provide: {
-        transcribe: () => Promise.resolve({ asText: () => '' }),
-      },
-      mocks: {
-        $apollo: {
-          mutate: () => Promise.resolve({ data: {} }),
-          ...apollo,
-        },
-      },
-    },
+    global: globalOptions(apollo),
   }).then(({ wrapper }) => {
     const user = useUserStore()
     user.me = { permission: perms }
 
     return { wrapper }
   })
+}
+
+function mountScrollable(content) {
+  const Host = {
+    data: () => ({ content }),
+
+    render() {
+      return h('div', { class: 'scroll', style: { height: '320px', overflowY: 'auto' } }, [
+        h(PageDetailContentList, {
+          item: { id: '1', lang: 'en' },
+          assets: {},
+          content: this.content,
+          elements: {},
+        }),
+      ])
+    },
+  }
+
+  return cy.mount(Host, { global: globalOptions() })
 }
 
 describe('PageDetailContentList', () => {
@@ -70,9 +102,100 @@ describe('PageDetailContentList', () => {
     cy.get('.v-expansion-panels').should('exist')
   })
 
+  it('opens the first invalid element', () => {
+    mountList({}, { 'page:view': true, 'page:save': true }).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(PageDetailContentList).vm
+      vm.content[1]._error = true
+
+      return vm.showError().then(() => {
+        expect(vm.panel).to.include('c2')
+      })
+    })
+  })
+
   it('renders expansion panels for each content element', () => {
     mountList()
     cy.get('.v-expansion-panel').should('have.length', 2)
+  })
+
+  it('virtualizes large content lists', () => {
+    const items = contentItems(100)
+
+    mountList({ content: items })
+    cy.get('.v-expansion-panel').its('length').should('be.lessThan', items.length)
+    cy.contains('.element-title', 'Item 0').should('exist')
+    cy.contains('.element-title', 'Item 99').should('not.exist')
+  })
+
+  it('keeps the scroll height stable with an expanded virtual item', () => {
+    const items = contentItems(100)
+
+    mountScrollable(items)
+    cy.get('.v-expansion-panel-title').first().click()
+    cy.get('.v-expansion-panel--active').should(($panel) => {
+      expect($panel.height()).to.be.greaterThan(350)
+    })
+    cy.get('.scroll').then(($scroll) => {
+      const height = $scroll[0].scrollHeight
+
+      cy.wrap($scroll).scrollTo('bottom')
+      cy.contains('.element-title', 'Item 99').should('be.visible')
+      cy.wrap($scroll).should(($element) => {
+        expect($element[0].scrollHeight).to.be.closeTo(height, 1)
+      })
+    })
+  })
+
+  it('shows filtered matches outside the virtual window and restores the list when cleared', () => {
+    const items = contentItems(100)
+    let field
+
+    mountScrollable(items).then(({ wrapper }) => {
+      field = wrapper.findComponent(PageDetailContentList)
+      field.vm.search('Item 99')
+    })
+
+    cy.contains('.element-title', 'Item 99').should('be.visible')
+    cy.contains('.element-title', 'Item 0').should('not.be.visible')
+    cy.then(() => field.vm.search(''))
+    cy.contains('.element-title', 'Item 0').should('be.visible')
+    cy.contains('.element-title', 'Item 99').should('not.exist')
+  })
+
+  it('uses the surrounding scroller and reveals newly added virtual items', () => {
+    const items = contentItems(30)
+
+    mountScrollable(items).then(({ wrapper }) => {
+      const field = wrapper.findComponent(PageDetailContentList)
+      const list = wrapper.findComponent(VirtualList)
+
+      expect(list.props('scroller')).to.equal(wrapper.find('.scroll').element)
+      expect(list.element.style.overflow).to.equal('')
+
+      cy.wrap(wrapper.find('.scroll').element)
+        .scrollTo('bottom')
+        .then(() => {
+          field.vm.add({ type: 'heading' }, null)
+          field.vm.content.at(-1).data.title = 'New item'
+        })
+    })
+
+    cy.contains('.element-title', 'New item').should('be.visible')
+  })
+
+  it('locks the horizontal axis when sorting content vertically', () => {
+    const onUpdate = cy.spy().as('update')
+
+    mountList({ 'onUpdate:content': onUpdate }, { 'page:save': true }).then(({ wrapper }) => {
+      const list = wrapper.findComponent(VirtualList)
+
+      expect(list.props('lockAxis')).to.equal('x')
+      list.vm.$emit('update:modelValue', [content[1], content[0]])
+    })
+
+    cy.get('@update').should((spy) => {
+      expect(spy.lastCall.args[0].map((item) => item.id)).to.deep.equal(['c2', 'c1'])
+    })
   })
 
   it('displays element type in panel title', () => {
@@ -94,6 +217,24 @@ describe('PageDetailContentList', () => {
     mountList({}, { 'page:save': true })
     cy.get('.bulk').should('exist')
     cy.contains('Actions').should('exist')
+  })
+
+  it('makes copied reactive content available in the action menus', () => {
+    const items = reactive(content.map((item) => ({ ...item, data: { ...item.data } })))
+
+    mountList({ content: items }, { 'page:save': true }).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(PageDetailContentList).vm
+
+      vm.copy(0)
+      expect(vm.clipboard.get('page-content')).to.deep.equal([
+        { ...content[0], id: null, _checked: false },
+      ])
+    })
+
+    cy.get('.bulk > .v-btn').should('not.be.disabled')
+    cy.get('.v-expansion-panel-title .btn-actions button').eq(1).click()
+    cy.contains('.v-overlay .v-btn', 'Paste before').should('exist')
+    cy.contains('.v-overlay .v-btn', 'Paste after').should('exist')
   })
 
   it('hides bulk actions without page:save permission', () => {
@@ -132,11 +273,13 @@ describe('PageDetailContentList', () => {
     mountList({ onError }).then(({ wrapper }) => {
       const vm = wrapper.findComponent(PageDetailContentList).vm
 
+      vm.panel = [vm.content[0].id]
       vm.error(vm.content[0], true)
       vm.remove(0)
       vm.error(vm.content[0], true)
 
       expect(onError.args).to.deep.equal([[true], [false], [true]])
+      expect(vm.panel).to.deep.equal([])
     })
   })
 
@@ -187,5 +330,54 @@ describe('PageDetailContentList', () => {
       expect(value['element-1'].files[0].previews).to.deep.equal({ 500: 'draft-500.webp' })
       expect(assets['file-1']).to.equal(value['element-1'].files[0])
     })
+  })
+
+  it('moves the focused element with Alt+ArrowUp/ArrowDown', () => {
+    const onUpdate = cy.spy().as('update')
+    const alt = (key) => new KeyboardEvent('keydown', { key, altKey: true, bubbles: true, cancelable: true })
+    const order = (keys) => cy.get('.v-expansion-panel.content').should(($els) => {
+      expect([...$els].map((el) => el.dataset.key)).to.deep.equal(keys)
+    })
+
+    mountList({ 'onUpdate:content': onUpdate, content: reactive(contentItems(3)) }, { 'page:save': true })
+
+    cy.get('[data-key="c0"] .item-handle').focus().then(($btn) => {
+      $btn[0].dispatchEvent(alt('ArrowDown'))
+    })
+    order(['c1', 'c0', 'c2'])
+    cy.focused().closest('.content').should('have.attr', 'data-key', 'c0')
+    cy.get('@update').should('have.been.calledOnce')
+
+    cy.focused().then(($btn) => {
+      $btn[0].dispatchEvent(alt('ArrowUp'))
+      $btn[0].dispatchEvent(alt('ArrowUp')) // already the first element
+    })
+    order(['c0', 'c1', 'c2'])
+    cy.get('@update').should('have.been.calledTwice')
+  })
+
+  it('skips hidden elements when moving with Alt+Arrow', () => {
+    const items = contentItems(3)
+    items[1]._hide = true
+
+    mountList({ content: reactive(items) }, { 'page:save': true })
+
+    cy.get('[data-key="c0"] .item-handle').focus().then(($btn) => {
+      $btn[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true, cancelable: true }))
+    })
+    cy.get('.v-expansion-panel.content').should(($els) => {
+      expect([...$els].map((el) => el.dataset.key)).to.deep.equal(['c1', 'c2', 'c0'])
+    })
+  })
+
+  it('does not move elements with Alt+Arrow without page:save permission', () => {
+    mountList({ content: contentItems(2) })
+
+    cy.get('[data-key="c0"] .item-handle').then(($btn) => {
+      const e = new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true, cancelable: true })
+      $btn[0].dispatchEvent(e)
+      expect(e.defaultPrevented).to.equal(false)
+    })
+    cy.get('.v-expansion-panel.content').first().should('have.attr', 'data-key', 'c0')
   })
 })

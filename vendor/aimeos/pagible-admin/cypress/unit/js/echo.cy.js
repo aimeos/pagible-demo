@@ -1,13 +1,56 @@
 import {
   bulkPatch,
+  bindReconnect,
   channelName,
+  cleanEcho,
   eventPatch,
   listEcho,
+  resubscribe,
   resync,
+  setupEcho,
   PATCH_ACTIONS,
   LIST_ACTIONS,
   RECONNECT,
 } from '../../../js/echo'
+
+describe('bindReconnect()', () => {
+  function connection() {
+    let connected
+    const echo = {
+      connector: {
+        pusher: {
+          connection: {
+            bind(name, callback) {
+              expect(name).to.equal('connected')
+              connected = callback
+            }
+          }
+        }
+      }
+    }
+
+    return { echo, fire: () => connected() }
+  }
+
+  it('treats the first connection of each Echo instance as initial', () => {
+    const reconnect = cy.stub()
+    const first = connection()
+    const second = connection()
+
+    bindReconnect(first.echo, reconnect)
+    bindReconnect(second.echo, reconnect)
+
+    first.fire()
+    second.fire()
+    expect(reconnect).not.to.have.been.called
+
+    first.fire()
+    expect(reconnect).to.have.been.calledOnce
+
+    second.fire()
+    expect(reconnect).to.have.been.calledTwice
+  })
+})
 
 describe('channelName()', () => {
   it('targets the per-type channel scoped to the tenant', () => {
@@ -147,5 +190,103 @@ describe('resync()', () => {
     resync([a, b])
 
     expect(calls).to.deep.equal([['b', null, RECONNECT]])
+  })
+})
+
+describe('resubscribe()', () => {
+  it('subscribes again to the channels whose authorization failed', () => {
+    const pusher = {
+      allChannels: () => [
+        { name: 'private-cms.page', subscribed: true },
+        { name: 'private-cms.file', subscribed: false },
+      ],
+      subscribe: cy.stub(),
+    }
+
+    resubscribe({ connector: { pusher } })
+
+    expect(pusher.subscribe).to.have.been.calledOnceWith('private-cms.file')
+  })
+
+  it('does nothing without a connection', () => {
+    expect(() => resubscribe(null)).not.to.throw()
+  })
+})
+
+describe('Echo lifecycle', () => {
+  it('owns the cleanup returned by the current subscription', () => {
+    const cleanup = cy.stub()
+    const vm = { destroyed: false, echoCleanup: null, echoPromise: null }
+
+    setupEcho(vm, 'page', () => {}, LIST_ACTIONS, () => Promise.resolve(cleanup))
+    const pending = vm.echoPromise
+
+    return pending.then(() => {
+      expect(vm.echoCleanup).to.equal(cleanup)
+      expect(vm.echoPromise).to.equal(null)
+
+      cleanEcho(vm)
+      expect(cleanup).to.have.been.calledOnce
+    })
+  })
+
+  it('owns several typed subscriptions as one lifecycle', () => {
+    const callbacks = {}
+    const cleanups = { element: cy.stub(), file: cy.stub() }
+    const connect = cy.stub().callsFake((type, callback) => {
+      callbacks[type] = callback
+      return Promise.resolve(cleanups[type])
+    })
+    const onEvent = cy.stub()
+    const vm = { destroyed: false, echoCleanup: null, echoPromise: null }
+
+    setupEcho(vm, ['element', 'file'], onEvent, LIST_ACTIONS, connect)
+    const pending = vm.echoPromise
+
+    return pending.then(() => {
+      callbacks.file({ id: 'file-1' }, 'saved')
+      expect(onEvent).to.have.been.calledWith({ id: 'file-1' }, 'saved', 'file')
+
+      cleanEcho(vm)
+      expect(cleanups.element).to.have.been.calledOnce
+      expect(cleanups.file).to.have.been.calledOnce
+    })
+  })
+
+  it('cleans successful typed subscriptions when another one fails', () => {
+    const cleanup = cy.stub()
+    const warning = cy.stub(console, 'warn')
+    const connect = cy.stub().callsFake((type) => type === 'element'
+      ? Promise.resolve(cleanup)
+      : Promise.reject(new Error('denied'))
+    )
+    const vm = { destroyed: false, echoCleanup: null, echoPromise: null }
+
+    setupEcho(vm, ['element', 'file'], () => {}, LIST_ACTIONS, connect)
+    const pending = vm.echoPromise
+
+    return pending.then(() => {
+      expect(cleanup).to.have.been.calledOnce
+      expect(warning).to.have.been.calledOnce
+      expect(vm.echoCleanup).to.equal(null)
+      expect(vm.echoPromise).to.equal(null)
+    })
+  })
+
+  it('cleans a pending subscription after it is replaced', () => {
+    const cleanup = cy.stub()
+    const vm = { destroyed: false, echoCleanup: null, echoPromise: null }
+    let resolve
+
+    setupEcho(vm, 'page', () => {}, LIST_ACTIONS, () => new Promise((done) => { resolve = done }))
+    const pending = vm.echoPromise
+
+    cleanEcho(vm)
+    setupEcho(vm, 'page', () => {}, LIST_ACTIONS, () => Promise.resolve(null))
+    resolve(cleanup)
+
+    return pending.then(() => {
+      expect(cleanup).to.have.been.calledOnce
+    })
   })
 })

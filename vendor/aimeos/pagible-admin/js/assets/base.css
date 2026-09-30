@@ -33,14 +33,6 @@ input:-webkit-autofill:focus {
   direction: ltr;
 }
 
-.v-theme--light {
-  --v-theme-surface-light: 238, 242, 246;
-}
-
-.v-theme--dark {
-  --v-theme-surface-light: 50, 58, 66;
-}
-
 .v-locale--is-rtl .v-btn:not(.no-rtl) .v-icon {
   transform: scaleX(-1);
 }
@@ -62,12 +54,7 @@ input:-webkit-autofill:focus {
 
 .v-app-bar.v-toolbar {
   background-color: rgb(var(--v-theme-background));
-}
-
-.v-toolbar .v-btn.error,
-.v-toolbar .v-btn-group.error {
-  background-color: rgb(var(--v-theme-error));
-  color: rgb(var(--v-theme-on-error));
+  color: rgb(var(--v-theme-on-background));
 }
 
 .v-toolbar__prepend,
@@ -80,7 +67,18 @@ input:-webkit-autofill:focus {
 }
 
 .v-tab .v-btn__overlay {
-  border-radius: 8px;
+  border-radius: 8px 8px 0 0;
+}
+
+.tint-tabs {
+  background-color: rgba(var(--v-theme-primary), 0.16);
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.detail-tabs .v-tab--selected {
+  background-color: rgba(var(--v-theme-nav-accent, var(--v-theme-primary)), 0.16);
+  box-shadow: inset 0 -3px 0 rgb(var(--v-theme-nav-accent, var(--v-theme-primary)));
+  border-radius: 8px 8px 0 0;
 }
 
 .v-tab.changed:before,
@@ -98,12 +96,22 @@ input:-webkit-autofill:focus {
   color: rgb(var(--v-theme-error));
 }
 
-.v-window,
-.v-container {
+/* The detail tabs are on the dark background in both themes: blend the status colors with its text color */
+.detail-tabs .v-tab.changed:before {
+  color: color-mix(in srgb, rgb(var(--v-theme-warning)) 50%, rgb(var(--v-theme-on-background)));
+}
+
+.detail-tabs .v-tab.error:before {
+  color: color-mix(in srgb, rgb(var(--v-theme-error)) 50%, rgb(var(--v-theme-on-background)));
+}
+
+.v-window {
   background-color: transparent;
 }
 
 .v-container {
+  background-color: transparent;
+  height: 100%;
   padding: 0;
 }
 
@@ -118,12 +126,18 @@ input:-webkit-autofill:focus {
 .v-sheet {
   margin: 0;
   padding: 16px;
+  box-shadow: none;
   background-color: rgb(var(--v-theme-surface));
-  box-shadow: 0px 3px 9px 0px rgba(var(--v-theme-on-surface), var(--v-activated-opacity));
 }
 
 .v-sheet.box {
-  border-radius: 8px;
+  border-radius: 12px 12px 0 0;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-bottom: 0;
+  box-shadow:
+    inset 0 1px 0 rgba(var(--v-theme-on-surface), 0.06),
+    0 -8px 32px -12px rgba(var(--v-theme-nav-accent, var(--v-theme-primary)), 0.25);
+  height: 100%;
   margin: 0 1%;
 }
 
@@ -132,6 +146,49 @@ input:-webkit-autofill:focus {
   max-height: calc(100vh - 48px);
   overflow-y: auto;
   padding-bottom: 56px;
+}
+
+.v-field {
+  transition: box-shadow 0.18s ease;
+}
+
+.v-field--focused:not(.v-field--variant-underlined):not(.v-field--variant-plain) {
+  box-shadow: 0 0 0 4px rgba(var(--v-theme-primary), 0.16);
+}
+
+.v-field--focused.v-field--error:not(.v-field--variant-underlined):not(.v-field--variant-plain) {
+  box-shadow: 0 0 0 4px rgba(var(--v-theme-error), 0.16);
+}
+
+.v-application {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--v-theme-on-surface), 0.24) transparent;
+}
+
+.v-navigation-drawer.nav {
+  scrollbar-color: rgba(var(--v-theme-on-background), 0.24) transparent;
+}
+
+@supports not (scrollbar-color: auto) {
+  .v-application ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .v-application ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .v-application ::-webkit-scrollbar-thumb {
+    background: rgba(var(--v-theme-on-surface), 0.24);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 8px;
+  }
+
+  .v-application ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--v-theme-on-surface), 0.4);
+  }
 }
 
 .v-selection-control {
@@ -150,6 +207,14 @@ input:-webkit-autofill:focus {
   margin: 0 4px;
 }
 
+.v-list.items .v-list-item {
+  transition: background-color 0.15s ease;
+}
+
+.v-list.items .v-list-item:hover {
+  background-color: rgba(var(--v-theme-primary), 0.06);
+}
+
 .v-list.items .v-list-item:focus-within {
   background-color: rgb(var(--v-theme-surface-light));
 }
@@ -159,7 +224,8 @@ input:-webkit-autofill:focus {
 }
 
 .v-list-group:not(:last-child) {
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), var(--v-activated-opacity));
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  padding: 4px 0;
 }
 
 .v-list-group__header {
@@ -170,16 +236,6 @@ input:-webkit-autofill:focus {
 
 .v-list-item {
   border-radius: 8px;
-}
-
-.v-list-group__header {
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  border-radius: 8px;
-}
-
-.v-list-group:not(:last-child) {
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), var(--v-activated-opacity));
-  padding: 4px 0;
 }
 
 .list.v-expansion-panels {
@@ -218,6 +274,8 @@ input:-webkit-autofill:focus {
   max-height: 48px;
   max-width: 5rem;
   text-align: end;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .list .v-expansion-panel-title__icon {
@@ -232,6 +290,171 @@ input:-webkit-autofill:focus {
 .v-menu .v-card,
 .v-dialog.menu .v-card {
   max-height: 90vh;
+}
+
+/* Frosted backdrop behind dialogs; the card itself stays opaque so it matches the content surface */
+.v-dialog > .v-overlay__scrim {
+  background: rgba(var(--v-theme-background), 0.4) !important;
+  opacity: 1 !important;
+  backdrop-filter: blur(2px);
+}
+
+.v-dialog > .v-overlay__content > .v-card {
+  overflow: hidden;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 16px !important;
+  background-color: rgb(var(--v-theme-surface));
+  /* Layered shadow: crisp contact edge + soft ambient + wide brand-tinted glow */
+  box-shadow:
+    0 1px 2px rgba(var(--v-shadow-color), 0.08),
+    0 8px 24px -8px rgba(var(--v-shadow-color), 0.2),
+    0 16px 40px -16px rgba(var(--v-theme-primary), 0.2) !important;
+}
+
+.v-menu > .v-overlay__content > .v-card,
+.v-menu > .v-overlay__content > .v-list {
+  box-shadow:
+    0 1px 2px rgba(var(--v-shadow-color), 0.08),
+    0 12px 32px -12px rgba(var(--v-shadow-color), 0.28) !important;
+}
+
+/* Unified dialog and menu headers: primary tint, warning/error dialogs are tinted in their color */
+.v-dialog > .v-overlay__content > .v-card > .v-toolbar,
+.v-menu > .v-overlay__content > .v-card > .v-toolbar {
+  flex: 0 0 auto;
+  border-bottom: 0;
+  background: rgba(var(--v-theme-primary), 0.16) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+/* Menus on the dark background use the nav accent and its text color */
+.v-menu > .v-overlay__content > .menu-content.v-card > .v-toolbar {
+  background: rgba(var(--v-theme-nav-accent, var(--v-theme-primary)), 0.16) !important;
+  color: rgb(var(--v-theme-on-background)) !important;
+}
+
+.v-overlay .v-card > .v-toolbar.bg-warning {
+  background: rgba(var(--v-theme-warning), 0.18) !important;
+}
+
+.v-overlay .v-card > .v-toolbar.bg-error {
+  background: rgba(var(--v-theme-error), 0.18) !important;
+}
+
+.v-overlay .v-card > .v-toolbar:is(.bg-warning, .bg-error) {
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.v-dialog > .v-overlay__content > .v-card > .v-toolbar .v-toolbar-title,
+.v-menu > .v-overlay__content > .v-card > .v-toolbar .v-toolbar-title {
+  font-weight: 600;
+}
+
+/* Dialog/menu containers receive programmatic focus on open, no ring needed */
+.v-overlay__content:focus,
+.v-overlay__content:focus-visible {
+  outline: none;
+}
+
+/* Visible, on-brand keyboard focus inside dialogs */
+.v-dialog .v-btn:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}
+
+.v-dialog .v-btn:focus-visible > .v-btn__overlay {
+  opacity: 0;
+}
+
+/* Primary dialog action: hover lift */
+.v-dialog .v-card-actions .v-btn--variant-tonal.text-primary:hover {
+  transform: translateY(-1px);
+}
+
+/* Recording in progress */
+.v-btn.dictating {
+  background-color: rgba(var(--v-theme-primary), 0.24) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+/* The app bar is dark in both themes: tonal buttons tint their underlay in the theme color behind light text */
+.v-app-bar .v-btn:is(.v-btn--variant-tonal, .error, .saved) {
+  color: rgb(var(--v-theme-nav-accent, var(--v-theme-primary))) !important;
+}
+
+.v-app-bar .v-btn:where(.v-btn--variant-tonal, .error, .saved):is(.text-error, .error) {
+  color: rgb(var(--v-theme-error)) !important;
+}
+
+.v-app-bar .v-btn:where(.v-btn--variant-tonal, .error, .saved).text-warning {
+  color: rgb(var(--v-theme-warning)) !important;
+}
+
+.v-app-bar .v-btn.saved {
+  color: rgb(var(--v-theme-success)) !important;
+}
+
+.v-app-bar .v-btn:is(.v-btn--variant-tonal, .error, .saved) > .v-btn__underlay {
+  background-color: currentColor;
+  opacity: 0.45;
+}
+
+.v-app-bar .v-btn:is(.v-btn--variant-tonal, .error, .saved) > .v-btn__content {
+  color: rgb(var(--v-theme-on-background));
+}
+
+/* Vuetify rounds the tint layer only for tonal buttons; keep it rounded when switching to plain/text */
+.v-btn__underlay {
+  border-radius: inherit;
+}
+
+/* The absolute tint layer would otherwise paint over the (static) label and tint the text */
+.v-btn > :is(.v-btn__content, .v-btn__prepend, .v-btn__append) {
+  position: relative;
+}
+
+/* Tactile press feedback on all buttons */
+.v-btn {
+  transition-property: transform, box-shadow, opacity, background;
+}
+
+.v-btn:not(.v-btn--disabled):not(.v-btn--loading):active {
+  transform: scale(0.97) !important;
+  transition-duration: 0.08s;
+}
+
+/* Dialog open/close: fade + slight lift instead of Vuetify's scale-from-activator */
+.cms-dialog-enter-active {
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cms-dialog-leave-active {
+  transition:
+    opacity 0.14s ease-in,
+    transform 0.14s ease-in;
+}
+
+.cms-dialog-enter-from {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+}
+
+.cms-dialog-leave-to {
+  opacity: 0;
+  transform: translateY(6px) scale(0.99);
+}
+
+.v-dialog > .v-overlay__content > .v-card > .v-card-actions {
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background-color: transparent;
+}
+
+.v-dialog.v-dialog--fullscreen > .v-overlay__content > .v-card {
+  border: 0;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 @media (min-height: 440px) {
@@ -254,13 +477,23 @@ input:-webkit-autofill:focus {
   min-width: unset;
 }
 
+/* Text buttons never shrink below a comfortable click target */
+.v-btn:not(.v-btn--icon):not(.v-btn--stacked) {
+  min-width: 72px;
+}
+
+/* Tonal buttons: black-ish or white-ish text on a tint light enough for WCAG AAA contrast */
 .v-theme--dark .v-btn--variant-tonal .v-btn__underlay {
-  opacity: calc(var(--v-activated-opacity) * 3);
+  opacity: calc(var(--v-activated-opacity) * 2);
 }
 
 .v-btn--variant-tonal .v-btn__content {
   color: rgb(var(--v-theme-on-surface));
-  opacity: 0.8;
+}
+
+/* Warnings need a stronger tint to stand out */
+.v-btn--variant-tonal:is(.text-error, .text-warning) > .v-btn__underlay {
+  opacity: 0.35;
 }
 
 .v-date-picker-controls {
@@ -276,6 +509,7 @@ input:-webkit-autofill:focus {
 }
 
 .v-time-picker-clock {
+  color: rgb(var(--v-theme-on-surface));
   margin: auto;
 }
 
@@ -324,19 +558,12 @@ input:-webkit-autofill:focus {
 
 .menu-content {
   background-color: rgb(var(--v-theme-background));
+  color: rgb(var(--v-theme-on-background));
 }
 
-.menu-content > .v-btn {
-  width: 100%;
-}
-
-.menu-publish-pickers {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.menu-publish-pickers > .v-time-picker {
-  flex: 0 0 auto;
+/* Plugin load errors are shown on the dark background: blend the error color with its text color */
+.plugin-error {
+  color: color-mix(in srgb, rgb(var(--v-theme-error)) 50%, rgb(var(--v-theme-on-background)));
 }
 
 .loading,
@@ -363,32 +590,15 @@ input:-webkit-autofill:focus {
 }
 
 .btn-overlay {
-  background: rgb(var(--v-theme-surface-variant)) !important;
-  color: rgb(var(--v-theme-surface)) !important;
+  background: rgba(var(--v-theme-background), 0.6) !important;
+  color: rgb(var(--v-theme-on-background)) !important;
+  backdrop-filter: blur(8px);
   position: absolute !important;
   border-radius: 50%;
   width: max-content;
-  opacity: 0.85;
   padding: 12px;
   inset-inline-end: 0;
   top: 0;
-}
-
-.menu-overlay .v-btn {
-  background: rgb(var(--v-theme-surface-variant)) !important;
-  color: rgb(var(--v-theme-surface)) !important;
-  border-radius: 50%;
-  display: block;
-  opacity: 0.85;
-  padding: 12px;
-  margin: 4px 0;
-}
-
-.menu-overlay {
-  position: absolute;
-  width: max-content;
-  inset-inline-end: 0;
-  top: 48px;
 }
 
 .label {
@@ -396,17 +606,33 @@ input:-webkit-autofill:focus {
   min-height: 48px;
 }
 
-.dictating {
-  background-color: rgb(var(--v-theme-primary)) !important;
-  color: rgb(var(--v-theme-on-primary)) !important;
+/* Draft marker: checkbox in the warning color with a status dot on its corner */
+.v-selection-control.draft .v-selection-control__input > .v-icon {
+  color: rgb(var(--v-theme-warning));
+  opacity: 1;
 }
 
-.v-selection-control.draft .v-selection-control__input {
-  background-color: rgba(var(--v-theme-warning), 0.4);
+.v-selection-control.draft .v-selection-control__input::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  inset-inline-end: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-warning));
+  box-shadow:
+    0 0 0 2px rgb(var(--v-theme-surface)),
+    0 0 8px 1px rgba(var(--v-theme-warning), 0.55);
+  pointer-events: none;
 }
 
 .publish-at {
   color: rgb(var(--v-theme-warning));
+  background-color: rgba(var(--v-theme-warning), 0.16);
+  border-radius: 50%;
+  box-sizing: content-box;
+  padding: 3px;
 }
 
 .publish-at,
@@ -471,16 +697,17 @@ input:-webkit-autofill:focus {
 }
 
 .item-lang {
-  background-color: rgb(var(--v-theme-primary));
-  color: rgb(var(--v-theme-on-primary));
+  background-color: rgba(var(--v-theme-primary), 0.14);
+  color: color-mix(in srgb, rgb(var(--v-theme-primary)) 75%, rgb(var(--v-theme-on-surface)));
   display: inline-block;
   margin-inline-end: 4px;
   text-transform: uppercase;
   vertical-align: middle;
-  border-radius: 8px;
+  border-radius: 999px;
   font-weight: bold;
-  font-size: 60%;
-  padding: 2px 4px;
+  font-size: 70%;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
 }
 
 .readonly,
@@ -488,21 +715,25 @@ input:-webkit-autofill:focus {
 input[readonly],
 textarea[readonly],
 .ck-editor .ck-read-only {
-  background-color: rgb(var(--v-theme-surface-light)) !important;
+  background-color: rgba(var(--v-theme-primary), var(--v-hover-opacity)) !important;
 }
 
 .ck-editor {
   --ck-powered-by-background: rgb(var(--v-theme-surface-variant));
-  --ck-color-split-button-hover-background: rgb(var(--v-theme-surface-light));
-  --ck-color-button-default-hover-background: rgb(var(--v-theme-surface-light));
+  --ck-powered-by-text-color: rgb(var(--v-theme-on-surface-variant));
+  --ck-color-split-button-hover-background: rgba(var(--v-theme-primary), var(--v-hover-opacity));
+  --ck-color-button-default-hover-background: rgba(var(--v-theme-primary), var(--v-hover-opacity));
   --ck-color-toolbar-background: rgb(var(--v-theme-surface));
   --ck-color-base-background: rgb(var(--v-theme-surface));
+  --ck-color-base-foreground: rgb(var(--v-theme-surface-light));
   --ck-color-list-background: rgb(var(--v-theme-surface));
-  --ck-color-list-button-hover-background: rgb(var(--v-theme-surface-light));
-  --ck-color-button-on-hover-background: rgb(var(--v-theme-surface-light));
-  --ck-color-button-on-background: rgb(var(--v-theme-surface-light));
-  --ck-color-button-on-color: rgb(var(--v-theme-on-surface));
-  --ck-color-text: rgb(var(--v-theme-on-surface));
+  --ck-color-list-button-hover-background: rgba(var(--v-theme-primary), var(--v-hover-opacity));
+  --ck-color-button-on-hover-background: rgba(var(--v-theme-primary), var(--v-activated-opacity));
+  --ck-color-button-on-background: rgba(var(--v-theme-primary), var(--v-activated-opacity));
+  --ck-color-button-on-color: rgb(var(--v-theme-primary));
+  --ck-color-focus-border: rgb(var(--v-theme-primary));
+  --ck-color-base-text: rgb(var(--v-theme-on-surface));
+  --ck-color-list-button-on-text: rgb(var(--v-theme-on-primary));
   --ck-content-font-color: rgb(var(--v-theme-on-surface));
   --ck-border-radius: 4px;
 }
@@ -535,10 +766,88 @@ textarea[readonly],
   margin: 0;
 }
 
+.help {
+  color: rgb(var(--v-theme-on-surface-light));
+  background-color: rgb(var(--v-theme-surface-light));
+  padding: 16px 24px 16px 32px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+/* Reference tables of elements and files */
+.refs .v-expansion-panel-title {
+  font-weight: bold;
+  font-size: 110%;
+}
+
+.refs tbody tr {
+  cursor: pointer;
+}
+
+.refs thead th {
+  font-weight: bold !important;
+  width: 33%;
+}
+
+/* Image and video editing toolbar */
+.toolbar {
+  gap: 8px;
+  width: 100%;
+  display: flex;
+  padding: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  background-color: rgb(var(--v-theme-background));
+  color: rgb(var(--v-theme-on-background));
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    width: auto;
+  }
+}
+
+/* Content element status: colored start border and a faint header tint */
+.v-expansion-panels > .v-expansion-panel.changed {
+  border-inline-start: 3px solid rgb(var(--v-theme-warning));
+}
+
+.v-expansion-panels > .v-expansion-panel.merged {
+  border-inline-start: 3px solid rgb(var(--v-theme-info));
+}
+
+.v-expansion-panels > .v-expansion-panel.conflict {
+  border-inline-start: 3px solid rgb(var(--v-theme-error));
+}
+
+.v-expansion-panels > .v-expansion-panel.changed > .v-expansion-panel-title {
+  background-color: rgba(var(--v-theme-warning), 0.04);
+}
+
+.v-expansion-panels > .v-expansion-panel.merged > .v-expansion-panel-title {
+  background-color: rgba(var(--v-theme-info), 0.04);
+}
+
+.v-expansion-panels > .v-expansion-panel:is(.conflict, .error) > .v-expansion-panel-title {
+  background-color: rgba(var(--v-theme-error), 0.04);
+  color: rgb(var(--v-theme-error));
+}
+
+/* Reduced motion: transitions complete instantly everywhere */
 @media (prefers-reduced-motion: reduce) {
-  .spin1,
-  .spin2,
-  .spin3 {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+
+  .v-btn,
+  .v-dialog .v-card-actions .v-btn--variant-tonal.text-primary:hover {
+    transform: none !important;
+  }
+
+  .spin1 {
     animation: none;
   }
 }

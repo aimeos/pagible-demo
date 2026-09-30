@@ -27,7 +27,7 @@ return [
     'roles' => [
         'admin' => ['*'],
         'viewer' => ['page:view', 'element:view', 'file:view'],
-        'publisher' => ['page:*', 'element:*', 'file:*', 'audio:*', 'image:*', 'text:*', 'page:config'],
+        'publisher' => ['page:*', 'element:*', 'file:*', 'audio:*', 'image:*', 'text:*', 'page:config', 'cache:clear'],
         'editor' => ['publisher', '!*:publish', '!*:purge', '!page:access'],
     ],
 
@@ -123,14 +123,17 @@ return [
     |--------------------------------------------------------------------------
     |
     | The "driver" setting selects the Intervention Image driver available in
-    | the host environment. The "preview-sizes" array defines the maximum
+    | the host environment. The "quality" setting (1-100) is used to encode the
+    | WebP or JPEG previews and the "preview-sizes" array defines the maximum
     | widths and heights of previews generated for uploaded images.
     |
     */
     'image' => [
         'driver' => env( 'CMS_IMAGE_DRIVER', 'gd' ),
+        'quality' => (int) env( 'CMS_IMAGE_QUALITY', 75 ),
         'preview-sizes' => [
             ['width' => 480, 'height' => 270],
+            ['width' => 720, 'height' => 405],
             ['width' => 960, 'height' => 540],
             ['width' => 1920, 'height' => 1080],
         ]
@@ -191,6 +194,21 @@ return [
     |
     */
     'prune' => env( 'CMS_PRUNE', 30 ),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Queue
+    |--------------------------------------------------------------------------
+    |
+    | Queue connection and name for the background jobs of the CMS, e.g. for
+    | pruning versions, deleting files and invalidating pages using shared
+    | content. Leave empty to use the default queue connection and name.
+    |
+    */
+    'queue' => [
+        'connection' => env( 'CMS_QUEUE_CONNECTION' ),
+        'name' => env( 'CMS_QUEUE' ),
+    ],
 
     /*
     |--------------------------------------------------------------------------

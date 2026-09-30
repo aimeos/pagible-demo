@@ -8,12 +8,74 @@ describe('Url', () => {
 
   it('displays the modelValue', () => {
     cy.mount(Url, { props: { modelValue: 'https://example.com', config: {} } })
-    cy.get('input').should('have.value', 'https://example.com')
+    cy.get('input[role="combobox"]').should('have.value', 'https://example.com')
+  })
+
+  it('attaches link attribute options to external URLs', () => {
+    const onRel = cy.spy().as('rel')
+
+    cy.mount(Url, {
+      props: {
+        modelValue: 'https://example.com',
+        config: { rel: true },
+        'onUpdate:rel': onRel
+      }
+    })
+
+    cy.get('.url-field').should('exist')
+    cy.get('.link-rel').click()
+    cy.get('.v-list-item').contains('Sponsored').click()
+    cy.get('@rel').should('have.been.calledWith', 'sponsored')
+  })
+
+  it('does not offer link attributes for internal URLs', () => {
+    cy.mount(Url, { props: { modelValue: '/internal', config: { rel: true } } })
+    cy.get('.link-rel').should('not.exist')
+  })
+
+  it('does not offer link attributes unless enabled by the schema', () => {
+    cy.mount(Url, { props: { modelValue: 'https://example.com', config: {} } })
+    cy.get('.link-rel').should('not.exist')
+  })
+
+  it('places link attributes beside the URL if the field is wide enough', () => {
+    cy.mount(Url, { props: { modelValue: 'https://example.com', config: { rel: true } } })
+    cy.get('.url-field').invoke('css', 'width', '800px')
+
+    cy.get('.url-input').should(($input) => {
+      const input = $input[0].getBoundingClientRect()
+      const rel = Cypress.$('.link-rel')[0].getBoundingClientRect()
+
+      expect(rel.top).to.be.closeTo(input.top, 1)
+      expect(rel.left).to.be.closeTo(input.right, 1)
+    })
+  })
+
+  it('places link attributes below the URL if the field is narrow', () => {
+    cy.mount(Url, { props: { modelValue: 'https://example.com', config: { rel: true } } })
+    cy.get('.url-field').invoke('css', 'width', '400px')
+
+    cy.get('.url-input').should(($input) => {
+      const input = $input[0].getBoundingClientRect()
+      const rel = Cypress.$('.link-rel')[0].getBoundingClientRect()
+
+      expect(rel.top).to.be.closeTo(input.bottom, 1)
+      expect(rel.left).to.be.closeTo(input.left, 1)
+      expect(rel.width).to.be.closeTo(input.width, 1)
+    })
+  })
+
+  it('displays the selected external link attribute', () => {
+    cy.mount(Url, {
+      props: { modelValue: 'https://example.com', rel: 'nofollow', config: { rel: true } }
+    })
+
+    cy.get('.link-rel').should('contain', 'Nofollow')
   })
 
   it('uses config.default when no modelValue is supplied', () => {
     cy.mount(Url, { props: { config: { default: 'https://default.com' } } })
-    cy.get('input').should('have.value', 'https://default.com')
+    cy.get('input[role="combobox"]').should('have.value', 'https://default.com')
   })
 
   it('renders with a placeholder config without errors', () => {
@@ -61,6 +123,34 @@ describe('Url', () => {
     cy.get('@error').should('have.been.calledWith', false)
   })
 
+  it('rejects relative paths when an absolute URL is required', () => {
+    const onError = cy.spy().as('error')
+    cy.mount(Url, {
+      props: { modelValue: '/some/path', config: { absolute: true }, onError }
+    })
+    cy.get('@error').should('have.been.calledWith', true)
+  })
+
+  it('rejects an absolute URL without slashes', () => {
+    const onError = cy.spy().as('error')
+    cy.mount(Url, {
+      props: { modelValue: 'https:example.com', config: { absolute: true }, onError }
+    })
+    cy.get('@error').should('have.been.calledWith', true)
+  })
+
+  it('accepts an allowed absolute URL when required', () => {
+    const onError = cy.spy().as('error')
+    cy.mount(Url, {
+      props: {
+        modelValue: 'https://example.com/security',
+        config: { absolute: true, allowed: ['https'] },
+        onError
+      }
+    })
+    cy.get('@error').should('have.been.calledWith', false)
+  })
+
   it('accepts fragment and query links as valid', () => {
     for (const value of ['#contact', '?dialog=contact']) {
       const onError = cy.spy()
@@ -88,12 +178,12 @@ describe('Url', () => {
     cy.mount(Url, {
       props: { config: {}, 'onUpdate:modelValue': onUpdate }
     })
-    cy.get('input').type('https://new.com')
+    cy.get('input[role="combobox"]').type('https://new.com')
     cy.get('@update').should('have.been.called')
   })
 
   it('is readonly when readonly prop is true', () => {
     cy.mount(Url, { props: { config: {}, readonly: true } })
-    cy.get('input').should('have.attr', 'readonly')
+    cy.get('input[role="combobox"]').should('have.attr', 'readonly')
   })
 })

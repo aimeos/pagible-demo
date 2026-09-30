@@ -4,12 +4,25 @@ namespace Tests\Integration;
 
 use Aimeos\Prisma\Prisma;
 use Aimeos\Prisma\Files\Image;
+use Aimeos\Prisma\Files\Video;
 use Aimeos\Prisma\Schema\Schema;
 use PHPUnit\Framework\TestCase;
 
 
 class BedrockTest extends TestCase
 {
+    public function testDescribeVideo() : void
+    {
+        $video = Video::fromLocalPath( __DIR__ . '/assets/flower.mp4', 'video/mp4' );
+        $response = Prisma::video()
+            ->using( 'bedrock', ['api_key' => $_ENV['BEDROCK_API_KEY']] )
+            ->ensure( 'describe' )
+            ->describe( $video );
+
+        $this->assertStringContainsStringIgnoringCase( 'flower', $response->text() );
+    }
+
+
     public function testImagine() : void
     {
         $image = Image::fromLocalPath( __DIR__ . '/assets/cat.png' );
@@ -21,6 +34,27 @@ class BedrockTest extends TestCase
         $this->assertGreaterThan( 0, strlen( $response->binary() ) );
 
         file_put_contents( __DIR__ . '/results/bedrock_imagine.png', $response->binary() );
+    }
+
+
+    public function testImagineVideo() : void
+    {
+        if( empty( $_ENV['BEDROCK_S3_URI'] ) ) {
+            $this->markTestSkipped( 'BEDROCK_S3_URI is not defined in the environment' );
+        }
+
+        $response = Prisma::video()
+            ->using( 'bedrock', [
+                'api_key' => $_ENV['BEDROCK_API_KEY'],
+                's3_uri' => $_ENV['BEDROCK_S3_URI'],
+            ] )
+            ->ensure( 'imagine' )
+            ->imagine( 'A paper boat crossing a rain-filled city street' );
+
+        $video = $response->first();
+
+        $this->assertInstanceOf( Video::class, $video );
+        $this->assertNotEmpty( $video->url() );
     }
 
 

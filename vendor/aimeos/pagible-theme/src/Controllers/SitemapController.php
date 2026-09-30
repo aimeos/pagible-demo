@@ -20,6 +20,11 @@ class SitemapController extends Controller
      */
     protected const URLS_PER_SITEMAP = 50000;
 
+    /**
+     * Maximum number of articles per Google News sitemap.
+     */
+    protected const NEWS_PER_SITEMAP = 1000;
+
 
     /**
      * Streams the sitemap entry point.
@@ -44,16 +49,73 @@ class SitemapController extends Controller
 
 
     /**
+     * Streams the Google News sitemap for articles published in the last two days.
+     *
+     * @return StreamedResponse News `<urlset>` XML response
+     */
+    public function news( string $domain = '' ) : StreamedResponse
+    {
+        $name = $this->xml( $this->name( $domain ) );
+        $template = $this->template();
+        $tz = new \DateTimeZone( config('app.timezone') ?: 'UTC' );
+
+        $query = $this->query()
+            ->where( 'type', 'news' )
+            ->where( 'created_at', '>=', now()->subDays( 2 ) )
+            ->select( 'path', 'domain', 'lang', 'title', 'created_at', 'meta' )
+            ->orderByDesc( 'created_at' )
+            ->limit( static::NEWS_PER_SITEMAP );
+
+        return response()->stream( function() use ( $name, $query, $template, $tz ) {
+            echo '<?xml version="1.0" encoding="UTF-8"?>';
+            echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">';
+
+            foreach( $query->cursor() as $page )
+            {
+                if( $this->noindex( $page->meta ) ) {
+                    continue;
+                }
+
+                $date = ( new \DateTimeImmutable( $page->created_at, $tz ) )->format( \DateTimeInterface::ATOM );
+                $lang = strtolower( str_replace( '_', '-', $page->lang ?: config( 'app.locale', 'en' ) ) );
+                $lang = in_array( $lang, ['zh-cn', 'zh-tw'], true ) ? $lang : explode( '-', $lang )[0];
+
+                echo '<url>';
+                echo '<loc><![CDATA[' . $this->location( $page, $template ) . ']]></loc>';
+                echo '<news:news><news:publication>';
+                echo '<news:name>' . $name . '</news:name>';
+                echo '<news:language>' . $this->xml( $lang ) . '</news:language>';
+                echo '</news:publication>';
+                echo '<news:publication_date>' . $date . '</news:publication_date>';
+                echo '<news:title>' . $this->xml( $page->title ) . '</news:title>';
+                echo '</news:news></url>';
+            }
+
+            echo '</urlset>';
+            flush();
+        }, 200, ['Content-Type' => 'application/xml', 'Cache-Control' => 'public, max-age=300'] );
+    }
+
+
+    /**
      * Streams a single sitemap chunk for large catalogs.
      *
      * Each chunk contains up to {@see self::URLS_PER_SITEMAP} URLs ordered by
      * id. Aborts with HTTP 404 if `$page` is outside the available range.
      *
-     * @param int $page One-based chunk index
+     * @param int|string $page One-based chunk index or leading multi-domain route parameter
      * @return StreamedResponse `<urlset>` XML response
      */
-    public function chunk( int $page ) : StreamedResponse
+    public function chunk( int|string $page ) : StreamedResponse
     {
+        $route = request()->route( 'page' );
+
+        if( is_int( $route ) || is_string( $route ) ) {
+            $page = $route;
+        }
+
+        $page = (int) $page;
+
         if( $page < 1 ) {
             abort( 404 );
         }
@@ -65,6 +127,34 @@ class SitemapController extends Controller
         }
 
         return $this->urlset( $offset, static::URLS_PER_SITEMAP );
+    }
+
+
+    /**
+     * Returns the published website title from the root page configuration.
+     */
+    protected function name( string $domain ) : string
+    {
+        $query = Nav::query()
+            ->select( 'config' )
+            ->whereNull( 'parent_id' )
+            ->whereIn( 'status', [1, 2] )
+            ->defaultOrder();
+
+        if( $domain !== '' ) {
+            $query->where( 'domain', $domain );
+        }
+
+        foreach( $query->cursor() as $page )
+        {
+            $name = trim( (string) ( $page->config->website->data->title ?? '' ) );
+
+            if( $name !== '' ) {
+                return $name;
+            }
+        }
+
+        return '';
     }
 
 
@@ -96,6 +186,24 @@ class SitemapController extends Controller
 
 
     /**
+     * Returns the absolute URL for a sitemap row.
+     *
+     * @param \stdClass $page Raw sitemap row
+     * @param string $template Route URL containing page placeholders
+     * @return string Absolute page URL
+     */
+    protected function location( \stdClass $page, string $template ) : string
+    {
+        $path = (string) $page->path;
+        $path = preg_match( '/[^A-Za-z0-9\/._~-]/', $path )
+            ? implode( '/', array_map( 'rawurlencode', explode( '/', $path ) ) )
+            : $path;
+
+        return str_replace( ['__CMS_PATH__', '__CMS_DOMAIN__'], [$path, $page->domain ?? ''], $template );
+    }
+
+
+    /**
      * Returns the shared base query for published, non-redirect navigation entries.
      *
      * Uses the underlying query builder (no Eloquent hydration) so callers can
@@ -103,18 +211,35 @@ class SitemapController extends Controller
      * scopes are inherited from the `Nav` model and compiled into the builder
      * by `toBase()`.
      *
-     * @return \Illuminate\Database\Query\Builder Base query with public status and `to` filters applied
+     * @return \Illuminate\Database\Query\Builder Base query with public status, `to` and domain filters applied
      */
     protected function query() : \Illuminate\Database\Query\Builder
     {
         // Sitemaps are publicly cacheable, so their contents must never depend on
         // the authenticated editor exception implemented by the Status scope.
-        return Nav::whereIn( ( new Nav() )->qualifyColumn( 'status' ), [1, 2] )
+        $query = Nav::whereIn( ( new Nav() )->qualifyColumn( 'status' ), [1, 2] )
             ->where( function( $q ) {
                 $q->whereNull( 'to' )->orWhere( 'to', '' );
             } )
-            ->wherePublic()
-            ->toBase();
+            ->wherePublic();
+
+        // Pages are only served on their own domain and sitemaps must not list URLs of other hosts
+        if( config( 'cms.multidomain' ) ) {
+            $query->where( ( new Nav() )->qualifyColumn( 'domain' ), (string) request()->route( 'domain', '' ) );
+        }
+
+        return $query->toBase();
+    }
+
+
+    /**
+     * Returns the absolute CMS page route with row placeholders.
+     */
+    protected function template() : string
+    {
+        $params = config( 'cms.multidomain' ) ? ['domain' => '__CMS_DOMAIN__'] : [];
+
+        return route( 'cms.page', $params + ['path' => '__CMS_PATH__'] );
     }
 
 
@@ -133,8 +258,7 @@ class SitemapController extends Controller
     protected function urlset( ?int $offset = null, ?int $limit = null ) : StreamedResponse
     {
         $tz = new \DateTimeZone( config('app.timezone') ?: 'UTC' );
-        $multidomain = config( 'cms.multidomain' ) ? ['domain' => '__CMS_DOMAIN__'] : [];
-        $template = route( 'cms.page', $multidomain + ['path' => '__CMS_PATH__'] );
+        $template = $this->template();
 
         $query = $this->query()->select( 'path', 'domain', 'updated_at', 'meta' );
 
@@ -157,14 +281,8 @@ class SitemapController extends Controller
                     ? ( new \DateTimeImmutable( $page->updated_at, $tz ) )->format( \DateTimeInterface::ATOM )
                     : '';
 
-                $path = (string) $page->path;
-                $encodedPath = preg_match( '/[^A-Za-z0-9\/._~-]/', $path )
-                    ? implode( '/', array_map( 'rawurlencode', explode( '/', $path ) ) )
-                    : $path;
-                $loc = str_replace( ['__CMS_PATH__', '__CMS_DOMAIN__'], [$encodedPath, $page->domain ?? ''], $template );
-
                 echo '<url>';
-                echo '<loc><![CDATA[' . $loc . ']]></loc>';
+                echo '<loc><![CDATA[' . $this->location( $page, $template ) . ']]></loc>';
                 echo '<lastmod><![CDATA[' . $lastmod . ']]></lastmod>';
                 echo '</url>';
 
@@ -176,6 +294,15 @@ class SitemapController extends Controller
             echo '</urlset>';
             flush();
         }, 200, ['Content-Type' => 'application/xml', 'Cache-Control' => 'public, max-age=300'] );
+    }
+
+
+    /**
+     * Escapes a value for XML text content.
+     */
+    protected function xml( mixed $value ) : string
+    {
+        return htmlspecialchars( (string) $value, ENT_QUOTES | ENT_XML1, 'UTF-8' );
     }
 
 
@@ -204,7 +331,7 @@ class SitemapController extends Controller
 
         for( $n = 1; $n <= $pages; $n++ )
         {
-            $route = route( 'cms.sitemap.chunk', ['page' => $n] );
+            $route = cmsroute( 'cms.sitemap.chunk', ['page' => $n] );
             $entries[] = '<sitemap><loc>' . $route . '</loc><lastmod>' . $lastmod . '</lastmod></sitemap>';
         }
 

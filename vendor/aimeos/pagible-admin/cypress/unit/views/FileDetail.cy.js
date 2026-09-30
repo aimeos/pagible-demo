@@ -1,5 +1,7 @@
 import FileDetail from '../../../js/views/FileDetail.vue'
+import { sections } from '../../../js/history'
 import { useUserStore, useMessageStore } from '../../../js/stores'
+import '../../../js/assets/base.css'
 
 const stubs = {
   AsideMeta: { template: '<div class="aside-meta-stub" />' },
@@ -32,6 +34,7 @@ function mountDetail(perms = {}, item = {}, apollo = {}) {
         $apollo: {
           query: () => Promise.resolve({ data: {} }),
           mutate: () => Promise.resolve({ data: {} }),
+          provider: { defaultClient: { cache: { evict() {}, gc() {} } } },
           ...apollo,
         },
       },
@@ -46,6 +49,14 @@ function mountDetail(perms = {}, item = {}, apollo = {}) {
 }
 
 describe('FileDetail', () => {
+  it('matches the saved file history shape without attribution or preview noise', () => {
+    mountDetail().then(() => {
+      const vm = Cypress.vueWrapper.findComponent(FileDetail).vm
+      const { id, published, ...data } = baseItem
+      expect(sections({ ...data, scheduled: 0, editor: 'Another editor' }, vm.historyCurrent.data)).to.deep.equal({})
+    })
+  })
+
   it('renders the app bar', () => {
     mountDetail()
     cy.get('.v-app-bar').should('exist')
@@ -69,7 +80,11 @@ describe('FileDetail', () => {
 
   it('shows the File tab as active by default', () => {
     mountDetail()
-    cy.contains('.v-tab', 'File').should('have.class', 'v-tab--selected')
+    cy.contains('.detail-tabs .v-tab', 'File')
+      .should('have.class', 'v-tab--selected')
+      .and('have.css', 'box-shadow')
+      .and('include', 'inset')
+    cy.get('.detail-tabs .v-tab__slider').should('not.exist')
   })
 
   it('renders the FileDetailItem stub', () => {
@@ -125,6 +140,20 @@ describe('FileDetail', () => {
   it('renders the history button', () => {
     mountDetail()
     cy.get('button.btn-history').should('exist')
+  })
+
+  it('invalidates file lists', () => {
+    const evict = cy.stub()
+    const gc = cy.stub()
+
+    mountDetail({}, {}, {
+      provider: { defaultClient: { cache: { evict, gc } } },
+    }).then(() => {
+      Cypress.vueWrapper.findComponent(FileDetail).vm.invalidate()
+
+      expect(evict).to.have.been.calledWith({ id: 'ROOT_QUERY', fieldName: 'files' })
+      expect(gc).to.have.been.calledOnce
+    })
   })
 
   it('renders the aside toggle button', () => {
@@ -186,6 +215,31 @@ describe('FileDetail', () => {
         })
       })
     })
+
+    it('only sends the previews if they have been changed', () => {
+      const inputs = []
+      const mutate = (options) => {
+        inputs.push(options.variables.input)
+        return Promise.resolve({ data: { saveFile: { latest: { id: 'v2', data: '{}' } } } })
+      }
+
+      mountDetail({ 'file:save': true }, { previews: { 480: 'a_480.webp' } }, { mutate }).then(() => {
+        // the previews are taken when created, as reload() isn't called without file:view
+        const vm = Cypress.vueWrapper.findComponent(FileDetail).vm
+        vm.dirty = true
+
+        return vm.save().then(() => {
+          expect(inputs[0]).to.not.have.property('previews')
+
+          vm.item.previews = {}
+          vm.dirty = true
+
+          return vm.save()
+        }).then(() => {
+          expect(inputs[1].previews).to.equal('{}')
+        })
+      })
+    })
   })
 
   describe('versions()', () => {
@@ -208,32 +262,34 @@ describe('FileDetail', () => {
     })
   })
 
-  describe('publish schedule', () => {
-    it('renders the schedule publish button', () => {
+  describe('publish menu', () => {
+    it('renders one publish menu with both actions', () => {
       mountDetail({ 'file:publish': true })
-      cy.get('.menu-publishat').should('exist')
+      cy.get('.menu-publish').should('have.length', 1).click()
+      cy.get('.menu-publish-now').should('contain', 'Publish')
+      cy.get('.menu-schedule-at').should('contain', 'Schedule')
     })
 
     it('opens menu with date and time pickers', () => {
       mountDetail({ 'file:publish': true })
-      cy.get('.menu-publishat').click()
+      cy.get('.menu-publish').click()
       cy.get('.v-date-picker').should('exist')
       cy.get('.v-time-picker').should('exist')
     })
 
-    it('disables publish button in menu when no date selected', () => {
+    it('disables schedule action when no date selected', () => {
       mountDetail({ 'file:publish': true })
-      cy.get('.menu-publishat').click()
-      cy.get('.menu-content .v-btn').last().should('be.disabled')
+      cy.get('.menu-publish').click()
+      cy.get('.menu-schedule-at').should('be.disabled')
     })
 
-    it('published() combines date and time', () => {
+    it('schedule() combines date and time', () => {
       mountDetail({ 'file:publish': true }).then(() => {
         const vm = Cypress.vueWrapper.findComponent(FileDetail).vm
         vm.publishAt = new Date(2026, 5, 15)
         vm.publishTime = '14:30'
         cy.spy(vm, 'publish').as('publishSpy')
-        vm.published()
+        vm.schedule()
         cy.get('@publishSpy').should('have.been.calledOnce').then(() => {
           const arg = vm.publish.args[0][0]
           expect(arg.getFullYear()).to.equal(2026)
@@ -245,13 +301,13 @@ describe('FileDetail', () => {
       })
     })
 
-    it('published() uses midnight when no time selected', () => {
+    it('schedule() uses midnight when no time selected', () => {
       mountDetail({ 'file:publish': true }).then(() => {
         const vm = Cypress.vueWrapper.findComponent(FileDetail).vm
         vm.publishAt = new Date(2026, 5, 15)
         vm.publishTime = null
         cy.spy(vm, 'publish').as('publishSpy')
-        vm.published()
+        vm.schedule()
         cy.get('@publishSpy').should('have.been.calledOnce').then(() => {
           const arg = vm.publish.args[0][0]
           expect(arg.getHours()).to.equal(0)
@@ -283,12 +339,12 @@ describe('FileDetail', () => {
       })
     })
 
-    it('uses warning class on save button when hasConflict is true', () => {
+    it('uses warning color on save button when hasConflict is true', () => {
       mountDetail({ 'file:save': true }).then(() => {
         const vm = Cypress.vueWrapper.findComponent(FileDetail).vm
         vm.changed = { editor: 'x', data: { name: { previous: 'a', current: 'b', overwritten: 'c' } } }
         vm.dirty = true
-        cy.get('.menu-save').should('have.class', 'warning')
+        cy.get('.menu-save').should('have.class', 'text-warning')
       })
     })
 

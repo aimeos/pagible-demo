@@ -139,6 +139,11 @@ class EstateDemo extends AbstractDemo
                     'rooms' => 10,
                     'year_built' => 2015,
                     'location' => 'Set between Prenzlauer Berg and the historic centre, the address offers quick tram and S-Bahn connections. Independent cafés, daily shopping, parks, and cultural venues are all within easy reach.',
+                    'map' => [
+                        'latitude' => 52.547914,
+                        'longitude' => 13.413557,
+                        'zoom' => 16,
+                    ],
                     'values' => [
                         ['Floor', '7'],
                         ['Parking', '2 parking spaces'],
@@ -190,6 +195,11 @@ class EstateDemo extends AbstractDemo
                     'rooms' => 8,
                     'year_built' => 2018,
                     'location' => 'The suite sits within Hamburg’s eastern HafenCity business district, close to the main station, riverfront restaurants, and mixed-use services. Local transit links connect the property directly with the city centre.',
+                    'map' => [
+                        'latitude' => 53.541900,
+                        'longitude' => 9.998200,
+                        'zoom' => 16,
+                    ],
                     'values' => [
                         ['Floor', '2'],
                         ['Parking', '6 parking spaces'],
@@ -239,6 +249,11 @@ class EstateDemo extends AbstractDemo
                     'rooms' => 5,
                     'year_built' => 2005,
                     'location' => 'The loft occupies a visible waterfront corner in HafenCity, surrounded by offices, apartments, hotels, and visitor destinations. Its broad frontage benefits from steady pedestrian movement throughout the working week and at weekends.',
+                    'map' => [
+                        'latitude' => 53.540759,
+                        'longitude' => 9.999568,
+                        'zoom' => 16,
+                    ],
                     'values' => [
                         ['Floor', 'Ground + 1'],
                         ['Parking', '1 valet bay'],
@@ -429,6 +444,11 @@ class EstateDemo extends AbstractDemo
     }
 
 
+    /**
+     * @param list<string> $fileIds
+     * @param array<string, mixed> $extra
+     * @return array<string, mixed>
+     */
     protected function property( string $text, array $fileIds, string $offerType, string $status, int|float $price, string $district, int|float $area, int $bedrooms, int $bathrooms, array $extra = [] ) : array
     {
         return ['id' => Utils::uid(), 'type' => 'estate::property', 'group' => 'main', 'files' => $fileIds, 'data' => [
@@ -456,12 +476,16 @@ class EstateDemo extends AbstractDemo
             'rooms' => $extra['rooms'] ?? null,
             'year_built' => $extra['year_built'] ?? null,
             'location' => $extra['location'] ?? null,
+            'map' => $extra['map'] ?? null,
             'values' => $extra['values'] ?? [],
             'features' => $extra['features'] ?? null,
         ]];
     }
 
 
+    /**
+     * @return array<string, mixed>
+     */
     protected function article( string $title, string $text, string $fileId ) : array
     {
         return ['id' => Utils::uid(), 'type' => 'article', 'group' => 'main', 'files' => [$fileId], 'data' => [
@@ -524,6 +548,7 @@ class EstateDemo extends AbstractDemo
         $logoId = $this->logoFile();
 
         $config = [
+            'website' => Validation::entry( 'website', ['title' => 'Estate'], 'config' ),
             'logo' => [
                 'type' => 'logo',
                 'files' => [$logoId],
@@ -648,6 +673,9 @@ class EstateDemo extends AbstractDemo
     }
 
 
+    /**
+     * @return list<string>
+     */
     protected function ids( mixed $value ) : array
     {
         $ids = [];
@@ -715,6 +743,12 @@ SVG;
     }
 
 
+    /**
+     * @param array<string, mixed> $data
+     * @param list<array<string, mixed>> $content
+     * @param list<string> $fileIds
+     * @param array<string, mixed> $meta
+     */
     protected function page( array $data, array $content, Page $parent, array $fileIds = [], array $meta = [] ) : Page
     {
         $elementId = $this->element();

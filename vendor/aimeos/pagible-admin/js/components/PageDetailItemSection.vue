@@ -2,7 +2,7 @@
 
 <script>
 import Fields from './Fields.vue'
-import SchemaItems from './SchemaItems.vue'
+import SchemaDialog from './SchemaDialog.vue'
 import { useUserStore, useMessageStore, useSchemaStore, useSideStore } from '../stores'
 import { hasProp, itemTitle } from '../utils'
 import { mdiPencil, mdiDelete, mdiViewGridPlus } from '@mdi/js'
@@ -10,7 +10,7 @@ import { mdiPencil, mdiDelete, mdiViewGridPlus } from '@mdi/js'
 export default {
   components: {
     Fields,
-    SchemaItems
+    SchemaDialog
   },
 
   props: {
@@ -106,6 +106,14 @@ export default {
       }
     },
 
+    showError() {
+      const idx = Object.values(this.entries).findIndex((el) => el._error)
+
+      if (idx >= 0 && !this.panel.includes(idx)) {
+        this.panel.push(idx)
+      }
+    },
+
     shown(el) {
       const valid = this.side.shown('state', 'valid')
       const error = this.side.shown('state', 'error')
@@ -188,7 +196,7 @@ export default {
               variant="text"
             />
             <div class="element-title">{{ title(el) }}</div>
-            <div class="element-type">{{ $pgettext('st', el.type) }}</div>
+            <div class="element-type">{{ $pgettext('st', el.type).replace('::', ' ') }}</div>
           </v-expansion-panel-title>
           <v-expansion-panel-text eager>
             <Fields
@@ -213,33 +221,17 @@ export default {
           :icon="mdiViewGridPlus"
           class="btn-add"
           color="primary"
-          variant="flat"
+          variant="tonal"
         />
       </div>
     </v-sheet>
   </v-container>
 
-  <Teleport to="body">
-    <v-dialog v-model="vschemas" @afterLeave="vschemas = false" scrollable width="auto">
-      <v-card>
-        <v-card-text>
-          <SchemaItems :type="section" @add="add($event)" />
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-  </Teleport>
+  <SchemaDialog v-model="vschemas" :elements="false" :type="section" @add="add($event)" />
 </template>
 
 <style scoped>
 .v-expansion-panel {
   border-inline-start: 3px solid transparent;
-}
-
-.v-expansion-panel.changed {
-  border-inline-start: 3px solid rgb(var(--v-theme-warning));
-}
-
-.v-expansion-panel.error .v-expansion-panel-title {
-  color: rgb(var(--v-theme-error));
 }
 </style>

@@ -26,6 +26,7 @@ const ALL_PERMISSIONS = {
   'page:purge': true,
   'page:publish': true,
   'page:synthesize': true,
+  'page:chat': true,
   'page:metrics': true,
   'text:translate': true,
   'text:write': true,
@@ -293,7 +294,7 @@ describe('Page Detail', () => {
     detailView().find('.menu-publish').should('have.class', 'active')
   })
 
-  it('shows schedule publish button', () => {
+  it('shows publish menu button', () => {
     visitPageDetail()
     detailView().find('.menu-publish').should('exist')
   })
@@ -306,6 +307,38 @@ describe('Page Detail', () => {
   it('shows translate button when user has text:translate permission', () => {
     visitPageDetail()
     detailView().find('.btn-translate-page .v-btn').should('exist')
+  })
+
+  it('opens AI chat and executes the page review question', () => {
+    visitPageDetail()
+    cy.intercept('POST', '**/cmsapi/chat', {
+      statusCode: 200,
+      headers: { 'content-type': 'text/plain' },
+      body: 'The page review is ready.',
+    }).as('chat')
+
+    detailView().find('.btn-review-page').click()
+    cy.contains('AI Assistant').should('be.visible')
+
+    cy.wait('@chat').its('request.body').should((body) => {
+      expect(body.prompt).to.eq('Rate this page and suggest improvements')
+      expect(body.context).to.contain('page with ID "1"')
+    })
+
+    cy.contains('.chat-row.user', 'Rate this page and suggest improvements').should('be.visible')
+    cy.contains('The page review is ready.').should('be.visible')
+  })
+
+  it('hides page review button without page:chat permission', () => {
+    const perms = { ...ALL_PERMISSIONS }
+    delete perms['page:chat']
+    const me = {
+      permission: JSON.stringify(perms),
+      email: 'editor@example.com',
+      name: 'Editor',
+    }
+    visitPageDetail({}, {}, me)
+    detailView().find('.btn-review-page').should('not.exist')
   })
 
   it('hides translate button when user lacks text:translate permission', () => {
@@ -414,11 +447,107 @@ describe('Page Detail', () => {
     waitForSavePage()
   })
 
+  // ---- Session expiry ----
+
+  /**
+   * Simulates an expired session on top of setupIntercept(): requests are rejected with
+   * 419 like Laravel does for an expired CSRF token until cmsLogin is sent with "secret".
+   * Handlers that don't reply fall through to the intercept registered by setupIntercept().
+   */
+  function expireSession() {
+    const session = { expired: true, logins: [], saves: 0 }
+
+    cy.intercept('GET', '**/cmsapi/csrf*', { statusCode: 200, body: { token: 'renewed' } })
+    cy.intercept('POST', '/graphql', (req) => {
+      const ops = Array.isArray(req.body) ? req.body : [req.body]
+      const login = ops.find((op) => (op.query || '').includes('cmsLogin'))
+
+      if (login) {
+        session.logins.push(login.variables)
+        session.expired = login.variables?.password !== 'secret'
+
+        if (session.expired) {
+          const error = { errors: [{ message: 'Invalid credentials' }] }
+          req.reply(Array.isArray(req.body) ? [error] : error)
+        }
+        return
+      }
+
+      if (ops.some((op) => (op.query || '').includes('savePage'))) {
+        session.saves++
+      }
+
+      if (session.expired) {
+        req.reply({ statusCode: 419, body: { message: 'CSRF token mismatch.' } })
+      }
+    })
+
+    return session
+  }
+
+  it('asks to sign in again when the session expired and saves the changes afterwards', () => {
+    visitPageDetail({}, { published: true })
+    detailView().find('.v-tab').contains('Page').click()
+    detailView().find('input[maxlength="30"]').first().clear().type('Updated Name')
+
+    const session = expireSession()
+    detailView().find('.menu-save').should('not.be.disabled').click()
+
+    cy.contains('.v-dialog:visible', 'Session expired').should('be.visible')
+    cy.get('.v-dialog:visible input[readonly]').should('have.value', 'admin@example.com')
+
+    cy.get('.v-dialog:visible input[type=password]').type('wrong{enter}')
+    cy.contains('.v-dialog:visible .v-alert', 'Invalid credentials').should('be.visible')
+    cy.wrap(session).its('saves').should('eq', 1)
+
+    cy.get('.v-dialog:visible input[type=password]').clear().type('secret{enter}')
+    cy.contains('.v-dialog', 'Session expired').should('not.exist')
+
+    // the rejected save is sent again with the renewed session and the edits are kept
+    cy.wrap(session).its('saves').should('eq', 2)
+    cy.wrap(session)
+      .its('logins')
+      .should('deep.equal', [
+        { email: 'admin@example.com', password: 'wrong' },
+        { email: 'admin@example.com', password: 'secret' },
+      ])
+    detailView().find('input[maxlength="30"]').first().should('have.value', 'Updated Name')
+    cy.url().should('include', '/pages/')
+  })
+
+  it('sends the AI chat prompt again after signing in again', () => {
+    visitPageDetail()
+
+    const session = expireSession()
+    let prompts = 0
+
+    cy.intercept('POST', '**/cmsapi/chat', (req) => {
+      prompts++
+      req.reply(
+        session.expired
+          ? { statusCode: 419, body: 'CSRF token mismatch.' }
+          : { statusCode: 200, headers: { 'content-type': 'text/plain' }, body: 'The page review is ready.' }
+      )
+    })
+
+    detailView().find('.btn-review-page').click()
+    cy.contains('.v-dialog:visible', 'Session expired').should('be.visible')
+    // the chat dialog below focuses itself when its transition ends, wait until both are open
+    cy.get('.v-overlay__content').should(($el) => {
+      $el.each((i, el) => expect(el.getAnimations()).to.have.length(0))
+    })
+    cy.get('.v-dialog:visible input[type=password]').should('have.focus').type('secret{enter}')
+
+    cy.contains('The page review is ready.').should('be.visible')
+    cy.then(() => expect(prompts).to.eq(2))
+  })
+
   // ---- Publish ----
 
   it('clicking publish fires pubPage mutation for unpublished page', () => {
     visitPageDetail({ latest: { ...makePage().latest, published: false } }, { published: false })
-    detailView().find('.menu-publish').last().click()
+    detailView().find('.menu-publish').click()
+    cy.get('.v-overlay--active .menu-publish-now').click()
     // Wait for the pubPage mutation, skipping any intermediate queries
     function waitForPubPage() {
       return cy.wait('@gql').then((interception) => {
@@ -433,9 +562,9 @@ describe('Page Detail', () => {
     waitForPubPage()
   })
 
-  it('schedule publish button opens date picker', () => {
+  it('publish menu opens date picker', () => {
     visitPageDetail({ latest: { ...makePage().latest, published: false } }, { published: false })
-    detailView().find('.menu-publishat').click()
+    detailView().find('.menu-publish').click()
     cy.get('.v-date-picker', { timeout: 5000 }).should('exist')
   })
 

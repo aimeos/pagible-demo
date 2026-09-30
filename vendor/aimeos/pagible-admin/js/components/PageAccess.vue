@@ -2,6 +2,7 @@
 
 <script>
 import gql from 'graphql-tag'
+import { invalidateList } from '../graphql'
 import { useMessageStore } from '../stores'
 import { debounce, PAGE_BULK_LIMIT } from '../utils'
 
@@ -97,6 +98,7 @@ export default {
 
         if (response.errors) throw response.errors
 
+        invalidateList(this.$apollo.provider.defaultClient.cache, 'pages')
         this.$emit('applied', this.value, descendants)
       } catch (error) {
         this.messages.add(this.$gettext('Error changing page access') + ':\n' + error, 'error')
@@ -167,7 +169,12 @@ export default {
   <v-container class="page-access">
     <p class="hint">{{ $gettext('Access changes take effect immediately after cache expiry') }}</p>
 
-    <v-radio-group v-model="mode" :disabled="saving" @update:model-value="select">
+    <v-radio-group
+      v-model="mode"
+      :label="$gettext('Visibility') + ' ‒ ' + $gettext('Public pages are visible to everyone, others only to logged in users or users with the selected roles')"
+      :disabled="saving"
+      @update:model-value="select"
+    >
       <v-radio value="public" :label="$gettext('Public')" />
       <v-radio value="authenticated" :label="$gettext('Authenticated users')" />
       <v-radio value="restricted" :label="$gettext('Restricted')" />
@@ -177,7 +184,7 @@ export default {
       v-if="mode === 'restricted'"
       v-model="values"
       :items="items"
-      :label="$gettext('Access')"
+      :label="$gettext('Access') + ' ‒ ' + $gettext('Only visitors with one of these roles can view the page')"
       :loading="loading"
       :disabled="saving"
       variant="underlined"
@@ -193,7 +200,8 @@ export default {
     <div class="actions">
       <v-btn
         class="btn-apply-access"
-        variant="outlined"
+        variant="tonal"
+        color="primary"
         :loading="saving"
         :disabled="!valid || limited"
         @click="apply(false)"

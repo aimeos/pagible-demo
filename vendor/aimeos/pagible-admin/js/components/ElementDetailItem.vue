@@ -72,7 +72,7 @@ export default {
             :modelValue="item.name"
             @update:modelValue="update('name', $event)"
             variant="underlined"
-            :label="$gettext('Name')"
+            :label="$gettext('Name') + ' ‒ ' + $gettext('Name to find the shared element in the element list')"
             counter="255"
             maxlength="255"
           ></v-text-field>
@@ -85,7 +85,7 @@ export default {
             :modelValue="item.lang"
             @update:modelValue="update('lang', $event)"
             variant="underlined"
-            :label="$gettext('Language')"
+            :label="$gettext('Language') + ' ‒ ' + $gettext('Language of the element content, choose none if used in all languages')"
           ></v-select>
         </v-col>
       </v-row>
@@ -110,6 +110,6 @@ export default {
 
 <style scoped>
 .v-sheet.scroll {
-  max-height: calc(100vh - 96px);
+  height: calc(100vh - 96px);
 }
 </style>

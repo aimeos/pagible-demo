@@ -1,5 +1,6 @@
+import { reactive } from 'vue'
 import FileListItems from '../../../js/components/FileListItems.vue'
-import { useUserStore } from '../../../js/stores'
+import { useMessageStore, useUserStore } from '../../../js/stores'
 
 const stubs = {
 }
@@ -22,7 +23,12 @@ function mountList(props = {}, perms = {}, apollo = {}) {
             data: { files: { data: [], paginatorInfo: { lastPage: 1 } } },
           }),
           mutate: () => Promise.resolve({ data: {} }),
-          provider: { defaultClient: { cache: { evict() {}, gc() {} } } },
+          provider: {
+            defaultClient: {
+              cache: { diff: () => ({ complete: true }), evict() {}, gc() {} },
+              clearStore: () => Promise.resolve(),
+            },
+          },
           ...apollo,
         },
       },
@@ -36,6 +42,14 @@ function mountList(props = {}, perms = {}, apollo = {}) {
 }
 
 describe('FileListItems', () => {
+  beforeEach(() => {
+    document.querySelector('[data-cy-root]').id = 'app'
+  })
+
+  afterEach(() => {
+    document.querySelector('#app')?.removeAttribute('data-reverb')
+  })
+
   it('renders the component', () => {
     mountList({}, { 'file:view': true })
     cy.get('.header').should('exist')
@@ -59,7 +73,7 @@ describe('FileListItems', () => {
   it('shows title-case sort options', () => {
     mountList({}, { 'file:view': true })
     cy.get('.btn-sort button').click()
-    cy.get('.v-overlay .v-btn').then(($buttons) => {
+    cy.get('.v-overlay .v-list .v-btn').then(($buttons) => {
       expect([...$buttons].map((button) => button.textContent.trim())).to.deep.equal([
         'Latest', 'Oldest', 'Latest edit', 'Oldest edit', 'Name', 'MIME', 'Language', 'Editor', 'Usage'
       ])
@@ -74,7 +88,7 @@ describe('FileListItems', () => {
     mountList({}, { 'file:view': true }, { query })
 
     cy.get('.btn-sort button').click()
-    cy.contains('.v-overlay .v-btn', 'Latest edit').click()
+    cy.contains('.v-overlay .v-list .v-btn', 'Latest edit').scrollIntoView().click()
     cy.get('.btn-sort button').should('contain', 'Latest edit')
     cy.then(() => {
       expect(query.lastCall.args[0].variables.sort).to.deep.equal([
@@ -83,7 +97,7 @@ describe('FileListItems', () => {
     })
 
     cy.get('.btn-sort button').click()
-    cy.contains('.v-overlay .v-btn', 'Oldest edit').click()
+    cy.contains('.v-overlay .v-list .v-btn', 'Oldest edit').scrollIntoView().click()
     cy.get('.btn-sort button').should('contain', 'Oldest edit')
     cy.then(() => {
       expect(query.lastCall.args[0].variables.sort).to.deep.equal([
@@ -149,6 +163,7 @@ describe('FileListItems', () => {
           disk: 'private',
           file,
         })
+        expect(mutate.firstCall.args[0].context).to.deep.equal({ hasUpload: true })
       })
     })
   })
@@ -221,6 +236,74 @@ describe('FileListItems', () => {
     cy.get('button.btn-reload').should('exist')
   })
 
+  it('uses the Apollo cache for file queries', () => {
+    document.querySelector('#app').dataset.reverb = '{}'
+    const query = cy.stub().resolves({
+      data: { files: { data: [], paginatorInfo: { lastPage: 1 } } },
+    })
+
+    mountList({ embed: true }, { 'file:view': true }, { query }).then(({ wrapper }) => {
+      return wrapper.findComponent(FileListItems).vm.search().then(() => {
+        expect(query.lastCall.args[0].fetchPolicy).to.equal('cache-first')
+      })
+    })
+  })
+
+  it('requeries an evicted file list when reactivated', () => {
+    document.querySelector('#app').dataset.reverb = '{}'
+    const query = cy.stub().resolves({
+      data: { files: { data: [], paginatorInfo: { lastPage: 1 } } },
+    })
+    const diff = cy.stub().returns({ complete: false })
+
+    mountList({ embed: true }, { 'file:view': true }, {
+      query,
+      provider: {
+        defaultClient: {
+          cache: { diff, evict() {}, gc() {} },
+          clearStore: () => Promise.resolve(),
+        },
+      },
+    }).then(({ wrapper }) => {
+      const vm = wrapper.findComponent(FileListItems).vm
+      const calls = query.callCount
+      vm.loading = false
+
+      return vm.revalidate().then(() => {
+        expect(diff).to.have.been.calledOnce
+        expect(query.callCount).to.equal(calls + 1)
+      })
+    })
+  })
+
+  it('clears the complete Apollo cache before a manual reload', () => {
+    const calls = []
+    const query = cy.stub().callsFake(() => {
+      calls.push('query')
+      return Promise.resolve({
+        data: { files: { data: [], paginatorInfo: { lastPage: 1 } } },
+      })
+    })
+    const clearStore = cy.stub().callsFake(() => {
+      calls.push('clearStore')
+      return Promise.resolve()
+    })
+
+    mountList({}, { 'file:view': true }, {
+      query,
+      provider: {
+        defaultClient: {
+          cache: { diff: () => ({ complete: true }), evict() {}, gc() {} },
+          clearStore,
+        },
+      },
+    }).then(({ wrapper }) => {
+      return wrapper.findComponent(FileListItems).vm.reload().then(() => {
+        expect(calls).to.deep.equal(['clearStore', 'query'])
+      })
+    })
+  })
+
   it('shows loading state initially', () => {
     mountList({}, { 'file:view': true })
     cy.contains('Loading').should('exist')
@@ -258,5 +341,75 @@ describe('FileListItems', () => {
         expect([...vm.checked]).to.deep.equal(['file-2'])
       })
     })
+  })
+
+  it('toggles the focused file with Space and drops it with Del', () => {
+    const mutate = cy.stub().resolves({ data: { dropFile: [] } })
+    const file = (id, attr = {}) => ({ id, name: id, mime: 'text/plain', path: id + '.txt', previews: {}, ...attr })
+    const press = (selector, key) => cy.get(selector).then(($el) => {
+      const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+      $el[0].dispatchEvent(ev)
+      return ev.defaultPrevented
+    })
+
+    mountList({}, { 'file:view': true, 'file:drop': true }, { mutate }).then(({ wrapper }) => {
+      wrapper.findComponent(FileListItems).vm.items = [file('file-1'), file('file-2', { deleted_at: '2026-01-01 00:00:00' })]
+    })
+
+    press('.items [data-id="file-1"] .item-content', ' ').should('equal', true)
+    cy.get('.items [data-id="file-1"] .item-check input').should('be.checked')
+
+    press('.items [data-id="file-1"] .item-check input', ' ').should('equal', false) // the checkbox toggles itself
+    cy.get('.items [data-id="file-1"] .item-check input').should('be.checked')
+
+    press('.items [data-id="file-2"] .item-content', 'Delete') // already in the trash
+    press('.items [data-id="file-1"] .item-content', 'Delete')
+    cy.wrap(mutate).should('have.been.calledOnce').then(() => {
+      expect(mutate.firstCall.args[0].variables).to.deep.equal({ id: ['file-1'] })
+    })
+  })
+
+  it('offers undo after trashing files', () => {
+    const mutate = cy.stub().resolves({ data: {} })
+
+    mountList({}, { 'file:view': true, 'file:drop': true, 'file:keep': true }, { mutate }).then(({ wrapper }) => {
+      const messages = useMessageStore()
+      messages.queue = []
+
+      wrapper.findComponent(FileListItems).vm.drop({ id: 'file-1' })
+
+      cy.wrap(messages).its('queue.length').should('equal', 1).then(() => {
+        const item = messages.queue[0]
+        expect(item.text).to.equal('Moved to trash')
+        expect(messages.action(item['data-action']).label).to.equal('Undo')
+
+        messages.run(item['data-action'])
+        expect(messages.action(item['data-action'])).to.equal(null)
+      })
+
+      cy.wrap(mutate).should('have.been.calledTwice').then(() => {
+        expect(mutate.secondCall.args[0].variables).to.deep.equal({ id: ['file-1'] })
+      })
+    })
+  })
+
+  it('shows reset button for filtered empty lists', () => {
+    const defaults = { trashed: 'WITHOUT', publish: null, editor: null, lang: null }
+    const filter = reactive({ ...defaults, publish: 'DRAFT' })
+
+    mountList({ defaults, filter }, { 'file:view': true }).then(({ wrapper }) => wrapper.findComponent(FileListItems).vm.search())
+    cy.get('.notfound').should('contain', 'No entries found')
+    cy.get('.notfound .btn-reset-filter').click()
+    cy.get('.notfound').should('contain', 'No entries yet').then(() => {
+      expect(filter.publish).to.equal(null)
+    })
+  })
+
+  it('shows no entries yet for unfiltered empty lists', () => {
+    const defaults = { trashed: 'WITHOUT', publish: null, editor: null, lang: null }
+
+    mountList({ defaults, filter: { ...defaults } }, { 'file:view': true }).then(({ wrapper }) => wrapper.findComponent(FileListItems).vm.search())
+    cy.get('.notfound').should('contain', 'No entries yet')
+    cy.get('.notfound .btn-reset-filter').should('not.exist')
   })
 })

@@ -3,19 +3,61 @@
  */
 
 import gettext from './i18n'
+import { toRaw } from 'vue'
 import { useAppStore, useLanguageStore } from './stores'
+
+export { frozenParse, safeParse, sanitize } from './json'
 
 
 export const IMAGE_MIME_FILTER = { mime: ['image/gif', 'image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'] }
 
-export const MEDIA_MIME_FILTER = { mime: ['image/gif', 'image/jpeg', 'image/png', 'image/svg+xml', 'image/webp', 'video/mp4', 'video/webm', 'video/ogg'] }
+export const AUDIO_MIME_FILTER = { mime: ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/ogg', 'audio/webm', 'audio/wav', 'audio/wave', 'audio/x-wav', 'audio/vnd.wave', 'audio/flac', 'audio/x-flac'] }
+
+export const VIDEO_MIME_FILTER = { mime: ['video/mp4', 'video/webm', 'video/ogg'] }
+
+export const MEDIA_MIME_FILTER = { mime: [...IMAGE_MIME_FILTER.mime, ...VIDEO_MIME_FILTER.mime] }
 
 export const PAGE_BULK_LIMIT = 1000
 
+// Wraps the browser navigation so it can be replaced in tests
+export const browser = {
+  assign(url) {
+    window.location.assign(url)
+  }
+}
+
 /**
- * Keys that can pollute object prototypes when merged into existing objects
+ * Deep clones a value, unwrapping reactive proxies at every level. structuredClone()
+ * alone fails on nested proxies (e.g. from spreading reactive objects).
+ *
+ * @param {*} value Value to clone
+ * @returns {*} Plain deep copy of the value
  */
-const UNSAFE_KEYS = ['__proto__', 'constructor', 'prototype']
+export function clone(value) {
+  value = toRaw(value)
+
+  if (Array.isArray(value)) {
+    return value.map(clone)
+  }
+
+  if (value === null || typeof value !== 'object') {
+    return value
+  }
+
+  const proto = Object.getPrototypeOf(value)
+
+  if (proto !== Object.prototype && proto !== null) {
+    return structuredClone(value)
+  }
+
+  const copy = {}
+
+  for (const key of Object.keys(value)) {
+    copy[key] = clone(value[key])
+  }
+
+  return copy
+}
 
 /**
  * Creates a debounced version of a function that returns a Promise. The returned function
@@ -59,74 +101,28 @@ export function empty(val) {
 }
 
 /**
- * Parses a JSON string, strips prototype-polluting keys and freezes the result
+ * Validates a form, scrolls to the first visible invalid input and focuses it
  *
- * @param {string} str JSON string to parse
- * @returns {Object} Frozen parsed object with unsafe keys removed
+ * Validating the form is required because inputs only show their errors after the
+ * user interacted with them, e.g. empty required fields aren't highlighted otherwise.
+ *
+ * @param {Object} form VForm component instance
+ * @returns {Promise<boolean>} True if an invalid input has been focused
  */
-export function frozenParse(str) {
-  try {
-    return Object.freeze(
-      JSON.parse(str || '{}', (key, value) =>
-        UNSAFE_KEYS.includes(key) ? undefined : value
-      ) || {}
-    )
-  } catch {
-    return Object.freeze({})
-  }
-}
+export async function focusInvalid(form) {
+  const result = await form?.validate()
 
-/**
- * Parses a JSON string, stripping keys that can pollute object prototypes
- *
- * Removes `__proto__`, `constructor` and `prototype` keys at every nesting
- * level so the result can be safely merged onto existing objects (e.g. via
- * Object.assign) without altering their prototype chain.
- *
- * @param {string} str JSON string to parse
- * @param {*} fallback Value returned when the string is empty or parsing fails (default: {})
- * @returns {*} Parsed value with unsafe keys removed
- */
-export function safeParse(str, fallback = {}) {
-  try {
-    // Empty input parses to null so it yields the caller's fallback (e.g. ['en']) rather
-    // than {}; for the default {} fallback this is identical (null ?? {} === {}).
-    return (
-      JSON.parse(str || 'null', (key, value) =>
-        UNSAFE_KEYS.includes(key) ? undefined : value
-      ) ?? fallback
-    )
-  } catch {
-    return fallback
-  }
-}
+  for (const { id } of result?.errors || []) {
+    const input = document.getElementById(id)
 
-/**
- * Recursively removes prototype-polluting keys from an already-parsed value
- *
- * Mirror of safeParse() for data that arrives as an object (e.g. realtime
- * broadcast payloads) rather than a JSON string, so it can be safely merged
- * onto existing objects via Object.assign without altering their prototype.
- *
- * @param {*} value Parsed value (object, array or primitive)
- * @returns {*} Clean copy with __proto__, constructor and prototype keys removed
- */
-export function sanitize(value) {
-  if (Array.isArray(value)) {
-    return value.map(sanitize)
-  }
-
-  if (value && typeof value === 'object') {
-    const out = {}
-    for (const key in value) {
-      if (!UNSAFE_KEYS.includes(key) && Object.prototype.hasOwnProperty.call(value, key)) {
-        out[key] = sanitize(value[key])
-      }
+    if (input && input.getClientRects().length) {
+      input.closest('.v-input')?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+      input.focus({ preventScroll: true })
+      return true
     }
-    return out
   }
 
-  return value
+  return false
 }
 
 /**
@@ -193,6 +189,18 @@ export function itemTitle(data) {
  */
 let localesCache = null
 let localesCacheKey = null
+
+/**
+ * Returns the URL of the login page of the application for single sign-on
+ *
+ * @param {String} template Login page URL (cms.admin.login), may contain the "_url_" placeholder
+ * @param {String} back URL the login page should return to afterwards
+ * @returns {String} Login page URL
+ */
+export function loginUrl(template, back = window.location.href) {
+  return template.replace('_url_', encodeURIComponent(back))
+}
+
 
 export function locales(none = false) {
   const languages = useLanguageStore()

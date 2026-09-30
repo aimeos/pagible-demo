@@ -19,8 +19,32 @@ After installation, the configuration is available in `config/cms/theme.php`:
 | `stale` | `CMS_THEME_STALE` | `10` | Seconds an expired complete page remains available during revalidation |
 | `ttl` | `CMS_THEME_TTL` | `86400` (or `0` in debug) | Time-to-live for cached pages in seconds; `0` disables caching |
 | `disk` | `CMS_THEME_DISK` | | Filesystem disk for tenant-uploaded themes; disabled if unconfigured |
-| `sitemap` | `CMS_SITEMAP` | `sitemap` | URL path prefix for XML sitemap (`/{sitemap}.xml`) |
+| `sitemap` | `CMS_SITEMAP` | `sitemap` | URL path prefix for XML and news sitemaps (`/{sitemap}.xml`, `/{sitemap}-news.xml`) |
 | `pageroute` | `CMS_PAGEROUTE` | `{}` | JSON object with catch-all page route options (Laravel route group) |
+
+### robots.txt
+
+The `/robots.txt` route always advertises the main and news sitemap using the
+configured `sitemap` prefix. Fresh Laravel applications also contain a static
+`public/robots.txt`, which the development and common production web servers serve
+before Laravel routing. If it contains custom rules, first copy them into the
+`robots.txt` configuration element on a root page and publish the change. Then
+remove the static file to make the dynamic route reachable:
+
+```bash
+rm public/robots.txt
+```
+
+Alternatively, configure the web server to pass `/robots.txt` to Laravel even when
+the static file exists.
+
+Pagible emits the published rules before the generated sitemap declarations and
+avoids duplicating either built-in sitemap URL when it is already present in the
+configured text. Invalid UTF-8, unsupported control characters and content exceeding
+the 500 KiB crawler interoperability limit are ignored while the generated sitemap
+declarations remain available. The schema limit provides early editor feedback in
+characters; the public controller separately enforces the response budget in encoded
+bytes. Responses include an ETag and support conditional requests.
 
 ### Authenticated page caching
 
@@ -89,13 +113,13 @@ Installations using only the core package remain independent of frontend caching
 
 ### Content Security Policy
 
-CSP directives are configured under the `csp` key, with defaults for hCaptcha:
+CSP directives are configured under the `csp` key, with defaults for hCaptcha and OpenStreetMap embeds:
 
 | Option | Env Variable | Default |
 |--------|-------------|---------|
 | `csp.media-src` | `CMS_CSP_MEDIA_SRC` | |
 | `csp.style-src` | `CMS_CSP_STYLE_SRC` | `https://hcaptcha.com https://*.hcaptcha.com` |
-| `csp.frame-src` | `CMS_CSP_FRAME_SRC` | `https://hcaptcha.com https://*.hcaptcha.com` |
+| `csp.frame-src` | `CMS_CSP_FRAME_SRC` | `https://hcaptcha.com https://*.hcaptcha.com https://www.openstreetmap.org` |
 | `csp.script-src` | `CMS_CSP_SCRIPT_SRC` | `https://hcaptcha.com https://*.hcaptcha.com` |
 | `csp.connect-src` | `CMS_CSP_CONNECT_SRC` | `https://hcaptcha.com https://*.hcaptcha.com` |
 

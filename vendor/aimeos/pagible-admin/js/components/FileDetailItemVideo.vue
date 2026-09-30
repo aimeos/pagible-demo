@@ -2,6 +2,7 @@
 
 <script>
 import gql from 'graphql-tag'
+import { invalidateList } from '../graphql'
 import { useUserStore, useMessageStore } from '../stores'
 import { fileurl, safeParse } from '../utils'
 import { mdiTooltipImage, mdiImagePlus } from '@mdi/js'
@@ -109,6 +110,7 @@ export default {
                 throw response.errors
               }
 
+              invalidateList(this.$apollo.provider.defaultClient.cache, 'files')
               const latest = response.data?.saveFile?.latest
 
               if (latest) {
@@ -150,6 +152,7 @@ export default {
             throw response.errors
           }
 
+          invalidateList(this.$apollo.provider.defaultClient.cache, 'files')
           const latest = response.data?.saveFile?.latest
 
           if (latest) {
@@ -195,6 +198,7 @@ export default {
             throw response.errors
           }
 
+          invalidateList(this.$apollo.provider.defaultClient.cache, 'files')
           const latest = response.data?.saveFile?.latest
 
           if (latest) {
@@ -263,22 +267,6 @@ export default {
 .element {
   max-width: 100%;
   max-height: 100%;
-}
-
-.toolbar {
-  gap: 8px;
-  width: 100%;
-  display: flex;
-  padding: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-  background-color: rgb(var(--v-theme-background));
-}
-
-@media (max-width: 768px) {
-  .toolbar {
-    width: auto;
-  }
 }
 
 img.video-preview {

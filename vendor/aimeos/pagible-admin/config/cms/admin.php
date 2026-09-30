@@ -15,41 +15,83 @@ return [
     'colors' => [
         'light' => [
             'colors' => [
-                'background' => '#F8FAFC',
+                'background' => '#1E293B',
                 'surface' => '#FFFFFF',
-                'primary' => '#002F6C',
-                'primary-darken-1' => '#001F4D',
-                'secondary' => '#10B981',
-                'secondary-darken-1' => '#059669',
-                'error' => '#EF4444',
-                'info' => '#3B82F6',
-                'success' => '#10B981',
-                'warning' => '#F59E0B',
+                'surface-light' => '#EEF2F6',
+                'emphasis' => '#F5F6FB',
+                'on-emphasis' => '#1E1B4B',
+                'primary' => '#1D4ED8',
+                'primary-darken-1' => '#1E40AF',
+                'secondary' => '#7C3AED',
+                'secondary-darken-1' => '#6D28D9',
+                'error' => '#DC2626',
+                'info' => '#0369A1',
+                'success' => '#0F766E',
+                'warning' => '#B45309',
                 'map-accent' => '#FFD700',
+                'nav-accent' => '#60A5FA',
                 'text-primary' => '#0F172A',
                 'text-secondary' => '#64748B',
-                'border-light' => '#E2E8F0',
+                'border-light' => '#E0E3F0',
+                'on-primary' => '#FFFFFF',
+                'on-secondary' => '#FFFFFF',
+                'on-error' => '#FFFFFF',
+                'on-info' => '#FFFFFF',
+                'on-success' => '#FFFFFF',
+                'on-warning' => '#FFFFFF',
+            ],
+            'variables' => [
+                'selected-opacity' => '0.25',
             ],
         ],
         'dark' => [
             'colors' => [
                 'background' => '#0F172A',
-                'surface' => '#1E293B',
-                'primary' => '#3B82F6',
-                'primary-darken-1' => '#2563EB',
-                'secondary' => '#34D399',
-                'secondary-darken-1' => '#10B981',
+                'surface' => '#141E33',
+                'surface-light' => '#323A42',
+                'emphasis' => '#2B3A59',
+                'on-emphasis' => '#EEF0FF',
+                'primary' => '#60A5FA',
+                'primary-darken-1' => '#3B82F6',
+                'secondary' => '#A78BFA',
+                'secondary-darken-1' => '#8B5CF6',
                 'error' => '#F87171',
-                'info' => '#60A5FA',
-                'success' => '#34D399',
+                'info' => '#38BDF8',
+                'success' => '#2DD4BF',
                 'warning' => '#FBBF24',
                 'map-accent' => '#FDE047',
+                'nav-accent' => '#60A5FA',
                 'text-primary' => '#F1F5F9',
                 'text-secondary' => '#94A3B8',
-                'border-light' => '#334155',
+                'border-light' => '#323754',
+                'on-primary' => '#0F172A',
+                'on-secondary' => '#0F172A',
+                'on-error' => '#0F172A',
+                'on-info' => '#0F172A',
+                'on-success' => '#0F172A',
+                'on-warning' => '#0F172A',
+            ],
+            'variables' => [
+                'selected-opacity' => '0.25',
             ],
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Login page
+    |--------------------------------------------------------------------------
+    |
+    | URL of the login page of the application if users don't sign in with
+    | their e-mail and password, e.g. when using single sign-on. If the
+    | session expires while editing, the admin panel opens this page in a new
+    | tab instead of asking for the password and continues afterwards.
+    | The "_url_" placeholder is replaced by the URL of the admin panel,
+    | e.g. "https://example.com/login?redirect=_url_", so the login page can
+    | return there after the user signed in.
+    |
+    */
+    'login' => env( 'CMS_ADMIN_LOGIN' ),
 
     /*
     |--------------------------------------------------------------------------

@@ -3,8 +3,9 @@
 <script>
 import gql from 'graphql-tag'
 import Fields from './Fields.vue'
+import ActionMenu from './ActionMenu.vue'
 import { defineAsyncComponent, markRaw } from 'vue'
-import { VueDraggable } from 'vue-draggable-plus'
+import VirtualList from 'vue-virtual-sortable'
 import {
   useUserStore,
   useClipboardStore,
@@ -14,7 +15,10 @@ import {
 } from '../stores'
 import { changedState } from '../merge'
 import { FILE_FIELDS, normalizeFile } from '../files'
-import { debounce, frozenParse, itemTitle, safeParse, uid } from '../utils'
+import { invalidateList } from '../graphql'
+import { editable } from '../shortcuts'
+import { clone, debounce, frozenParse, itemTitle, safeParse, uid } from '../utils'
+import { reveal, scrollParent } from '../virtual'
 import {
   mdiMenuDown,
   mdiContentCopy,
@@ -24,7 +28,6 @@ import {
   mdiDelete,
   mdiMagnify,
   mdiDotsVertical,
-  mdiClose,
   mdiArrowUp,
   mdiArrowDown,
   mdiLink,
@@ -67,9 +70,10 @@ const ADD_ELEMENT = gql`
 
 export default {
   components: {
+    ActionMenu,
     Fields,
     SchemaDialog,
-    VueDraggable
+    VirtualList
   },
 
   props: {
@@ -92,8 +96,8 @@ export default {
     lastError: false,
     refining: false,
     panel: [],
-    menu: null,
     index: null,
+    scroller: null,
     checked: false,
     vchange: false,
     vschemas: false,
@@ -123,7 +127,6 @@ export default {
       mdiDelete,
       mdiMagnify,
       mdiDotsVertical,
-      mdiClose,
       mdiArrowUp,
       mdiArrowDown,
       mdiLink,
@@ -142,6 +145,12 @@ export default {
   computed: {
     checkedCount() {
       return this.content.filter((el) => el._checked).length
+    },
+
+    keeps() {
+      return this.content.some((el) => !this.shown(el))
+        ? Math.max(this.content.length, 30)
+        : 30
     }
   },
 
@@ -161,14 +170,14 @@ export default {
 
       if (idx !== null) {
         this.content.splice(idx, 0, entry)
-        this.panel.push(this.panel.includes(idx) ? idx + 1 : idx)
       } else {
         this.content.push(entry)
-        this.panel.push(this.content.length - 1)
       }
 
+      this.panel.push(entry.id)
       this.vschemas = false
       this.$emit('update:content', this.content)
+      reveal(this.$refs.list, entry.id, idx === null ? 'bottom' : 'auto')
     },
 
     change(idx) {
@@ -198,14 +207,14 @@ export default {
       if (idx === undefined) {
         for (let i = this.content.length - 1; i >= 0; i--) {
           if (this.content[i]._checked) {
-            const entry = structuredClone(this.content[i])
+            const entry = clone(this.content[i])
             entry._checked = false
             entry['id'] = null
             list.push(entry)
           }
         }
       } else {
-        const entry = structuredClone(this.content[idx])
+        const entry = clone(this.content[idx])
         entry._checked = false
         entry['id'] = null
         list.push(entry)
@@ -231,14 +240,14 @@ export default {
       if (idx === undefined) {
         for (let i = this.content.length - 1; i >= 0; i--) {
           if (this.content[i]._checked) {
-            const [entry] = this.content.splice(i, 1)
+            const entry = this.take(i)
             entry._checked = false
             entry.id = null
             list.push(entry)
           }
         }
       } else {
-        const [entry] = this.content.splice(idx, 1)
+        const entry = this.take(idx)
         entry._checked = false
         entry.id = null
         list.push(entry)
@@ -284,14 +293,8 @@ export default {
           this.content[i]._checked &&
           ['text', 'code', 'heading'].includes(this.content[i].type)
         ) {
-          entries.push(this.content[i])
-          this.content.splice(i, 1)
+          entries.push(this.take(i))
           idx = i
-
-          const pi = this.panel.indexOf(i)
-          if (pi !== -1) {
-            this.panel.splice(pi, 1)
-          }
         }
       }
 
@@ -311,6 +314,48 @@ export default {
       this.$emit('update:content', this.content)
     },
 
+    move(ev, el) {
+      const dir = { ArrowUp: -1, ArrowDown: 1 }[ev.key]
+
+      if (
+        !dir ||
+        !ev.altKey ||
+        ev.ctrlKey ||
+        ev.metaKey ||
+        ev.shiftKey ||
+        !this.user.can('page:save') ||
+        editable(ev.target)
+      ) {
+        return
+      }
+
+      ev.preventDefault()
+      ev.stopPropagation()
+
+      const idx = this.content.indexOf(el)
+      let pos = idx + dir
+
+      // skip elements hidden by the search or the side panel filters
+      while (pos >= 0 && pos < this.content.length && !this.shown(this.content[pos])) {
+        pos += dir
+      }
+
+      if (idx === -1 || pos < 0 || pos >= this.content.length) {
+        return
+      }
+
+      this.content.splice(pos, 0, this.content.splice(idx, 1)[0])
+      this.$emit('update:content', this.content)
+
+      this.$nextTick(() => {
+        const key = CSS.escape(String(el.id))
+        const handle = this.$refs.list?.$el?.querySelector(`.content[data-key="${key}"] .item-handle`)
+
+        handle?.scrollIntoView?.({ block: 'nearest' })
+        handle?.focus()
+      })
+    },
+
     openSchemas() {
       this.index = null
       this.vschemas = true
@@ -322,7 +367,7 @@ export default {
       }
 
       const entries = (this.clipboard.get('page-content') || []).map((el) => {
-        return { ...el, group: this.section, id: uid() }
+        return { ...el, group: this.section, id: uid(), _changed: true }
       })
 
       this.content.splice(idx, 0, ...entries)
@@ -332,7 +377,7 @@ export default {
     purge() {
       for (let i = this.content.length - 1; i >= 0; i--) {
         if (this.content[i]._checked) {
-          this.content.splice(i, 1)
+          this.take(i)
         }
       }
 
@@ -426,7 +471,7 @@ export default {
     },
 
     remove(idx) {
-      this.content.splice(idx, 1)
+      this.take(idx)
       this.error()
       this.$emit('update:content', this.content)
     },
@@ -441,25 +486,19 @@ export default {
     },
 
     search(term) {
-      if (term) {
-        term = term.toLocaleLowerCase().trim()
+      term = term?.toLocaleLowerCase().trim()
 
-        this.content.forEach((el) => {
-          const data = (el.type === 'reference' ? this.elements[el.refid] : el)?.data || {}
-          let found = false
+      this.content.forEach((el) => {
+        const data = (el.type === 'reference' ? this.elements[el.refid] : el)?.data || {}
+        const found = Object.values(data).some((value) =>
+          value &&
+          typeof value !== 'object' &&
+          typeof value !== 'boolean' &&
+          String(value).toLocaleLowerCase().includes(term)
+        )
 
-          for (const k in data) {
-            const v = data[k]
-
-            if (v && typeof v !== 'object' && typeof v !== 'boolean' && String(v).toLocaleLowerCase().includes(term)) {
-              found = true
-              break
-            }
-          }
-
-          el._hide = !found
-        })
-      }
+        el._hide = Boolean(term) && !found
+      })
     },
 
     share(idx) {
@@ -515,12 +554,28 @@ export default {
             type: 'reference',
             refid: element.id
           }
+          invalidateList(this.$apollo.provider.defaultClient.cache, 'elements')
           this.$emit('update:content', this.content)
         })
         .catch((error) => {
           this.messages.add(this.$gettext('Unable to make element shared') + ':\n' + error, 'error')
           this.$log(`PageDetailContentList::share(): Error making element shared`, idx, error)
         })
+    },
+
+    async showError() {
+      const el = this.content.find((el) => el._error && this.shown(el))
+
+      if (!el) {
+        return
+      }
+
+      if (!this.panel.includes(el.id)) {
+        this.panel.push(el.id)
+      }
+
+      reveal(this.$refs.list, el.id, 'auto')
+      await this.$nextTick()
     },
 
     shown(el) {
@@ -627,6 +682,12 @@ export default {
       return (this.side.store = Object.freeze({ type: Object.freeze(types), state: Object.freeze(state) }))
     },
 
+    take(idx) {
+      const [entry] = this.content.splice(idx, 1)
+      this.panel = this.panel.filter((value) => value !== entry.id)
+      return entry
+    },
+
     title(el) {
       return itemTitle(el.data) || this.$pgettext('st', el.type) || ''
     },
@@ -687,6 +748,10 @@ export default {
     this.emitContent = debounce(() => this.$emit('update:content', this.content), 150)
   },
 
+  mounted() {
+    this.scroller = scrollParent(this.$refs.root)
+  },
+
   beforeUnmount() {
     if (this.audio) {
       this.audio.then((rec) => rec?.stop?.()).catch(() => {})
@@ -694,7 +759,7 @@ export default {
     }
 
     this.panel = null
-    this.menu = null
+    this.scroller = null
     this.response = ''
     this.chat = ''
   },
@@ -718,7 +783,7 @@ export default {
 </script>
 
 <template>
-  <div v-visible="store">
+  <div ref="root" v-visible="store">
     <v-textarea
       v-if="user.can('page:refine')"
       v-model="chat"
@@ -737,6 +802,7 @@ export default {
         <v-btn
           @click="help = !help"
           :icon="mdiHelpCircleOutline"
+          class="no-rtl"
           :title="help ? $gettext('Hide help') : $gettext('Show help')"
           :aria-expanded="help"
           aria-controls="content-help"
@@ -775,44 +841,43 @@ export default {
     <div class="header">
       <div v-if="user.can('page:save')" class="bulk">
         <v-checkbox-btn v-model="checked" @click.stop="toggle()" :aria-label="$gettext('Toggle selection')" />
-        <v-menu>
-          <template v-slot:activator="{ props }">
+        <ActionMenu>
+          <template #activator="{ props, label }">
             <v-btn
               v-bind="props"
               :disabled="!checkedCount && !clipboard.get('page-content')"
+              :title="label"
               :append-icon="mdiMenuDown"
               variant="text"
-              >{{ $gettext('Actions') }}</v-btn
+              >{{ label }}</v-btn
             >
           </template>
-          <v-list>
-            <v-list-item v-if="checkedCount">
-              <v-btn :prepend-icon="mdiContentCopy" variant="text" @click="copy()">{{
-                $gettext('Copy')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item v-if="checkedCount">
-              <v-btn :prepend-icon="mdiContentCut" variant="text" @click="cut()">{{
-                $gettext('Cut')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item v-if="clipboard.get('page-content')">
-              <v-btn :prepend-icon="mdiContentPaste" variant="text" @click="paste()">{{
-                $gettext('Paste')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item v-if="checkedCount > 1">
-              <v-btn :prepend-icon="mdiSetMerge" variant="text" @click="merge()">{{
-                $gettext('Merge')
-              }}</v-btn>
-            </v-list-item>
-            <v-list-item v-if="checkedCount">
-              <v-btn :prepend-icon="mdiDelete" variant="text" @click="purge()">{{
-                $gettext('Delete')
-              }}</v-btn>
-            </v-list-item>
-          </v-list>
-        </v-menu>
+          <v-list-item v-if="checkedCount">
+            <v-btn :prepend-icon="mdiContentCopy" variant="text" @click="copy()">{{
+              $pgettext('clipboard', 'Copy')
+            }}</v-btn>
+          </v-list-item>
+          <v-list-item v-if="checkedCount">
+            <v-btn :prepend-icon="mdiContentCut" variant="text" @click="cut()">{{
+              $pgettext('clipboard', 'Cut')
+            }}</v-btn>
+          </v-list-item>
+          <v-list-item v-if="clipboard.get('page-content')">
+            <v-btn :prepend-icon="mdiContentPaste" variant="text" @click="paste()">{{
+              $gettext('Paste')
+            }}</v-btn>
+          </v-list-item>
+          <v-list-item v-if="checkedCount > 1">
+            <v-btn :prepend-icon="mdiSetMerge" variant="text" @click="merge()">{{
+              $gettext('Merge')
+            }}</v-btn>
+          </v-list-item>
+          <v-list-item v-if="checkedCount">
+            <v-btn :prepend-icon="mdiDelete" variant="text" @click="purge()">{{
+              $gettext('Remove')
+            }}</v-btn>
+          </v-list-item>
+        </ActionMenu>
       </div>
 
       <v-text-field
@@ -828,29 +893,44 @@ export default {
     </div>
 
     <v-expansion-panels class="list" v-model="panel" elevation="0" multiple>
-      <VueDraggable
-        @update:modelValue="$emit('update:content', $event)"
-        :disabled="$vuetify.display.smAndDown || !user.can('page:save')"
+      <VirtualList
+        v-if="scroller"
+        :key="keeps"
+        ref="list"
         :modelValue="content"
-        :forceFallback="true"
-        fallbackTolerance="10"
+        @update:modelValue="$emit('update:content', $event)"
+        dataKey="id"
+        :scroller="scroller"
+        :disabled="$vuetify.display.smAndDown || !user.can('page:save')"
         handle=".item-handle"
-        draggable=".content"
         group="content"
+        :animation="0"
+        :keeps="keeps"
+        :size="80"
+        lockAxis="x"
       >
-        <v-expansion-panel
-          v-for="(el, idx) in content"
-          :key="el.id"
-          v-show="shown(el)"
-          class="content"
-          :class="{
-            changed: el._changed,
-            error: el._error,
-            ...changedState(changed, el.id || el.refid)
-          }"
-        >
+        <template #item="{ item: el, index: idx, key }">
+          <v-expansion-panel
+            :key="key"
+            :value="key"
+            :data-key="key"
+            v-show="shown(el)"
+            @keydown="move($event, el)"
+            class="content"
+            :class="{
+              changed: el._changed,
+              error: el._error,
+              ...changedState(changed, el.id || el.refid)
+            }"
+          >
           <v-expansion-panel-title>
-            <v-btn variant="text" class="item-handle" :aria-label="$gettext('Move element')" icon>
+            <v-btn
+              variant="text"
+              class="item-handle"
+              :aria-label="$gettext('Move element')"
+              aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+              icon
+            >
               <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M9,3H11V5H9V3M13,3H15V5H13V3M9,7H11V9H9V7M13,7H15V9H13V7M9,11H11V13H9V11M13,11H15V13H13V11M9,15H11V17H9V15M13,15H15V17H13V15M9,19H11V21H9V19M13,19H15V21H13V19Z" />
               </svg>
@@ -863,106 +943,80 @@ export default {
             />
 
             <span class="btn-actions">
-              <component
-                :is="$vuetify.display.xs ? 'v-dialog' : 'v-menu'"
-                :aria-label="$gettext('Actions')"
-                :model-value="menu === el.id"
-                @update:model-value="(val) => (menu = val ? el.id : null)"
-                transition="scale-transition"
-                location="end center"
-                max-width="300"
-              >
-                <template #activator="{ props }">
-                  <v-btn
-                    v-bind="props"
-                    :title="$gettext('Actions')"
-                    :icon="mdiDotsVertical"
-                    variant="text"
-                  />
+              <ActionMenu>
+                <template #activator="{ props, label }">
+                  <v-btn v-bind="props" :title="label" :icon="mdiDotsVertical" variant="text" />
                 </template>
 
-                <v-card>
-                  <v-toolbar density="compact">
-                    <v-toolbar-title>{{ $gettext('Actions') }}</v-toolbar-title>
-                    <v-btn
-                      :icon="mdiClose"
-                      :aria-label="$gettext('Close')"
-                      @click="menu = null"
-                    />
-                  </v-toolbar>
+                <v-list-item v-if="!el._error">
+                  <v-btn :prepend-icon="mdiContentCopy" variant="text" @click="copy(idx)">{{
+                    $pgettext('clipboard', 'Copy')
+                  }}</v-btn>
+                </v-list-item>
+                <v-list-item v-if="!el._error">
+                  <v-btn :prepend-icon="mdiContentCut" variant="text" @click="cut(idx)">{{
+                    $pgettext('clipboard', 'Cut')
+                  }}</v-btn>
+                </v-list-item>
+                <v-list-item>
+                  <v-btn :prepend-icon="mdiDelete" variant="text" @click="remove(idx)">{{
+                    $gettext('Remove')
+                  }}</v-btn>
+                </v-list-item>
 
-                  <v-list @click="menu = null">
-                    <v-list-item v-if="!el._error">
-                      <v-btn :prepend-icon="mdiContentCopy" variant="text" @click="copy(idx)">{{
-                        $gettext('Copy')
-                      }}</v-btn>
-                    </v-list-item>
-                    <v-list-item v-if="!el._error">
-                      <v-btn :prepend-icon="mdiContentCut" variant="text" @click="cut(idx)">{{
-                        $gettext('Cut')
-                      }}</v-btn>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-btn :prepend-icon="mdiDelete" variant="text" @click="remove(idx)">{{
-                        $gettext('Delete')
-                      }}</v-btn>
-                    </v-list-item>
+                <v-divider></v-divider>
 
-                    <v-divider></v-divider>
+                <v-list-item v-if="clipboard.get('page-content')">
+                  <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="paste(idx)">{{
+                    $gettext('Paste before')
+                  }}</v-btn>
+                </v-list-item>
+                <v-list-item v-if="clipboard.get('page-content')">
+                  <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="paste(idx + 1)">{{
+                    $gettext('Paste after')
+                  }}</v-btn>
+                </v-list-item>
+                <v-list-item>
+                  <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="insert(idx)">{{
+                    $gettext('Insert before')
+                  }}</v-btn>
+                </v-list-item>
+                <v-list-item>
+                  <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="insert(idx + 1)">{{
+                    $gettext('Insert after')
+                  }}</v-btn>
+                </v-list-item>
 
-                    <v-list-item v-if="clipboard.get('page-content')">
-                      <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="paste(idx)">{{
-                        $gettext('Paste before')
-                      }}</v-btn>
-                    </v-list-item>
-                    <v-list-item v-if="clipboard.get('page-content')">
-                      <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="paste(idx + 1)">{{
-                        $gettext('Paste after')
-                      }}</v-btn>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-btn :prepend-icon="mdiArrowUp" variant="text" @click="insert(idx)">{{
-                        $gettext('Insert before')
-                      }}</v-btn>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-btn :prepend-icon="mdiArrowDown" variant="text" @click="insert(idx + 1)">{{
-                        $gettext('Insert after')
-                      }}</v-btn>
-                    </v-list-item>
+                <v-divider></v-divider>
 
-                    <v-divider></v-divider>
-
-                    <v-list-item
-                      v-if="!el._error && el.type !== 'reference' && user.can('element:add')"
-                    >
-                      <v-btn :prepend-icon="mdiLink" variant="text" @click="share(idx)">{{
-                        $gettext('Make shared')
-                      }}</v-btn>
-                    </v-list-item>
-                    <v-list-item v-if="el.type === 'reference'">
-                      <v-btn :prepend-icon="mdiLinkOff" variant="text" @click="unshare(idx)">{{
-                        $gettext('Merge copy')
-                      }}</v-btn>
-                    </v-list-item>
-                    <v-list-item v-if="el.type !== 'reference'">
-                      <v-btn :prepend-icon="mdiSwapHorizontal" variant="text" @click="change(idx)">{{
-                        $gettext('Change to')
-                      }}</v-btn>
-                    </v-list-item>
-                    <v-list-item v-if="el.type === 'text'">
-                      <v-btn :prepend-icon="mdiSetSplit" variant="text" @click="split(idx)">{{
-                        $gettext('Split')
-                      }}</v-btn>
-                    </v-list-item>
-                    <v-list-item v-if="el._checked && checkedCount > 1">
-                      <v-btn :prepend-icon="mdiSetMerge" variant="text" @click="merge()">{{
-                        $gettext('Merge')
-                      }}</v-btn>
-                    </v-list-item>
-                  </v-list>
-                </v-card>
-              </component>
+                <v-list-item
+                  v-if="!el._error && el.type !== 'reference' && user.can('element:add')"
+                >
+                  <v-btn :prepend-icon="mdiLink" variant="text" @click="share(idx)">{{
+                    $gettext('Make shared')
+                  }}</v-btn>
+                </v-list-item>
+                <v-list-item v-if="el.type === 'reference'">
+                  <v-btn :prepend-icon="mdiLinkOff" variant="text" @click="unshare(idx)">{{
+                    $gettext('Merge copy')
+                  }}</v-btn>
+                </v-list-item>
+                <v-list-item v-if="el.type !== 'reference'">
+                  <v-btn :prepend-icon="mdiSwapHorizontal" variant="text" @click="change(idx)">{{
+                    $gettext('Change to')
+                  }}</v-btn>
+                </v-list-item>
+                <v-list-item v-if="el.type === 'text'">
+                  <v-btn :prepend-icon="mdiSetSplit" variant="text" @click="split(idx)">{{
+                    $pgettext('text element', 'Split')
+                  }}</v-btn>
+                </v-list-item>
+                <v-list-item v-if="el._checked && checkedCount > 1">
+                  <v-btn :prepend-icon="mdiSetMerge" variant="text" @click="merge()">{{
+                    $gettext('Merge')
+                  }}</v-btn>
+                </v-list-item>
+              </ActionMenu>
             </span>
 
             <v-icon
@@ -998,8 +1052,9 @@ export default {
               @change="update(el)"
             />
           </v-expansion-panel-text>
-        </v-expansion-panel>
-      </VueDraggable>
+          </v-expansion-panel>
+        </template>
+      </VirtualList>
     </v-expansion-panels>
 
     <div v-if="user.can('page:save')" class="btn-group">
@@ -1009,7 +1064,7 @@ export default {
         :icon="mdiViewGridPlus"
         class="btn-add"
         color="primary"
-        variant="flat"
+        variant="tonal"
       />
     </div>
   </div>
@@ -1033,11 +1088,6 @@ export default {
   margin: 0;
 }
 
-.bulk {
-  display: flex;
-  align-items: center;
-}
-
 .v-input.search {
   max-width: 30rem;
   flex-grow: 1;
@@ -1053,26 +1103,6 @@ export default {
   border-inline-start: 3px solid transparent;
 }
 
-.v-expansion-panel.changed {
-  border-inline-start: 3px solid rgb(var(--v-theme-warning));
-}
-
-.v-expansion-panel.merged {
-  border-inline-start: 3px solid rgb(var(--v-theme-info));
-}
-
-.v-expansion-panel.conflict {
-  border-inline-start: 3px solid rgb(var(--v-theme-error));
-}
-
-.v-expansion-panel.conflict .v-expansion-panel-title {
-  color: rgb(var(--v-theme-error));
-}
-
-.v-expansion-panel.error .v-expansion-panel-title {
-  color: rgb(var(--v-theme-error));
-}
-
 .v-expansion-panel-title .v-selection-control {
   flex: none;
 }
@@ -1084,13 +1114,5 @@ export default {
 .icon-shared {
   color: rgb(var(--v-theme-warning));
   margin-inline-end: 4px;
-}
-
-.help {
-  color: rgb(var(--v-theme-on-surface));
-  background-color: rgb(var(--v-theme-surface-light));
-  padding: 16px 24px 16px 32px;
-  margin-bottom: 16px;
-  border-radius: 8px;
 }
 </style>

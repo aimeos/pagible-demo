@@ -4,11 +4,21 @@ import { useUserStore } from '../../../js/stores'
 
 const stubs = {
   String: { render() { return h('div', { class: 'field-string' }) } },
-  Text: { render() { return h('div', { class: 'field-text' }) } },
+  Text: { render() { return h('input', { class: 'field-text' }) } },
   File: { props: ['label'], render() { return h('div', { class: 'field-file' }, this.label) } },
   Images: { props: ['label'], render() { return h('div', { class: 'field-images' }, this.label) } },
   Hidden: { render() { return h('div', { class: 'field-hidden' }) } },
   Number: { render() { return h('div', { class: 'field-number' }) } },
+  Url: {
+    props: ['rel'],
+    emits: ['update:rel'],
+    render() {
+      return h('button', {
+        class: 'field-url',
+        onClick: () => this.$emit('update:rel', 'nofollow')
+      }, this.rel || 'none')
+    }
+  },
 }
 
 const fields = {
@@ -123,6 +133,19 @@ describe('Fields', () => {
     })
   })
 
+  it('renders a hint below fields not rendering it themselves', () => {
+    mountFields({
+      fields: {
+        title: { type: 'string', label: 'Title', hint: 'Shown by the input' },
+        body: { type: 'text', label: 'Body text', hint: 'Main content of the page' },
+        secret: { type: 'hidden', hint: 'Never shown' },
+      },
+    })
+    cy.get('.item .v-messages__message').should('have.length', 1)
+      .and('contain', 'Main content of the page')
+      .and('be.visible')
+  })
+
   it('hides the label for hidden field type', () => {
     mountFields({
       fields: { secret: { type: 'hidden', label: 'Secret' } },
@@ -206,6 +229,22 @@ describe('Fields', () => {
       })
       expect(onUpdate.firstCall.args[0]).not.to.equal(data)
       expect(data.cards).to.deep.equal([{ position: 'start' }])
+    })
+  })
+
+  it('stores the selected relationship next to its URL', () => {
+    const onUpdate = cy.spy().as('updateData')
+
+    mountFields({
+      fields: { link: { type: 'url', label: 'Link', rel: true } },
+      data: { link: 'https://example.com', 'link-rel': '' },
+      'onUpdate:data': onUpdate,
+    })
+
+    cy.get('.field-url').click()
+    cy.get('@updateData').should('have.been.calledOnceWith', {
+      link: 'https://example.com',
+      'link-rel': 'nofollow',
     })
   })
 })

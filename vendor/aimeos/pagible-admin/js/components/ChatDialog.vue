@@ -5,9 +5,7 @@ import { markRaw } from 'vue'
 import { Marked } from 'marked'
 import DOMPurify from 'dompurify'
 import {
-  mdiAccount,
   mdiBroom,
-  mdiClose,
   mdiContentCopy,
   mdiCreation,
   mdiMicrophone,
@@ -17,6 +15,7 @@ import {
 } from '@mdi/js'
 import { useUserStore } from '../stores'
 import { chat } from '../chat'
+import CmsDialog from './Dialog.vue'
 
 // GFM (tables, task lists, strikethrough) with single newlines as <br> to match chat expectations.
 // A dedicated instance avoids mutating marked's global options; DOMPurify sanitizes the output.
@@ -25,8 +24,14 @@ const md = new Marked({ gfm: true, breaks: true })
 export default {
   name: 'ChatDialog',
 
+  components: {
+    CmsDialog
+  },
+
   props: {
-    modelValue: { type: Boolean, default: false }
+    context: { type: String, default: '' },
+    modelValue: { type: Boolean, default: false },
+    permission: { type: String, default: 'page:chat' }
   },
 
   emits: ['done', 'update:modelValue'],
@@ -36,6 +41,8 @@ export default {
       audio: null,
       busy: false,
       dictating: false,
+      historyDraft: '',
+      historyIndex: null,
       input: '',
       messages: [],
       seq: 0 // monotonic id source for stable message keys (splice/concurrent turns must not reindex)
@@ -47,9 +54,7 @@ export default {
 
     return {
       user,
-      mdiAccount,
       mdiBroom,
-      mdiClose,
       mdiContentCopy,
       mdiCreation,
       mdiMicrophone,
@@ -88,6 +93,8 @@ export default {
 
     clear() {
       if (!this.busy) {
+        this.historyDraft = ''
+        this.historyIndex = null
         this.messages = []
       }
     },
@@ -100,10 +107,37 @@ export default {
       if (e.isComposing) {
         return // don't submit while an IME candidate is being composed (CJK input)
       }
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        this.recall(e, e.key === 'ArrowUp' ? -1 : 1)
+        return
+      }
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
         this.send()
       }
+    },
+
+    recall(e, offset) {
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+        return
+      }
+
+      const entries = this.messages.filter((m) => m.role === 'user').map((m) => m.content)
+
+      if (!entries.length || (this.historyIndex === null && offset > 0)) {
+        return
+      }
+
+      if (this.historyIndex === null) {
+        this.historyDraft = this.input
+        this.historyIndex = entries.length
+      }
+
+      e.preventDefault()
+      const index = Math.max(0, Math.min(entries.length, this.historyIndex + offset))
+
+      this.input = index < entries.length ? entries[index] : this.historyDraft
+      this.historyIndex = index < entries.length ? index : null
     },
 
     record() {
@@ -154,7 +188,7 @@ export default {
     send(text) {
       text = String(text ?? this.input).trim()
 
-      if (!text || this.busy || !this.user.can('page:chat')) {
+      if (!text || this.busy || !this.user.can(this.permission)) {
         return
       }
 
@@ -168,6 +202,8 @@ export default {
         .filter((m) => m.content)
 
       this.input = ''
+      this.historyDraft = ''
+      this.historyIndex = null
       this.busy = true
       const controller = (this.controller = new AbortController())
 
@@ -205,7 +241,9 @@ export default {
             const end = assistant.content.lastIndexOf('\n\n')
 
             if (end >= assistant.scanned) {
-              if ((assistant.content.slice(assistant.scanned, end).match(/^```/gm) || []).length % 2) {
+              if (
+                (assistant.content.slice(assistant.scanned, end).match(/^```/gm) || []).length % 2
+              ) {
                 assistant.fenceOpen = !assistant.fenceOpen
               }
               assistant.scanned = end
@@ -221,7 +259,8 @@ export default {
 
           this.scrollDown()
         },
-        controller.signal
+        controller.signal,
+        this.context
       )
         .then((result) => {
           // onDelta normally fills the bubble; fall back to the resolved text if it stayed empty.
@@ -236,7 +275,9 @@ export default {
           if (!assistant.content) {
             // Errors flagged `shown` carry a translated, user-facing message (lock / rate-limit /
             // unavailable); show it verbatim. Everything else gets the generic fallback.
-            assistant.content = error?.shown ? error.message : this.$gettext('Sorry, something went wrong.')
+            assistant.content = error?.shown
+              ? error.message
+              : this.$gettext('Sorry, something went wrong.')
           }
         })
         .finally(() => {
@@ -281,74 +322,69 @@ export default {
 </script>
 
 <template>
-  <v-dialog v-model="open" :max-width="720" class="chat-dialog">
-    <v-card class="chat" :elevation="8">
-      <v-toolbar density="comfortable" :elevation="0" color="surface">
-        <v-icon :icon="mdiCreation" class="ms-4 me-2" />
-        <v-toolbar-title>{{ $gettext('AI Assistant') }}</v-toolbar-title>
-        <v-spacer />
-        <v-btn
-          :icon="mdiBroom"
-          :title="$gettext('New chat')"
-          :aria-label="$gettext('New chat')"
-          :disabled="busy || !messages.length"
-          @click="clear()"
-          variant="text"
-        />
-        <v-btn
-          :icon="mdiClose"
-          :title="$gettext('Close')"
-          :aria-label="$gettext('Close')"
-          @click="open = false"
-          variant="text"
-        />
-      </v-toolbar>
+  <CmsDialog
+    v-model="open"
+    :title="$gettext('AI Assistant')"
+    :max-width="720"
+    content-class="chat-body d-flex flex-column"
+    class="chat-dialog"
+  >
+    <template #toolbar-actions>
+      <v-btn
+        :icon="mdiBroom"
+        :title="$gettext('New chat')"
+        :aria-label="$gettext('New chat')"
+        :disabled="busy || !messages.length"
+        @click="clear()"
+      />
+    </template>
 
-      <v-divider />
-
-      <div ref="list" class="chat-messages scroll" role="log" aria-live="polite">
-        <div v-if="!messages.length" class="chat-empty">
-          <v-icon :icon="mdiCreation" size="48" class="chat-empty-icon" />
-          <p>{{ $gettext( 'What shall I do for you?' ) }}</p>
-        </div>
-
-        <div v-for="m in messages" :key="m.id" class="chat-row" :class="m.role">
-          <v-avatar :color="m.role === 'user' ? 'primary' : 'secondary'" size="32" class="chat-avatar">
-            <v-icon :icon="m.role === 'user' ? mdiAccount : mdiCreation" size="20" />
-          </v-avatar>
-          <div class="chat-bubble" :class="{ error: m.error }">
-            <!-- Each completed block is rendered once into m.blocks and appended as its own element,
-                 so neither DOMPurify nor the DOM re-processes earlier blocks. The open trailing block
-                 (m.pending) is rendered live as markdown too - so single-newline content with no
-                 blank-line boundary still formats while streaming instead of showing raw markdown
-                 until the block closes. marked tolerates partial syntax, so the commit is seamless -->
-            <template v-if="m.role === 'assistant'">
-              <div v-for="(b, j) in m.blocks" :key="j" class="chat-md" v-html="b"></div>
-              <div v-if="m.streaming && m.pending" class="chat-md" v-html="render(m.pending)"></div>
-            </template>
-            <div v-else class="chat-text">{{ m.content }}</div>
-            <span v-if="m.streaming" class="chat-cursor" aria-hidden="true"></span>
-            <v-btn
-              v-if="m.role === 'assistant' && m.content && !m.streaming"
-              :icon="mdiContentCopy"
-              :title="$gettext('Copy')"
-              @click="copy(m.content)"
-              size="x-small"
-              variant="text"
-              class="chat-copy"
-            />
-          </div>
-        </div>
+    <div ref="list" class="chat-messages scroll" role="log" aria-live="polite">
+      <div v-if="!messages.length" class="chat-empty">
+        <v-avatar color="primary" variant="tonal" size="72" class="chat-empty-icon">
+          <v-icon :icon="mdiCreation" size="36" />
+        </v-avatar>
+        <p>{{ $gettext('What shall I do for you?') }}</p>
       </div>
 
-      <v-divider />
+      <div v-for="m in messages" :key="m.id" class="chat-row" :class="m.role">
+        <div class="chat-bubble" :class="{ error: m.error }">
+          <!-- Each completed block is rendered once into m.blocks and appended as its own element,
+               so neither DOMPurify nor the DOM re-processes earlier blocks. The open trailing block
+               (m.pending) is rendered live as markdown too - so single-newline content with no
+               blank-line boundary still formats while streaming instead of showing raw markdown
+               until the block closes. marked tolerates partial syntax, so the commit is seamless -->
+          <template v-if="m.role === 'assistant'">
+            <div v-for="(b, j) in m.blocks" :key="j" class="chat-md" v-html="b"></div>
+            <div v-if="m.streaming && m.pending" class="chat-md" v-html="render(m.pending)"></div>
+          </template>
+          <div v-else class="chat-text">{{ m.content }}</div>
+          <span v-if="m.streaming && !m.content" class="chat-typing" role="status">
+            <span></span><span></span><span></span>
+            <span class="chat-sr">{{ $gettext('Thinking ...') }}</span>
+          </span>
+          <span v-else-if="m.streaming" class="chat-cursor" aria-hidden="true"></span>
+          <v-btn
+            v-if="m.role === 'assistant' && m.content && !m.streaming"
+            :icon="mdiContentCopy"
+            :title="$pgettext('clipboard', 'Copy')"
+            @click="copy(m.content)"
+            size="x-small"
+            variant="text"
+            class="chat-copy"
+          />
+        </div>
+      </div>
+    </div>
 
+    <template #footer>
       <div class="chat-input">
         <v-textarea
           v-model="input"
           :placeholder="$gettext('Send a message ...')"
           @keydown="keydown"
           variant="outlined"
+          color="primary"
           rounded="lg"
           rows="1"
           hide-details
@@ -364,7 +400,7 @@ export default {
               :aria-label="$gettext('Dictate')"
               :class="{ dictating: audio }"
               :loading="dictating"
-              variant="text"
+              variant="tonal"
               size="small"
             />
             <v-btn
@@ -374,7 +410,7 @@ export default {
               :title="$gettext('Stop')"
               :aria-label="$gettext('Stop')"
               color="error"
-              variant="text"
+              variant="tonal"
               size="small"
             />
             <v-btn
@@ -384,28 +420,25 @@ export default {
               :title="$gettext('Send')"
               :aria-label="$gettext('Send')"
               :disabled="!input.trim()"
-              variant="text"
+              color="primary"
+              variant="tonal"
               size="small"
+              class="chat-send"
             />
           </template>
         </v-textarea>
       </div>
-    </v-card>
-  </v-dialog>
+    </template>
+  </CmsDialog>
 </template>
 
 <style scoped>
-.chat {
-  display: flex;
-  flex-direction: column;
-  height: 80vh;
-  max-height: 80vh;
-}
-
 .chat-messages {
   flex: 1 1 auto;
+  min-height: 0;
+  height: calc(80vh - 132px);
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px;
 }
 
 .chat-empty {
@@ -416,56 +449,60 @@ export default {
   height: 100%;
   text-align: center;
   gap: 12px;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .chat-empty-icon {
-  opacity: 0.5;
-}
-
-.chat-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  max-width: 480px;
-}
-
-.chat-suggestion {
-  cursor: pointer;
+  margin-bottom: 4px;
 }
 
 .chat-row {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+  animation: chat-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes chat-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-row {
+    animation: none;
+  }
 }
 
 .chat-row.user {
-  flex-direction: row-reverse;
-}
-
-.chat-avatar {
-  flex: 0 0 auto;
+  justify-content: flex-end;
 }
 
 .chat-bubble {
   position: relative;
+  min-width: 0;
   max-width: 80%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background-color: rgb(var(--v-theme-surface-light));
+  padding: 11px 15px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.16);
+  border-radius: 16px;
+  border-top-left-radius: 4px;
+  background-color: rgba(var(--v-theme-primary), 0.06);
   color: rgb(var(--v-theme-on-surface));
 }
 
 .chat-row.user .chat-bubble {
+  border: 0;
+  border-radius: 16px;
+  border-top-right-radius: 4px;
   background-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 6px 18px -6px rgba(var(--v-theme-primary), 0.45);
   color: rgb(var(--v-theme-on-primary));
 }
 
 .chat-bubble.error {
-  background-color: rgb(var(--v-theme-error));
-  color: rgb(var(--v-theme-on-error));
+  border-color: rgba(var(--v-theme-error), var(--v-border-opacity));
+  background-color: rgba(var(--v-theme-error), 0.12);
 }
 
 /* User bubble: raw text, so honor its own newlines/spacing. */
@@ -512,7 +549,7 @@ export default {
   margin: 0 0 8px;
   padding-inline-start: 10px;
   border-inline-start: 3px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  opacity: 0.85;
+  opacity: var(--v-medium-emphasis-opacity);
 }
 
 .chat-md :deep(code) {
@@ -526,7 +563,7 @@ export default {
   margin: 0 0 8px;
   padding: 8px 10px;
   border-radius: 6px;
-  background-color: rgba(var(--v-theme-on-surface), 0.06);
+  background-color: rgba(var(--v-theme-on-surface), 0.04);
   white-space: pre-wrap;
   overflow-x: auto;
 }
@@ -554,6 +591,62 @@ export default {
   background-color: rgba(var(--v-theme-on-surface), 0.04);
 }
 
+/* "Thinking" dots shown until the first streamed chunk arrives */
+.chat-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 1.5em;
+}
+
+.chat-typing > span:not(.chat-sr) {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-primary));
+  animation: chat-bounce 1.2s ease-in-out infinite;
+}
+
+.chat-typing > span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-typing > span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes chat-bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+.chat-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-typing > span:not(.chat-sr) {
+    animation: none;
+  }
+
+  .chat-typing > span:not(.chat-sr) {
+    opacity: 0.7;
+  }
+}
+
 .chat-cursor {
   display: inline-block;
   width: 7px;
@@ -578,19 +671,50 @@ export default {
   transition: opacity 0.2s;
 }
 
-.chat-bubble:hover .chat-copy {
-  opacity: 0.6;
+.chat-bubble:hover .chat-copy,
+.chat-copy:focus-visible {
+  opacity: 0.7;
 }
 
 .chat-input {
-  padding: 12px 16px;
+  flex: 0 0 auto;
+  padding: 14px 16px 16px;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .chat-input :deep(textarea) {
   max-height: 160px;
 }
 
+@media (hover: none) {
+  .chat-copy {
+    opacity: 0.6;
+  }
+}
+
+@media (max-width: 599px) {
+  .chat-messages {
+    height: calc(88vh - 124px);
+    padding: 16px 12px;
+  }
+
+  .chat-bubble {
+    max-width: 86%;
+  }
+
+  .chat-input {
+    padding: 12px;
+  }
+}
+
 .dictating {
   color: rgb(var(--v-theme-error));
+}
+</style>
+
+<style>
+/* Unscoped: the body element belongs to CmsDialog, whose scoped padding wins over layered utilities */
+.v-card-text.dialog-body.chat-body {
+  padding: 0;
 }
 </style>

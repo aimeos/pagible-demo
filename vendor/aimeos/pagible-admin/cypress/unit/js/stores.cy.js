@@ -1,11 +1,18 @@
 import { createPinia, setActivePinia } from 'pinia'
+import { effectScope, nextTick } from 'vue'
 import {
+  useAppStore,
+  useChangeStore,
   useUserStore,
   useClipboardStore,
+  useDirtyStore,
   useDrawerStore,
   useMessageStore,
+  useSchemaStore,
   useSideStore,
+  useViewStack,
 } from '../../../js/stores'
+import { apolloClient } from '../../../js/graphql'
 
 describe('useUserStore', () => {
   beforeEach(() => {
@@ -49,6 +56,108 @@ describe('useUserStore', () => {
     })
   })
 
+  describe('clear()', () => {
+    it('clears all session caches', () => {
+      const clearStore = cy.stub(apolloClient, 'clearStore').resolves()
+      const user = useUserStore()
+      const app = useAppStore()
+      const clip = useClipboardStore()
+      const changes = useChangeStore()
+      const dirty = useDirtyStore()
+      const drawer = useDrawerStore()
+      const schema = useSchemaStore()
+      const side = useSideStore()
+      const views = useViewStack()
+      app.urlproxy = '/cmsproxy?token=old'
+      clip.set('page', { id: 'page-1' })
+      changes.changed = { page: [{ id: 'page-1' }] }
+      dirty.dirty = true
+      dirty.saveFn = () => {}
+      drawer.nav = true
+      schema.content = { text: {} }
+      side.store = { text: 1 }
+      views.stack = [{ component: {} }]
+      user.saveTimer = setTimeout(() => {}, 10000)
+      user.tokenTimer = setTimeout(() => {}, 10000)
+
+      return user.clear().then(() => {
+        expect(user.saveTimer).to.be.null
+        expect(user.tokenTimer).to.be.null
+        expect(app.urlproxy).to.include('url=')
+        expect(app.urlproxy).not.to.include('token=old')
+        expect(clip.$state).to.deep.equal({})
+        expect(changes.changed).to.deep.equal({})
+        expect(dirty.dirty).to.be.false
+        expect(dirty.saveFn).to.be.null
+        expect(drawer.nav).to.be.null
+        expect(schema.content).to.deep.equal({})
+        expect(side.store).to.deep.equal({})
+        expect(views.stack).to.deep.equal([])
+        expect(clearStore).to.have.been.calledOnce
+      })
+    })
+  })
+
+  describe('filter()', () => {
+    it('merges the stored filter into the defaults', () => {
+      const user = useUserStore()
+      user.me = { settings: { page: { filter: { view: 'list' } } } }
+      const scope = effectScope()
+      const filter = scope.run(() => user.filter('page', { view: 'tree', lang: null }))
+      expect(filter).to.deep.equal({ view: 'list', lang: null })
+      scope.stop()
+    })
+
+    it('saves the filter on changes until the scope stops', async () => {
+      const user = useUserStore()
+      user.me = { settings: {} }
+      const scope = effectScope()
+      const filter = scope.run(() => user.filter('page', { view: 'tree' }))
+
+      filter.view = 'list'
+      await nextTick()
+      expect(user.me.settings.page.filter).to.deep.equal({ view: 'list' })
+
+      scope.stop()
+      user.me.settings = {}
+      filter.view = 'tree'
+      await nextTick()
+      expect(user.me.settings).to.deep.equal({})
+      clearTimeout(user.saveTimer)
+    })
+  })
+
+  describe('setting()', () => {
+    it('returns the stored value or the default', () => {
+      const user = useUserStore()
+      user.me = { settings: { page: { sort: { column: 'ID' } } } }
+      const scope = effectScope()
+      scope.run(() => {
+        expect(user.setting('page', 'sort', { column: 'LFT' }).value).to.deep.equal({ column: 'ID' })
+        expect(user.setting('file', 'sort', { column: 'LFT' }).value).to.deep.equal({ column: 'LFT' })
+      })
+      scope.stop()
+    })
+
+    it('saves replaced values until the scope stops', async () => {
+      const user = useUserStore()
+      user.me = { settings: {} }
+      const scope = effectScope()
+      const sort = scope.run(() => user.setting('schema', 'sort', { column: 'POSITION' }))
+
+      sort.value = { column: 'NAME' }
+      await nextTick()
+      expect(user.me.settings.schema.sort).to.deep.equal({ column: 'NAME' })
+
+      scope.stop()
+      user.me.settings = {}
+      sort.value = { column: 'POSITION' }
+      await nextTick()
+      expect(user.me.settings).to.deep.equal({})
+      clearTimeout(user.saveTimer)
+    })
+  })
+
   describe('getData()', () => {
     it('returns defval when me is null', () => {
       const user = useUserStore()
@@ -72,6 +181,195 @@ describe('useUserStore', () => {
       const user = useUserStore()
       user.me = { settings: { page: { filter: { view: 'list' } } } }
       expect(user.getData('page', 'filter')).to.deep.equal({ view: 'list' })
+    })
+  })
+
+  describe('login()', () => {
+    it('clears the previous session before loading the authenticated user', () => {
+      cy.stub(window, 'fetch').resolves({ ok: true, json: () => Promise.resolve({}) })
+      cy.stub(apolloClient, 'mutate').resolves({ data: { cmsLogin: { id: 'user-1' } } })
+
+      const user = useUserStore()
+      const session = user.session
+      const clear = cy.stub(user, 'clear').resolves()
+      const authenticated = cy.stub(user, 'isAuthenticated').callsFake(() => {
+        user.me = { email: 'editor@example.com', permission: {}, settings: {} }
+        return Promise.resolve(true)
+      })
+
+      return user.login('editor@example.com', 'secret').then((result) => {
+        expect(user.session).to.equal(session + 1)
+        expect(clear).to.have.been.calledOnce
+        expect(authenticated).to.have.been.calledOnceWith(true)
+        expect(clear).to.have.been.calledBefore(authenticated)
+        expect(result.email).to.equal('editor@example.com')
+      })
+    })
+  })
+
+  describe('relogin()', () => {
+    it('renews the session without resetting the state and releases waiting requests', () => {
+      cy.stub(window, 'fetch').resolves({ ok: true, json: () => Promise.resolve({}) })
+      const mutate = cy.stub(apolloClient, 'mutate').resolves({ data: { cmsLogin: { id: 'user-1' } } })
+      cy.stub(apolloClient, 'query').resolves({
+        data: { me: { email: 'editor@example.com', permission: '{"page:save":true}', settings: '{}', token: '' } }
+      })
+
+      const user = useUserStore()
+      user.me = { email: 'editor@example.com', permission: {}, settings: { page: { sort: 'name' } } }
+      const clear = cy.stub(user, 'clear').resolves()
+      const waiting = user.reauth()
+
+      expect(user.expired).to.equal(true)
+
+      return user.relogin('secret').then(() => waiting).then(() => {
+        expect(user.expired).to.equal(false)
+        expect(clear).not.to.have.been.called
+        expect(user.me.permission).to.deep.equal({ 'page:save': true })
+        expect(user.me.settings).to.deep.equal({ page: { sort: 'name' } })
+        expect(mutate.firstCall.args[0].variables).to.deep.equal({ email: 'editor@example.com', password: 'secret' })
+        expect(mutate.firstCall.args[0].context).to.deep.equal({ relogin: true })
+      })
+    })
+
+    it('keeps the dialog open if the login fails', () => {
+      cy.stub(window, 'fetch').resolves({ ok: true, json: () => Promise.resolve({}) })
+      cy.stub(apolloClient, 'mutate').rejects(new Error('Invalid credentials'))
+
+      const user = useUserStore()
+      user.me = { email: 'editor@example.com', permission: {}, settings: {} }
+      user.reauth().catch(() => {})
+
+      return user.relogin('wrong').then(
+        () => { throw new Error('relogin unexpectedly resolved') },
+        (error) => {
+          expect(error.message).to.equal('Invalid credentials')
+          expect(user.expired).to.equal(true)
+        }
+      )
+    })
+  })
+
+  describe('check()', () => {
+    afterEach(() => useUserStore().clear())
+
+    it('asks to sign in again if the session expired', () => {
+      cy.stub(apolloClient, 'query').rejects({ networkError: { statusCode: 419 } })
+
+      const user = useUserStore()
+      user.me = { email: 'editor@example.com', permission: {}, settings: {} }
+
+      return user.check().then((valid) => {
+        expect(valid).to.equal(false)
+        expect(user.expired).to.equal(true)
+      })
+    })
+
+    it('asks to sign in again if nobody is signed in anymore', () => {
+      cy.stub(apolloClient, 'query').resolves({ data: { me: null } })
+
+      const user = useUserStore()
+      user.me = { email: 'editor@example.com', permission: {}, settings: {} }
+
+      return user.check().then((valid) => {
+        expect(valid).to.equal(false)
+        expect(user.expired).to.equal(true)
+      })
+    })
+
+    it('keeps the session if it is still valid', () => {
+      cy.stub(apolloClient, 'query').resolves({ data: { me: { email: 'editor@example.com' } } })
+
+      const user = useUserStore()
+      user.me = { email: 'editor@example.com', permission: {}, settings: {} }
+
+      return user.check().then((valid) => {
+        expect(valid).to.equal(true)
+        expect(user.expired).to.equal(false)
+      })
+    })
+
+    it('ignores network failures', () => {
+      cy.stub(apolloClient, 'query').rejects({ networkError: { statusCode: 503 } })
+
+      const user = useUserStore()
+      user.me = { email: 'editor@example.com', permission: {}, settings: {} }
+
+      return user.check().then((valid) => {
+        expect(valid).to.equal(true)
+        expect(user.expired).to.equal(false)
+      })
+    })
+
+    it('does nothing if nobody is signed in', () => {
+      const query = cy.stub(apolloClient, 'query')
+
+      return useUserStore().check().then(() => {
+        expect(query).not.to.have.been.called
+      })
+    })
+  })
+
+  describe('resume()', () => {
+    // release the module-level re-login listeners and waiting requests between tests
+    afterEach(() => useUserStore().clear())
+
+    it('continues when the same user signed in again in another tab', () => {
+      cy.stub(apolloClient, 'query').resolves({
+        data: { me: { email: 'editor@example.com', permission: '{}', settings: '{}', token: '' } }
+      })
+
+      const user = useUserStore()
+      user.me = { email: 'editor@example.com', permission: {}, settings: {} }
+      const waiting = user.reauth()
+
+      window.dispatchEvent(new Event('focus'))
+
+      return waiting.then(() => {
+        expect(user.expired).to.equal(false)
+      })
+    })
+
+    it('stays expired if another user signed in', () => {
+      cy.stub(apolloClient, 'query').resolves({
+        data: { me: { email: 'other@example.com', permission: '{}', settings: '{}', token: '' } }
+      })
+
+      const user = useUserStore()
+      user.me = { email: 'editor@example.com', permission: {}, settings: {} }
+      user.reauth().catch(() => {})
+
+      return user.resume().then((resumed) => {
+        expect(resumed).to.equal(false)
+        expect(user.expired).to.equal(true)
+      })
+    })
+
+    it('does nothing while the session is valid', () => {
+      const query = cy.stub(apolloClient, 'query')
+      const user = useUserStore()
+
+      return user.resume().then((resumed) => {
+        expect(resumed).to.equal(false)
+        expect(query).not.to.have.been.called
+      })
+    })
+  })
+
+  describe('expire()', () => {
+    it('rejects waiting requests and resets the state', () => {
+      const user = useUserStore()
+      user.me = { email: 'editor@example.com', permission: {}, settings: {} }
+      cy.stub(apolloClient, 'clearStore').resolves()
+      const waiting = user.reauth()
+
+      return user.expire().then(() => waiting).then(
+        () => { throw new Error('waiting request unexpectedly resolved') },
+        () => {
+          expect(user.me).to.equal(false)
+          expect(user.expired).to.equal(false)
+        }
+      )
     })
   })
 
@@ -170,6 +468,34 @@ describe('useClipboardStore', () => {
 })
 
 
+describe('useSchemaStore', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    useSchemaStore().clear()
+  })
+
+  it('ignores a previous session load that finishes after clearing', () => {
+    let resolve
+    cy.stub(apolloClient, 'query').returns(new Promise((done) => { resolve = done }))
+
+    const schema = useSchemaStore()
+    const pending = schema.load()
+
+    schema.clear()
+    resolve({
+      data: {
+        schemas: [{ name: 'old', types: {}, content: { text: {} }, meta: {}, config: {} }]
+      }
+    })
+
+    return pending.then(() => {
+      expect(schema.themes).to.deep.equal({})
+      expect(schema.content).to.deep.equal({})
+    })
+  })
+})
+
+
 
 describe('useDrawerStore', () => {
   beforeEach(() => {
@@ -212,6 +538,31 @@ describe('useMessageStore', () => {
   it('starts with an empty queue', () => {
     const msg = useMessageStore()
     expect(msg.queue).to.have.length(0)
+  })
+
+  it('adds a message with an action', () => {
+    const msg = useMessageStore()
+    const handler = cy.stub()
+
+    msg.add('Moved', 'success', null, { label: 'Undo', handler })
+    const id = msg.queue[0]['data-action']
+
+    expect(msg.queue[0].timeout).to.equal(8000)
+    expect(msg.action(id).label).to.equal('Undo')
+
+    msg.run(id)
+    expect(handler).to.have.been.calledOnce
+    expect(msg.action(id)).to.equal(null)
+  })
+
+  it('drops the action when the message is dismissed', () => {
+    const msg = useMessageStore()
+
+    msg.add('Moved', 'success', null, { label: 'Undo', handler() {} })
+    const item = msg.queue[0]
+
+    item.onDismiss()
+    expect(msg.action(item['data-action'])).to.equal(null)
   })
 
   it('adds a message with default info type and 3000ms timeout', () => {

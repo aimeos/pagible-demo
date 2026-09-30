@@ -29,6 +29,9 @@ final class Publication
     /** @var array<class-string<Base>, array<string, Base>> */
     private array $models = [];
 
+    /** @var array<class-string<Base>, array<string, array{version_id: string, path?: string, domain?: string}>> */
+    private array $projected = [];
+
     /**
      * @var array<string, array{
      *     files: array<string>,
@@ -75,16 +78,30 @@ final class Publication
 
 
     /**
-     * Dispatches accumulated search updates.
+     * Dispatches accumulated search updates and publication events.
      */
-    public function flush() : void
+    public function flush( ?string $editor = null ) : void
     {
+        // Pages show the published content of shared elements and files
+        Resource::invalidateRefs(
+            array_map( strval( ... ), array_keys( $this->models[Element::class] ?? [] ) ),
+            array_map( strval( ... ), array_keys( $this->models[File::class] ?? [] ) ),
+        );
+
         foreach( $this->models as $model => $items ) {
             Scout::index( $model, array_keys( $items ), collect( array_values( $items ) ) );
         }
 
+        foreach( $this->models as $model => $items ) {
+            Base::announceMany( collect( array_values( $items ) ), 'published', $editor ?? '', [
+                'published' => true,
+                'publish_at' => null,
+            ], projected: $this->projected[$model] ?? [] );
+        }
+
         $this->elements = [];
         $this->models = [];
+        $this->projected = [];
     }
 
 
@@ -95,6 +112,10 @@ final class Publication
     {
         foreach( $publication->models as $model => $items ) {
             $this->models[$model] = ( $this->models[$model] ?? [] ) + $items;
+        }
+
+        foreach( $publication->projected as $model => $items ) {
+            $this->projected[$model] = ( $this->projected[$model] ?? [] ) + $items;
         }
     }
 
@@ -122,7 +143,7 @@ final class Publication
             } ),
         );
 
-        $this->flush();
+        $this->flush( (string) $version->editor );
     }
 
 
@@ -190,19 +211,22 @@ final class Publication
 
                     if( !$unpublished->isEmpty() )
                     {
-                        if( !$at ) {
-                            $publication->prepare( $unpublished->pluck( 'latest' )->values(), $user );
-                            $publication->applyAll( $unpublished->map( function( Base $item ) {
-                                if( !( $version = $item->latest ) ) {
-                                    throw new \LogicException( 'Unpublished model has no latest version.' );
-                                }
+                        $pairs = $unpublished->map( function( Base $item ) {
+                            if( !( $version = $item->latest ) ) {
+                                throw new \LogicException( 'Unpublished model has no latest version.' );
+                            }
 
-                                return [$item, $version];
-                            } )->all() );
+                            return [$item, $version];
+                        } );
+                        $versions = $pairs->map( fn( array $pair ) : Version => $pair[1] )->values();
+
+                        if( !$at ) {
+                            $publication->prepare( $versions, $user );
+                            $publication->applyAll( $pairs->all() );
                             $publication->publishVersions();
                         } else {
                             if( $user ) {
-                                $publication->authorize( $unpublished->pluck( 'latest' )->values(), $user );
+                                $publication->authorize( $versions, $user );
                             }
 
                             $publication->schedule( $unpublished, $at, $editor );
@@ -228,13 +252,13 @@ final class Publication
         );
 
         if( !$at ) {
-            $publication->flush();
+            $publication->flush( $editor );
+        } else {
+            Base::announceMany( $pending, 'published', $editor, [
+                'published' => false,
+                'publish_at' => $at,
+            ] );
         }
-
-        Base::announceMany( $pending, 'published', $editor, [
-            'published' => !$at,
-            'publish_at' => $at,
-        ] );
 
         return $items;
     }
@@ -873,11 +897,18 @@ final class Publication
             throw new \LogicException( 'Published CMS model has no ID.' );
         }
 
+        if( ( $versionId = $version->id ) === null ) {
+            throw new \LogicException( 'Published CMS version has no ID.' );
+        }
+
+        $projection = ['version_id' => $versionId];
+
         if( $model instanceof Page )
         {
-            if( ( $versionId = $version->id ) === null ) {
-                throw new \LogicException( 'Published CMS page version has no ID.' );
-            }
+            $projection += [
+                'path' => (string) ( $version->data->path ?? $model->path ),
+                'domain' => (string) ( $version->data->domain ?? $model->domain ),
+            ];
 
             $elements = [];
 
@@ -893,6 +924,7 @@ final class Publication
         }
 
         $this->models[$model::class][$id] = $model;
+        $this->projected[$model::class][$id] = $projection;
     }
 
 

@@ -57,8 +57,13 @@ class PageController extends Controller
      * @param string $domain Requested domain
      * @return Response|RedirectResponse Response of the controller action
      */
-    public function index( Request $request, string $path, string $domain = '' )
+    public function index( Request $request, string $path = '', string $domain = '' )
     {
+        if( $request->route() ) {
+            $path = (string) $request->route( 'path', '' );
+            $domain = (string) $request->route( 'domain', '' );
+        }
+
         $user = $request->user();
 
         if( Permission::can( 'page:view', $user ) ) {
@@ -80,7 +85,7 @@ class PageController extends Controller
         }
 
         if( $route && !$route->access_exists && ( $to = $route->to ) ) {
-            return str_starts_with( $to, 'http' ) ? redirect()->away( $to ) : redirect()->to( $to );
+            return redirect( $to, Response::HTTP_MOVED_PERMANENTLY );
         }
 
         $page = $this->published( $path, $domain, $user, $route );
@@ -94,7 +99,7 @@ class PageController extends Controller
         }
 
         if( $to = $page->to ) {
-            return str_starts_with( $to, 'http' ) ? redirect()->away( $to ) : redirect()->to( $to );
+            return redirect( $to, Response::HTTP_MOVED_PERMANENTLY );
         }
 
         $request->attributes->set(
@@ -172,7 +177,7 @@ class PageController extends Controller
         }
 
         if( $to = $version?->data->to ?? $page->to ) {
-            return str_starts_with( $to, 'http' ) ? redirect()->away( $to ) : redirect()->to( $to );
+            return redirect( $to, Response::HTTP_MOVED_PERMANENTLY );
         }
 
         $page->cache = 0; // don't cache sub-parts in preview requests
@@ -204,6 +209,7 @@ class PageController extends Controller
         $query = Page::with( [
             'files' => fn( $q ) => $q->select( File::SELECT_COLUMNS ),
             'elements' => fn( $q ) => $q->select( [...Element::SELECT_COLUMNS, 'name'] ),
+            'elements.files' => fn( $q ) => $q->select( File::SELECT_COLUMNS ),
         ] )
             ->withGlobalScope( 'status', new Status() )
             ->withAccess( $user );

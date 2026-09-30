@@ -2,19 +2,13 @@
 
 <script>
 import gql from 'graphql-tag'
-import {
-  mdiAlertCircleOutline,
-  mdiClose,
-  mdiDelete,
-  mdiKeyPlus,
-  mdiMagnify,
-  mdiMenu
-} from '@mdi/js'
+import { mdiDeleteForever, mdiKeyPlus, mdiMagnify, mdiMenu } from '@mdi/js'
 import Navigation from '../components/Navigation.vue'
 import User from '../components/User.vue'
 import AccessUsers from '../components/AccessUsers.vue'
+import CmsDialog from '../components/Dialog.vue'
 import { apolloClient } from '../graphql'
-import { useDrawerStore, useMessageStore, useUserStore } from '../stores'
+import { useConfirmStore, useDrawerStore, useMessageStore, useUserStore } from '../stores'
 
 const FETCH_ACCESS = gql`
   query {
@@ -39,22 +33,23 @@ export default {
 
   components: {
     AccessUsers,
+    CmsDialog,
     Navigation,
     User
   },
 
   setup() {
+    const confirm = useConfirmStore()
     const drawer = useDrawerStore()
     const messages = useMessageStore()
     const user = useUserStore()
 
     return {
+      confirm,
       drawer,
       messages,
       user,
-      mdiAlertCircleOutline,
-      mdiClose,
-      mdiDelete,
+      mdiDeleteForever,
       mdiKeyPlus,
       mdiMagnify,
       mdiMenu
@@ -69,29 +64,26 @@ export default {
       value: '',
       loading: true,
       saving: false,
-      addDialog: false,
-      deleteDialog: false
+      addDialog: false
     }
   },
 
   computed: {
     tabNames() {
-      return this.canAccess && this.canManageUsers ? ['roles', 'users'] : []
+      return this.canAccess && this.canManageUsers ? ['users', 'roles'] : []
     },
 
     activeTab: {
       get() {
-        return this.$route.name === 'access:users' || this.$route.query?.tab === 'users'
-          ? 'users'
-          : 'roles'
+        return this.canManageUsers && this.$route.query?.tab !== 'roles' ? 'users' : 'roles'
       },
       set(value) {
-        const query = value === 'users' ? { ...this.$route.query, tab: 'users' } : { ...this.$route.query }
-        if (value !== 'users') {
+        const query = value === 'roles' ? { ...this.$route.query, tab: 'roles' } : { ...this.$route.query }
+        if (value !== 'roles') {
           delete query.tab
         }
 
-        if (this.$route.query?.tab === query.tab && this.$route.name !== 'access:users') return
+        if (this.$route.query?.tab === query.tab) return
 
         this.$router.replace({ name: this.$route.name, query })
       }
@@ -182,7 +174,19 @@ export default {
 
     async remove() {
       const values = Array.from(this.checked)
-      if (!values.length || this.saving) return
+
+      if (
+        !values.length ||
+        this.saving ||
+        !(await this.confirm.purge(
+          values.map((name) => ({ name })),
+          this.$gettext(
+            'Existing restrictions are not changed and will continue to reference the purged access values.'
+          )
+        ))
+      ) {
+        return
+      }
 
       this.saving = true
 
@@ -194,9 +198,8 @@ export default {
 
         this.items = response.data.deleteAccess
         this.checked = new Set()
-        this.deleteDialog = false
       } catch (error) {
-        this.messages.add(this.$gettext('Error deleting access values') + ':\n' + error, 'error')
+        this.messages.add(this.$gettext('Error purging access values') + ':\n' + error, 'error')
       } finally {
         this.saving = false
       }
@@ -246,11 +249,18 @@ export default {
     <v-container>
       <v-sheet class="box scroll">
         <v-tabs v-if="tabNames.length" fixed-tabs v-model="activeTab" class="subtabs">
-          <v-tab value="roles">{{ $gettext('Roles') }}</v-tab>
           <v-tab value="users">{{ $gettext('Users') }}</v-tab>
+          <v-tab value="roles">{{ $gettext('Roles') }}</v-tab>
         </v-tabs>
 
         <v-window v-model="activeTab" :touch="false" :disabled="!tabNames.length">
+          <v-window-item v-if="canManageUsers" value="users">
+            <AccessUsers
+              :roles="items"
+              :roles-loading="loading"
+            />
+          </v-window-item>
+
           <v-window-item v-if="canAccess" value="roles">
             <div class="access-roles">
               <div class="header">
@@ -264,9 +274,9 @@ export default {
                   />
                   <v-btn
                     v-if="checked.size"
-                    @click="deleteDialog = true"
-                    :title="$gettext('Delete')"
-                    :icon="mdiDelete"
+                    @click="remove()"
+                    :title="$gettext('Purge')"
+                    :icon="mdiDeleteForever"
                     color="error"
                     variant="text"
                     class="btn-delete"
@@ -314,76 +324,36 @@ export default {
               <p v-else class="notfound">{{ $gettext('No entries found') }}</p>
             </div>
           </v-window-item>
-
-          <v-window-item v-if="canManageUsers" value="users">
-            <AccessUsers
-              :roles="items"
-              :roles-loading="loading"
-            />
-          </v-window-item>
         </v-window>
       </v-sheet>
     </v-container>
   </v-main>
 
   <Teleport to="body">
-    <v-dialog v-model="addDialog" max-width="480" :aria-label="$gettext('Add access value')">
-      <v-card>
-        <v-toolbar density="compact">
-          <v-toolbar-title>{{ $gettext('Add access value') }}</v-toolbar-title>
-          <v-btn :icon="mdiClose" :aria-label="$gettext('Close')" @click="addDialog = false" />
-        </v-toolbar>
-        <v-card-text>
-          <v-text-field
-            ref="value"
-            v-model="value"
-            :label="$gettext('Access value')"
-            maxlength="100"
-            counter
-            autofocus
-            @keyup.enter="add()"
-          />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn @click="addDialog = false" variant="text">{{ $gettext('Cancel') }}</v-btn>
-          <v-btn @click="add()" :disabled="addDisabled" :loading="saving" color="primary" variant="flat">
-            {{ $gettext('Add') }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <CmsDialog v-model="addDialog" :title="$gettext('Add access value')" max-width="480">
+      <v-text-field
+        ref="value"
+        v-model="value"
+        :label="$gettext('Access value') + ' ‒ ' + $gettext('Role name which can be assigned to pages and users')"
+        maxlength="100"
+        counter
+        autofocus
+        @keyup.enter="add()"
+      />
 
-    <v-dialog
-      v-model="deleteDialog"
-      max-width="520"
-      role="alertdialog"
-      :aria-label="$gettext('Delete access values')"
-    >
-      <v-card>
-        <v-toolbar density="compact" color="warning">
-          <v-toolbar-title>{{ $gettext('Delete access values') }}</v-toolbar-title>
-          <v-btn :icon="mdiClose" :aria-label="$gettext('Close')" @click="deleteDialog = false" />
-        </v-toolbar>
-        <v-card-text class="warning">
-          <v-icon :icon="mdiAlertCircleOutline" color="warning" size="40" />
-          <p>
-            {{
-              $gettext(
-                'Existing restrictions are not changed and will continue to reference the deleted access values.'
-              )
-            }}
-          </p>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn @click="deleteDialog = false" variant="text">{{ $gettext('Cancel') }}</v-btn>
-          <v-btn @click="remove()" :loading="saving" color="error" variant="flat">
-            {{ $gettext('Delete') }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <template #actions="{ close }">
+        <v-btn @click="close" variant="text">{{ $gettext('Cancel') }}</v-btn>
+        <v-btn
+          @click="add()"
+          :disabled="addDisabled"
+          :loading="saving"
+          color="primary"
+          variant="tonal"
+        >
+          {{ $gettext('Add') }}
+        </v-btn>
+      </template>
+    </CmsDialog>
   </Teleport>
 </template>
 
@@ -408,16 +378,6 @@ export default {
 .notfound {
   padding: 32px;
   text-align: center;
-}
-
-.warning {
-  align-items: center;
-  display: flex;
-  gap: 16px;
-}
-
-.warning p {
-  margin: 0;
 }
 
 .subtabs {

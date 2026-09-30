@@ -25,7 +25,7 @@
         <title>{{ cms($page, 'title') }}</title>
 
         @unless(collect(cms($page, 'meta', []))->contains('type', 'canonical'))
-            <link rel="canonical" href="{{ cmsroute($page) }}" />
+            @include('cms::canonical', ['data' => (object) ['url' => cmsroute($page)]])
         @endunless
 
         @foreach(cms($page, 'meta', []) as $item)
@@ -49,7 +49,7 @@
             [{
                 "@@context": "https://schema.org",
                 "@@type": "WebSite",
-                "name": {!! cmsjson(config('app.name')) !!},
+                "name": {!! cmsjson(cmsconfig($page, 'website.data.title', cms($page->ancestorsAndSelf->first() ?? $page, 'name'))) !!},
                 "url": {!! cmsjson(url('/')) !!}
             },
             {
@@ -87,7 +87,7 @@
         <dialog id="modal-search" class="search">
             <article>
                 <header>
-                    <form action="{{ route('cms.search', ['q' => '_term_']) }}" toolname="search" tooldescription="{{ __('Search the website and return matching pages with their titles and links') }}" toolautosubmit>
+                    <form action="{{ cmsroute('cms.search', ['q' => '_term_']) }}" toolname="search" tooldescription="{{ __('Search the website and return matching pages with their titles and links') }}" toolautosubmit>
                         <input id="modal-search-input" placeholder="{{ __('Search website') }}" aria-label="{{ __('Search website') }}" name="q" minlength="{{ config('cms.theme.min-search') }}" required toolparamdescription="{{ __('Words or phrase to search for in the website content') }}">
                         <button type="reset" aria-label="{{ __('Close') }}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
@@ -118,15 +118,12 @@
                         </button>
                     </li>
                     <li class="brand">
-                        <a href="{{ cmsroute($nav->ancestors()->first() ?? $page) }}" title="{{ config('app.name') }}" aria-label="{{ config('app.name') }}">
-                            @forelse($page->ancestorsAndSelf->reverse() as $navItem)
-                                @if($fileId = cms($navItem, 'config.logo.data.file.id'))
-                                    <img src="{{ cmsasset($navItem, cmsfile($navItem, $fileId)) }}" alt="{{ config('app.name') }}">
-                                    @break
-                                @endif
-                            @empty
-                                {{ config('app.name') }}
-                            @endforelse
+                        <a href="{{ cmsroute($nav->ancestors()->first() ?? $page) }}" title="{{ cmsconfig($page, 'website.data.title', cms($page->ancestorsAndSelf->first() ?? $page, 'name')) }}" aria-label="{{ cmsconfig($page, 'website.data.title', cms($page->ancestorsAndSelf->first() ?? $page, 'name')) }}">
+                            @if(($navItem = $page->ancestorsAndSelf->reverse()->first(fn($item) => cms($item, 'config.logo.data.file.id'))) && ($fileId = cms($navItem, 'config.logo.data.file.id')))
+                                <img src="{{ cmsasset($navItem, cmsfile($navItem, $fileId)) }}" alt="{{ cmsconfig($page, 'website.data.title', cms($page->ancestorsAndSelf->first() ?? $page, 'name')) }}">
+                            @else
+                                {{ cmsconfig($page, 'website.data.title', cms($page->ancestorsAndSelf->first() ?? $page, 'name')) }}
+                            @endif
                         </a>
                     </li>
                     <li class="menu-close">
@@ -211,7 +208,7 @@
         <footer class="bottom">
             <div class="container">
                 <span class="copyright">
-                    &copy; {{ date('Y') }} {{ config('app.name') }}
+                    &copy; {{ date('Y') }} {{ cmsconfig($page, 'website.data.title', cms($page->ancestorsAndSelf->first() ?? $page, 'name')) }}
                 </span>
             </div>
         </footer>

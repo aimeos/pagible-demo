@@ -1,8 +1,11 @@
 /** @license MIT, https://opensource.org/license/mit */
 
 <script>
+import { required } from '../rules'
+
 /**
  * Configuration:
+ * - `hint`: string, description shown below the field while it has focus
  * - `max`: number, maximum value allowed in the input field
  * - `min`: number, minimum value allowed in the input field
  * - `placeholder`: string, placeholder text for the input field
@@ -30,7 +33,7 @@ export default {
     },
 
     rules() {
-      return [(v) => !this.config.required || !!v || this.$gettext(`Value is required`)]
+      return [required(this.$gettext, this.config.required)]
     }
   },
 
@@ -51,6 +54,7 @@ export default {
 
 <template>
   <v-number-input
+    :hint="config.hint && $pgettext('fh', config.hint)"
     :error="hasError"
     :rules="rules"
     :readonly="readonly"

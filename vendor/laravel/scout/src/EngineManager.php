@@ -13,7 +13,9 @@ use Laravel\Scout\Engines\CollectionEngine;
 use Laravel\Scout\Engines\DatabaseEngine;
 use Laravel\Scout\Engines\MeilisearchEngine;
 use Laravel\Scout\Engines\NullEngine;
+use Laravel\Scout\Engines\TurbopufferEngine;
 use Laravel\Scout\Engines\TypesenseEngine;
+use Laravel\Scout\Services\Turbopuffer\TurbopufferClient;
 use Meilisearch\Client as MeilisearchClient;
 use Meilisearch\Meilisearch;
 use Typesense\Client as Typesense;
@@ -130,7 +132,8 @@ class EngineManager extends Manager
 
         return new MeilisearchEngine(
             $this->container->make(MeilisearchClient::class),
-            config('scout.soft_delete', false)
+            config('scout.soft_delete', false),
+            config('scout.meilisearch', [])
         );
     }
 
@@ -160,9 +163,28 @@ class EngineManager extends Manager
     public function createTypesenseDriver()
     {
         $config = config('scout.typesense');
+
         $this->ensureTypesenseClientIsInstalled();
 
-        return new TypesenseEngine(new Typesense($config['client-settings']), $config['max_total_results'] ?? 1000);
+        return new TypesenseEngine(
+            new Typesense($config['client-settings']),
+            $config['max_total_results'] ?? 1000,
+            $config
+        );
+    }
+
+    /**
+     * Create a Turbopuffer engine instance.
+     *
+     * @return \Laravel\Scout\Engines\TurbopufferEngine
+     */
+    public function createTurbopufferDriver()
+    {
+        return new TurbopufferEngine(
+            $this->container->make(TurbopufferClient::class),
+            config('scout.turbopuffer', []),
+            config('scout.soft_delete', false),
+        );
     }
 
     /**

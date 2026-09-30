@@ -24,6 +24,11 @@ describe('String (textarea)', () => {
     cy.get('.v-counter').should('exist')
   })
 
+  it('always shows the hint from config', () => {
+    cy.mount(StringField, { props: { config: { hint: 'Short summary' } } })
+    cy.get('.v-messages__message').should('be.visible').and('contain', 'Short summary')
+  })
+
   it('applies a custom CSS class from config', () => {
     cy.mount(StringField, { props: { config: { class: 'custom-cls' } } })
     cy.get('.custom-cls').should('exist')
@@ -33,6 +38,22 @@ describe('String (textarea)', () => {
     const onError = cy.spy().as('error')
     cy.mount(StringField, {
       props: { modelValue: 'Hi', config: { min: 5 }, onError }
+    })
+    cy.get('@error').should('have.been.calledWith', true)
+  })
+
+  it('emits error:false when empty with config.min but not required', () => {
+    const onError = cy.spy().as('error')
+    cy.mount(StringField, {
+      props: { modelValue: '', config: { min: 5 }, onError }
+    })
+    cy.get('@error').should('have.been.calledWith', false)
+  })
+
+  it('emits error:true when empty and config.required is set', () => {
+    const onError = cy.spy().as('error')
+    cy.mount(StringField, {
+      props: { modelValue: '', config: { required: true }, onError }
     })
     cy.get('@error').should('have.been.calledWith', true)
   })
@@ -61,6 +82,14 @@ describe('String (textarea)', () => {
     cy.get('@error').should('have.been.calledWith', true)
   })
 
+  it('emits error:false when empty with config.pattern but not required', () => {
+    const onError = cy.spy().as('error')
+    cy.mount(StringField, {
+      props: { modelValue: '', config: { pattern: '^[A-Z]{3}$' }, onError }
+    })
+    cy.get('@error').should('have.been.calledWith', false)
+  })
+
   it('emits update:modelValue as the user types', () => {
     const onUpdate = cy.spy().as('update')
     cy.mount(StringField, {
@@ -82,16 +111,5 @@ describe('String (textarea)', () => {
   it('is readonly when readonly prop is true', () => {
     cy.mount(StringField, { props: { config: {}, readonly: true } })
     cy.get('.v-input--readonly').should('exist')
-  })
-
-  it('uses the muted surface color in readonly mode', () => {
-    cy.mount(StringField, { props: { config: {}, readonly: true } })
-    cy.get('.v-field').should(($field) => {
-      const style = getComputedStyle($field[0])
-      const muted = style.getPropertyValue('--v-theme-surface-light').match(/\d+/g)
-      const background = style.backgroundColor.match(/\d+/g)?.slice(0, 3)
-
-      expect(background).to.deep.equal(muted)
-    })
   })
 })

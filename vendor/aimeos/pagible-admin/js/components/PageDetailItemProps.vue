@@ -120,8 +120,7 @@ export default {
           })
           .then((result) => {
             if (
-              result?.data?.pages?.data?.length > 0 &&
-              result?.data?.pages?.data?.some((page) => page.id != this.item.id)
+              result?.data?.pages?.data?.some((page) => page.id !== this.item.id)
             ) {
               this.messages.path = [this.$gettext('The path is already in use by another page')]
             } else {
@@ -242,7 +241,7 @@ export default {
             :items="statusItems"
             :readonly="readonly"
             :modelValue="item.status"
-            :label="$gettext('Status')"
+            :label="$gettext('Status') + ' ‒ ' + $gettext('Disabled pages are offline, hidden pages are online but not shown in the navigation')"
             @update:modelValue="update('status', $event)"
             variant="underlined"
             item-title="val"
@@ -256,7 +255,7 @@ export default {
             :rules="langRules"
             :readonly="readonly"
             :modelValue="item.lang"
-            :label="$gettext('Language')"
+            :label="$gettext('Language') + ' ‒ ' + $gettext('Language of the page content')"
             @update:modelValue="update('lang', $event)"
             variant="underlined"
           ></v-select>
@@ -270,7 +269,7 @@ export default {
             :rules="titleRules"
             :readonly="readonly"
             :modelValue="item.title"
-            :label="$gettext('Page title')"
+            :label="$gettext('Page title') + ' ‒ ' + $gettext('Shown in the browser tab and search results')"
             @update:modelValue="update('title', $event)"
             @update:focused="setPath($event)"
             variant="underlined"
@@ -281,7 +280,7 @@ export default {
             ref="name"
             :readonly="readonly"
             :modelValue="item.name"
-            :label="$gettext('Page name')"
+            :label="$gettext('Page name') + ' ‒ ' + $gettext('Short name shown in the navigation menus')"
             @update:modelValue="update('name', $event)"
             variant="underlined"
             counter="30"
@@ -296,7 +295,7 @@ export default {
             :error-messages="messages.path"
             :readonly="readonly"
             :modelValue="item.path"
-            :label="$gettext('URL path')"
+            :label="$gettext('URL path') + ' ‒ ' + $gettext('Part of the page URL after the domain, e.g. about-us')"
             @update:modelValue="update('path', $event)"
             @change="updatePath($event.target.value)"
             variant="underlined"
@@ -313,7 +312,7 @@ export default {
             :rules="domainRules"
             :readonly="readonly"
             :modelValue="item.domain"
-            :label="$gettext('Domain')"
+            :label="$gettext('Domain') + ' ‒ ' + $gettext('Domain the page is available at, e.g. example.com')"
             @update:modelValue="update('domain', $event)"
             variant="underlined"
             maxlength="255"
@@ -328,7 +327,7 @@ export default {
             ref="theme"
             :readonly="readonly"
             :modelValue="item.theme"
-            :label="$gettext('Theme')"
+            :label="$gettext('Theme') + ' ‒ ' + $gettext('Design used to display the page')"
             :items="Object.keys(schemas.themes)"
             @update:modelValue="themeUpdated"
             variant="underlined"
@@ -337,7 +336,7 @@ export default {
             ref="type"
             :readonly="readonly"
             :modelValue="item.type"
-            :label="$gettext('Page type')"
+            :label="$gettext('Page type') + ' ‒ ' + $gettext('Template of the theme which defines the page layout')"
             :items="Object.keys(schemas.themes[item.theme || 'cms']?.types || { page: '' })"
             @update:modelValue="update('type', $event)"
             variant="underlined"
@@ -348,7 +347,7 @@ export default {
             ref="tag"
             :modelValue="item.tag"
             :readonly="readonly"
-            :label="$gettext('Page tag')"
+            :label="$gettext('Page tag') + ' ‒ ' + $gettext('Internal identifier to find the page in templates, e.g. blog')"
             @update:modelValue="update('tag', $event)"
             variant="underlined"
             maxlength="30"
@@ -359,7 +358,7 @@ export default {
             :items="cacheItems"
             :readonly="readonly"
             :modelValue="item.cache"
-            :label="$gettext('Cache time')"
+            :label="$gettext('Cache time') + ' ‒ ' + $gettext('How long the generated page is cached before it is created again')"
             @update:modelValue="update('cache', $event)"
             variant="underlined"
             item-title="val"
@@ -375,7 +374,7 @@ export default {
             :rules="redirectRules"
             :readonly="readonly"
             :modelValue="item.to"
-            :label="$gettext('Redirect URL')"
+            :label="$gettext('Redirect URL') + ' ‒ ' + $gettext('Visitors are forwarded to this URL instead of seeing the page')"
             @update:modelValue="update('to', $event)"
             variant="underlined"
             maxlength="255"
@@ -389,8 +388,8 @@ export default {
 
 <style scoped>
 :deep(.v-field__prefix) {
-  background: rgba(var(--v-theme-on-surface), 0.05);
-  border-inline-end: thin solid rgba(var(--v-theme-on-surface), 0.15);
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border-inline-end: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
   padding-inline: 8px;
   margin-inline-end: 4px;
   align-self: stretch;

@@ -6,9 +6,10 @@
 
 use Aimeos\Cms\Controllers;
 use Aimeos\Cms\Http\Middleware\Origin;
+use Illuminate\Http\Middleware\SetCacheHeaders;
 use Illuminate\Support\Facades\Route;
 
-$options = config('cms.multidomain') ? ['domain' => '{domain}'] : [];
+$options = config('cms.multidomain') ? ['domain' => '{domain}', 'where' => ['domain' => '.+']] : [];
 $options['middleware'] = Origin::class;
 
 Route::group($options, function() {
@@ -20,8 +21,14 @@ Route::group($options, function() {
     // visitor actually submits a form. See theme/public/csrf.js.
     Route::get('cmsapi/csrf', [Controllers\PageController::class, 'csrf'])->middleware(['web', 'throttle:60,1'])->name('cms.api.csrf');
 
+    Route::get('robots.txt', [Controllers\RobotsController::class, 'index'])
+        ->middleware(SetCacheHeaders::using('public;max_age=300;etag'))
+        ->name('cms.robots');
+    Route::get('security.txt', [Controllers\SecurityController::class, 'index'])->name('cms.security');
+
     $sitemap = config('cms.theme.sitemap', 'sitemap');
     Route::get("{$sitemap}.xml", [Controllers\SitemapController::class, 'index'])->middleware('throttle:cms-sitemap')->name('cms.sitemap');
+    Route::get("{$sitemap}-news.xml", [Controllers\SitemapController::class, 'news'])->middleware('throttle:cms-sitemap')->name('cms.sitemap.news');
     Route::get("{$sitemap}-{page}.xml", [Controllers\SitemapController::class, 'chunk'])->where('page', '[0-9]+')->middleware('throttle:cms-sitemap')->name('cms.sitemap.chunk');
 
     if(is_array($page = config('cms.theme.pageroute')))

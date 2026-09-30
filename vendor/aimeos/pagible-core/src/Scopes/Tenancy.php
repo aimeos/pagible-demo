@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Scope;
 /**
  * Tenancy scope for limiting query results.
  *
- * @implements Scope<\Illuminate\Database\Eloquent\Model>
+ * @implements Scope<Model>
  */
 class Tenancy implements Scope
 {

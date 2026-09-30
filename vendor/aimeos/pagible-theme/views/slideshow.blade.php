@@ -1,8 +1,13 @@
-@pushOnce('foot')
+@if($data->main ?? false)
+@pushOnce('head', 'cms-slideshow-head')
+<link href="{{ cmstheme($page, 'slideshow.css') }}" rel="stylesheet">
+@endPushOnce
+@else
+@pushOnce('foot', 'cms-slideshow-css')
 <link href="{{ cmstheme($page, 'slideshow.css') }}" rel="preload" as="style">
 @endPushOnce
-
-@pushOnce('foot')
+@endif
+@pushOnce('foot', 'cms-slideshow')
 <script defer src="{{ cmstheme($page, 'slideshow.js') }}"></script>
 @endPushOnce
 
@@ -17,13 +22,13 @@
 				@if($file = cms($files, $item->id ?? null))
 					@if($data->captions ?? false)
 						<figure>
-							@include('cms::pic', ['file' => $file, 'main' => ($idx == 0 ? ($data->main ?? false) : false), 'sizes' => '(max-width: 1200px) 100vw, 1200px'])
+							@include('cms::pic', ['file' => $file, 'main' => ($idx == 0 ? ($data->main ?? false) : false), 'sizes' => $sizes ?? '(max-width: 640px) 90vw, (max-width: 1200px) calc(100vw - 4rem), 1136px'])
 							@if($caption = cms($file, 'description')?->{cms($page, 'lang')})
 								<figcaption>{{ $caption }}</figcaption>
 							@endif
 						</figure>
 					@else
-						@include('cms::pic', ['file' => $file, 'main' => ($idx == 0 ? ($data->main ?? false) : false), 'sizes' => '(max-width: 1200px) 100vw, 1200px'])
+						@include('cms::pic', ['file' => $file, 'main' => ($idx == 0 ? ($data->main ?? false) : false), 'sizes' => $sizes ?? '(max-width: 640px) 90vw, (max-width: 1200px) calc(100vw - 4rem), 1136px'])
 					@endif
 				@else
 					<!-- no image file -->
@@ -36,7 +41,7 @@
 </div>
 
 <script type="application/ld+json">{!! cmsjson([
-	'@context' => 'https://schema.org',
+	'@@context' => 'https://schema.org',
 	'@type' => 'ImageGallery',
 	'name' => $data->title ?? cms($page, 'title'),
 	'image' => collect($data->files ?? [])

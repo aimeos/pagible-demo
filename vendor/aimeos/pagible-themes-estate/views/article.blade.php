@@ -2,7 +2,7 @@
 <link href="{{ cmstheme($page, 'article.css') }}" rel="stylesheet">
 @endPushOnce
 
-@if($file = cms($files, $data->file?->id ?? null))
+@if($file = cms($files, data_get($data, 'files.0.id') ?? data_get($data, 'file.id')))
     <div class="article-cover">
         <h1 class="title">{{ cms($page, 'title') }}</h1>
         @include('cms::pic', ['file' => $file, 'main' => true, 'class' => 'cover', 'sizes' => '(max-width: 960px) 100vw, 960px'])
@@ -15,11 +15,22 @@
 
 <script type="application/ld+json">{
     "@@context": "https://schema.org",
-    "@@type": "Article",
+    "@@type": "{{ match(cms($page, 'type')) { 'news' => 'NewsArticle', 'blog' => 'BlogPosting', default => 'Article' } }}",
     "headline": {!! cmsjson(cms($page, 'title')) !!},
     "datePublished": "{{ $page->created_at->toIso8601String() }}",
     "dateModified": "{{ $page->updated_at->toIso8601String() }}"
-    @if($file)
-        , "image": {!! cmsjson(cmsasset($page, $file)) !!}
+    @if($author = array_filter([
+        'name' => trim((string) ($data->{'author-name'} ?? '')),
+        'url' => trim((string) ($data->{'author-url'} ?? '')),
+    ]))
+        , "author": {!! cmsjson(['@@type' => 'Person'] + $author) !!}
+    @endif
+    @if($images = collect(data_get($data, 'files') ?: [data_get($data, 'file')])
+        ->map(fn($item) => cmsasset($page, cms($files, data_get($item, 'id'))))
+        ->filter()
+        ->unique()
+        ->values()
+        ->all())
+        , "image": {!! cmsjson($images) !!}
     @endif
 }</script>
