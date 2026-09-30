@@ -17,5 +17,6 @@ Route::domain('{domain}')->group(function () {
         return app(Controllers\PageController::class)->index($request, $path, $domain);
     })
         ->where('path', '.*')
-        ->name('cms.page');
+        ->name('cms.page')
+        ->fallback();
     });
