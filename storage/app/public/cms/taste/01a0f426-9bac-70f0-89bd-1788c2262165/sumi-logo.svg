@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 92" role="img" aria-labelledby="title desc">
+  <title id="title">Sumi logo</title>
+  <desc id="desc">Sumi wordmark beside a simple bowl and rising chopsticks</desc>
+  <g fill="none" fill-rule="evenodd">
+    <path d="M18 50h62c-3 18-14 27-31 27S21 68 18 50Z" fill="#39D6B4"/>
+    <path d="M29 42h40M38 11l12 31M59 11 49 42" stroke="#FF6B7A" stroke-width="6" stroke-linecap="round"/>
+    <text x="101" y="67" fill="#F7FAFC" font-family="ui-rounded, Avenir Next, Segoe UI, sans-serif" font-size="58" font-weight="800" letter-spacing="5">SUMI</text>
+  </g>
+</svg>

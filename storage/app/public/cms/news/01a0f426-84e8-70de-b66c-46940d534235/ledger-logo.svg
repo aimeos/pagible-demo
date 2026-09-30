@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 96" role="img" aria-labelledby="title desc">
+  <title id="title">The Ledger logo</title>
+  <desc id="desc">The Ledger serif wordmark with a burgundy edition rule</desc>
+  <path d="M2 15h516" stroke="#262A2C" stroke-width="2"/>
+  <text x="18" y="70" fill="#262A2C" font-family="Georgia, 'Times New Roman', serif" font-size="58" font-weight="700" letter-spacing="-2">THE LEDGER</text>
+  <path d="M18 81h484" stroke="#8B1538" stroke-width="5"/>
+</svg>
