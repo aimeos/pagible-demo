@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '5d14ab62da5932cc68c76ed5c4997fd984e99c4e',
+        'reference' => '0a63ef5a35f9a5de237b0284ea5f45a7a0d5c93e',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -40,7 +40,7 @@
         'aimeos/pagible' => array(
             'pretty_version' => '0.13.x-dev',
             'version' => '0.13.9999999.9999999-dev',
-            'reference' => '84f446066095d437879efd9d498b8f7a58626522',
+            'reference' => '909af43f52c7d2d6fa199aa5795e14b4a1d1a6d7',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible',
             'aliases' => array(),
@@ -49,7 +49,7 @@
         'aimeos/pagible-admin' => array(
             'pretty_version' => '0.13.x-dev',
             'version' => '0.13.9999999.9999999-dev',
-            'reference' => 'c3bf29f0d3ff128b161f246c9fe7d52bdaee54db',
+            'reference' => 'c723d0066f55ffd2c61764755bbb1125227a5ef8',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-admin',
             'aliases' => array(),
@@ -130,7 +130,7 @@
         'aimeos/pagible-themes-estate' => array(
             'pretty_version' => '0.13.x-dev',
             'version' => '0.13.9999999.9999999-dev',
-            'reference' => 'baa735c2ffa117d21323d4d98eca53d632b9e2e4',
+            'reference' => '5269a6b895c6a756328308fcf463407628f31f04',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-themes-estate',
             'aliases' => array(),
@@ -769,7 +769,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '5d14ab62da5932cc68c76ed5c4997fd984e99c4e',
+            'reference' => '0a63ef5a35f9a5de237b0284ea5f45a7a0d5c93e',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
