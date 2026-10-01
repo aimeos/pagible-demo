@@ -1044,19 +1044,19 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-pagible.git",
-                "reference": "e58dc05ae5725ecdb717e9cb4d0ca4d4c20980c2"
+                "reference": "51ef3b4e2ad18fa0e715ad02778c839c5a3e0920"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/e58dc05ae5725ecdb717e9cb4d0ca4d4c20980c2",
-                "reference": "e58dc05ae5725ecdb717e9cb4d0ca4d4c20980c2",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-pagible/zipball/51ef3b4e2ad18fa0e715ad02778c839c5a3e0920",
+                "reference": "51ef3b4e2ad18fa0e715ad02778c839c5a3e0920",
                 "shasum": ""
             },
             "require": {
                 "aimeos/pagible-theme": "~0.13",
                 "php": "^8.2"
             },
-            "time": "2026-09-30T17:23:47+00:00",
+            "time": "2026-10-01T08:42:35+00:00",
             "type": "library",
             "extra": {
                 "laravel": {
