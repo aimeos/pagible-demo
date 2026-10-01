@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '55a917994100b76262c44b95e2ba883920cd02ee',
+        'reference' => 'f4fc45d1697afb9b8ae61bd97437da2b1f42a26e',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -40,7 +40,7 @@
         'aimeos/pagible' => array(
             'pretty_version' => '0.13.x-dev',
             'version' => '0.13.9999999.9999999-dev',
-            'reference' => 'f4564726c6fe4d44846497f7cb7f5bcaedd2e6b0',
+            'reference' => '84f446066095d437879efd9d498b8f7a58626522',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible',
             'aliases' => array(),
@@ -49,7 +49,7 @@
         'aimeos/pagible-admin' => array(
             'pretty_version' => '0.13.x-dev',
             'version' => '0.13.9999999.9999999-dev',
-            'reference' => 'b91ac9733674333b5d52bd4d66d1b36219d883dc',
+            'reference' => 'c3bf29f0d3ff128b161f246c9fe7d52bdaee54db',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-admin',
             'aliases' => array(),
@@ -112,7 +112,7 @@
         'aimeos/pagible-theme' => array(
             'pretty_version' => '0.13.x-dev',
             'version' => '0.13.9999999.9999999-dev',
-            'reference' => 'e1f458e15c6da1017054202273f3fbc12b67b92c',
+            'reference' => '28548ff4883fec9b3a77be6fe0e098df3d2be3fd',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-theme',
             'aliases' => array(),
@@ -211,7 +211,7 @@
         'aimeos/pagible-themes-taste' => array(
             'pretty_version' => '0.13.x-dev',
             'version' => '0.13.9999999.9999999-dev',
-            'reference' => 'c4c9c2a5fcc9721fe91d79887195a26c2604422c',
+            'reference' => '914c0f1b9dff16beda26a21b6bb4113f38df9ff7',
             'type' => 'library',
             'install_path' => __DIR__ . '/../aimeos/pagible-themes-taste',
             'aliases' => array(),
@@ -281,9 +281,9 @@
             'dev_requirement' => false,
         ),
         'doctrine/lexer' => array(
-            'pretty_version' => '3.0.2',
-            'version' => '3.0.2.0',
-            'reference' => 'e96fe45e92a54233726014a7cc7340abf29bb14c',
+            'pretty_version' => '3.0.3',
+            'version' => '3.0.3.0',
+            'reference' => '71d305eaa6480d3d3460c7d053d1da7749fa9cca',
             'type' => 'library',
             'install_path' => __DIR__ . '/../doctrine/lexer',
             'aliases' => array(),
@@ -769,7 +769,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '55a917994100b76262c44b95e2ba883920cd02ee',
+            'reference' => 'f4fc45d1697afb9b8ae61bd97437da2b1f42a26e',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

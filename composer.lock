@@ -160,12 +160,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "f4564726c6fe4d44846497f7cb7f5bcaedd2e6b0"
+                "reference": "84f446066095d437879efd9d498b8f7a58626522"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/f4564726c6fe4d44846497f7cb7f5bcaedd2e6b0",
-                "reference": "f4564726c6fe4d44846497f7cb7f5bcaedd2e6b0",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/84f446066095d437879efd9d498b8f7a58626522",
+                "reference": "84f446066095d437879efd9d498b8f7a58626522",
                 "shasum": ""
             },
             "require": {
@@ -227,7 +227,7 @@
                 "issues": "https://github.com/aimeos/pagible/issues",
                 "source": "https://github.com/aimeos/pagible/tree/0.13"
             },
-            "time": "2026-09-30T20:44:42+00:00"
+            "time": "2026-10-01T08:42:45+00:00"
         },
         {
             "name": "aimeos/pagible-admin",
@@ -235,12 +235,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-admin.git",
-                "reference": "b91ac9733674333b5d52bd4d66d1b36219d883dc"
+                "reference": "c3bf29f0d3ff128b161f246c9fe7d52bdaee54db"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/b91ac9733674333b5d52bd4d66d1b36219d883dc",
-                "reference": "b91ac9733674333b5d52bd4d66d1b36219d883dc",
+                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/c3bf29f0d3ff128b161f246c9fe7d52bdaee54db",
+                "reference": "c3bf29f0d3ff128b161f246c9fe7d52bdaee54db",
                 "shasum": ""
             },
             "require": {
@@ -286,7 +286,7 @@
                 "issues": "https://github.com/aimeos/pagible-admin/issues",
                 "source": "https://github.com/aimeos/pagible-admin/tree/0.13"
             },
-            "time": "2026-09-30T20:44:40+00:00"
+            "time": "2026-10-01T08:42:27+00:00"
         },
         {
             "name": "aimeos/pagible-ai",
@@ -626,12 +626,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-theme.git",
-                "reference": "e1f458e15c6da1017054202273f3fbc12b67b92c"
+                "reference": "28548ff4883fec9b3a77be6fe0e098df3d2be3fd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/e1f458e15c6da1017054202273f3fbc12b67b92c",
-                "reference": "e1f458e15c6da1017054202273f3fbc12b67b92c",
+                "url": "https://api.github.com/repos/aimeos/pagible-theme/zipball/28548ff4883fec9b3a77be6fe0e098df3d2be3fd",
+                "reference": "28548ff4883fec9b3a77be6fe0e098df3d2be3fd",
                 "shasum": ""
             },
             "require": {
@@ -676,7 +676,7 @@
                 "issues": "https://github.com/aimeos/pagible-theme/issues",
                 "source": "https://github.com/aimeos/pagible-theme/tree/0.13"
             },
-            "time": "2026-09-30T17:23:51+00:00"
+            "time": "2026-10-01T08:42:15+00:00"
         },
         {
             "name": "aimeos/pagible-themes-bold",
@@ -1198,12 +1198,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-themes-taste.git",
-                "reference": "c4c9c2a5fcc9721fe91d79887195a26c2604422c"
+                "reference": "914c0f1b9dff16beda26a21b6bb4113f38df9ff7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-themes-taste/zipball/c4c9c2a5fcc9721fe91d79887195a26c2604422c",
-                "reference": "c4c9c2a5fcc9721fe91d79887195a26c2604422c",
+                "url": "https://api.github.com/repos/aimeos/pagible-themes-taste/zipball/914c0f1b9dff16beda26a21b6bb4113f38df9ff7",
+                "reference": "914c0f1b9dff16beda26a21b6bb4113f38df9ff7",
                 "shasum": ""
             },
             "require": {
@@ -1243,7 +1243,7 @@
                 "issues": "https://github.com/aimeos/pagible-themes-taste/issues",
                 "source": "https://github.com/aimeos/pagible-themes-taste/tree/0.13"
             },
-            "time": "2026-09-30T17:23:52+00:00"
+            "time": "2026-10-01T08:42:15+00:00"
         },
         {
             "name": "aimeos/prisma",
@@ -1720,16 +1720,16 @@
         },
         {
             "name": "doctrine/lexer",
-            "version": "3.0.2",
+            "version": "3.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/lexer.git",
-                "reference": "e96fe45e92a54233726014a7cc7340abf29bb14c"
+                "reference": "71d305eaa6480d3d3460c7d053d1da7749fa9cca"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/lexer/zipball/e96fe45e92a54233726014a7cc7340abf29bb14c",
-                "reference": "e96fe45e92a54233726014a7cc7340abf29bb14c",
+                "url": "https://api.github.com/repos/doctrine/lexer/zipball/71d305eaa6480d3d3460c7d053d1da7749fa9cca",
+                "reference": "71d305eaa6480d3d3460c7d053d1da7749fa9cca",
                 "shasum": ""
             },
             "require": {
@@ -1775,7 +1775,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/lexer/issues",
-                "source": "https://github.com/doctrine/lexer/tree/3.0.2"
+                "source": "https://github.com/doctrine/lexer/tree/3.0.3"
             },
             "funding": [
                 {
@@ -1791,7 +1791,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-14T20:44:06+00:00"
+            "time": "2026-10-01T06:59:29+00:00"
         },
         {
             "name": "dragonmantank/cron-expression",
