@@ -160,12 +160,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "2bc7fa2ad8119044a11111528db6e9ad52bb6e2d"
+                "reference": "32073ae1fd8c8a76249c2584c11f0237c9032d72"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/2bc7fa2ad8119044a11111528db6e9ad52bb6e2d",
-                "reference": "2bc7fa2ad8119044a11111528db6e9ad52bb6e2d",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/32073ae1fd8c8a76249c2584c11f0237c9032d72",
+                "reference": "32073ae1fd8c8a76249c2584c11f0237c9032d72",
                 "shasum": ""
             },
             "require": {
@@ -227,7 +227,7 @@
                 "issues": "https://github.com/aimeos/pagible/issues",
                 "source": "https://github.com/aimeos/pagible/tree/0.13"
             },
-            "time": "2026-10-02T08:01:14+00:00"
+            "time": "2026-10-02T10:29:58+00:00"
         },
         {
             "name": "aimeos/pagible-admin",
@@ -235,12 +235,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-admin.git",
-                "reference": "ebd0351515b66c57c933d9c4d49f53af3ea8b791"
+                "reference": "b6e1fb980bafeda64074ee72f84aadc06998e573"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/ebd0351515b66c57c933d9c4d49f53af3ea8b791",
-                "reference": "ebd0351515b66c57c933d9c4d49f53af3ea8b791",
+                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/b6e1fb980bafeda64074ee72f84aadc06998e573",
+                "reference": "b6e1fb980bafeda64074ee72f84aadc06998e573",
                 "shasum": ""
             },
             "require": {
@@ -286,20 +286,20 @@
                 "issues": "https://github.com/aimeos/pagible-admin/issues",
                 "source": "https://github.com/aimeos/pagible-admin/tree/0.13"
             },
-            "time": "2026-10-02T08:01:10+00:00"
+            "time": "2026-10-02T10:29:48+00:00"
         },
         {
             "name": "aimeos/pagible-ai",
-            "version": "0.13.0",
+            "version": "0.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-ai.git",
-                "reference": "c617d06b51972f5d0263c00bce39e23c8d08b56f"
+                "reference": "06b84ba4537fa5cb6b1bcbed4c39805c7f66b1ec"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-ai/zipball/c617d06b51972f5d0263c00bce39e23c8d08b56f",
-                "reference": "c617d06b51972f5d0263c00bce39e23c8d08b56f",
+                "url": "https://api.github.com/repos/aimeos/pagible-ai/zipball/06b84ba4537fa5cb6b1bcbed4c39805c7f66b1ec",
+                "reference": "06b84ba4537fa5cb6b1bcbed4c39805c7f66b1ec",
                 "shasum": ""
             },
             "require": {
@@ -338,13 +338,13 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-ai/issues",
-                "source": "https://github.com/aimeos/pagible-ai/tree/0.13.0"
+                "source": "https://github.com/aimeos/pagible-ai/tree/0.13.1"
             },
-            "time": "2026-09-30T17:24:05+00:00"
+            "time": "2026-10-01T12:01:50+00:00"
         },
         {
             "name": "aimeos/pagible-core",
-            "version": "0.13.0",
+            "version": "0.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-core.git",
@@ -404,13 +404,13 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-core/issues",
-                "source": "https://github.com/aimeos/pagible-core/tree/0.13.0"
+                "source": "https://github.com/aimeos/pagible-core/tree/0.13.1"
             },
             "time": "2026-09-29T13:36:06+00:00"
         },
         {
             "name": "aimeos/pagible-graphql",
-            "version": "0.13.0",
+            "version": "0.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-graphql.git",
@@ -458,13 +458,13 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-graphql/issues",
-                "source": "https://github.com/aimeos/pagible-graphql/tree/0.13.0"
+                "source": "https://github.com/aimeos/pagible-graphql/tree/0.13.1"
             },
             "time": "2026-09-30T17:23:57+00:00"
         },
         {
             "name": "aimeos/pagible-jsonapi",
-            "version": "0.13.0",
+            "version": "0.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-jsonapi.git",
@@ -510,22 +510,22 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-jsonapi/issues",
-                "source": "https://github.com/aimeos/pagible-jsonapi/tree/0.13.0"
+                "source": "https://github.com/aimeos/pagible-jsonapi/tree/0.13.1"
             },
             "time": "2026-09-30T17:24:01+00:00"
         },
         {
             "name": "aimeos/pagible-mcp",
-            "version": "0.13.0",
+            "version": "0.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-mcp.git",
-                "reference": "806634853ee810b66122e5872519a1de4a6415ff"
+                "reference": "be700d093c5d80b26b02b05237285128ed674985"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-mcp/zipball/806634853ee810b66122e5872519a1de4a6415ff",
-                "reference": "806634853ee810b66122e5872519a1de4a6415ff",
+                "url": "https://api.github.com/repos/aimeos/pagible-mcp/zipball/be700d093c5d80b26b02b05237285128ed674985",
+                "reference": "be700d093c5d80b26b02b05237285128ed674985",
                 "shasum": ""
             },
             "require": {
@@ -563,13 +563,13 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-mcp/issues",
-                "source": "https://github.com/aimeos/pagible-mcp/tree/0.13.0"
+                "source": "https://github.com/aimeos/pagible-mcp/tree/0.13.1"
             },
-            "time": "2026-09-30T17:24:03+00:00"
+            "time": "2026-10-01T12:01:50+00:00"
         },
         {
             "name": "aimeos/pagible-search",
-            "version": "0.13.0",
+            "version": "0.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-search.git",
@@ -616,7 +616,7 @@
             ],
             "support": {
                 "issues": "https://github.com/aimeos/pagible-search/issues",
-                "source": "https://github.com/aimeos/pagible-search/tree/0.13.0"
+                "source": "https://github.com/aimeos/pagible-search/tree/0.13.1"
             },
             "time": "2026-09-30T17:23:58+00:00"
         },
@@ -5104,16 +5104,16 @@
         },
         {
             "name": "nesbot/carbon",
-            "version": "3.14.1",
+            "version": "3.14.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/CarbonPHP/carbon.git",
-                "reference": "34e9109535165bf1d7ff17a610492372ae73a896"
+                "reference": "94cfc34887f07ab5c0efa07914c8f527544e3224"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/34e9109535165bf1d7ff17a610492372ae73a896",
-                "reference": "34e9109535165bf1d7ff17a610492372ae73a896",
+                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/94cfc34887f07ab5c0efa07914c8f527544e3224",
+                "reference": "94cfc34887f07ab5c0efa07914c8f527544e3224",
                 "shasum": ""
             },
             "require": {
@@ -5133,7 +5133,7 @@
                 "doctrine/orm": "^2.15.2 || ^3.0",
                 "friendsofphp/php-cs-fixer": "^v3.87.1",
                 "kylekatarnls/multi-tester": "^2.5.3",
-                "phpmd/phpmd": "^2.15.0",
+                "phpmd/phpmd": "^3.0@dev",
                 "phpstan/extension-installer": "^1.4.3",
                 "phpstan/phpstan": "^2.1.22",
                 "phpunit/phpunit": "^10.5.53",
@@ -5205,7 +5205,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-27T12:07:26+00:00"
+            "time": "2026-10-02T07:26:52+00:00"
         },
         {
             "name": "nette/schema",
