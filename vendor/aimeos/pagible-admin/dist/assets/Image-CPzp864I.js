@@ -1,0 +1,1 @@
+import e from"./File-C-Sfxa9Z.js";var t={extends:e,setup:e.setup,computed:{kind(){return`image`}}};export{t as default};
