@@ -160,12 +160,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible.git",
-                "reference": "909af43f52c7d2d6fa199aa5795e14b4a1d1a6d7"
+                "reference": "593e333687b8f2cf2e44e67e6dc63cd614e19f4b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible/zipball/909af43f52c7d2d6fa199aa5795e14b4a1d1a6d7",
-                "reference": "909af43f52c7d2d6fa199aa5795e14b4a1d1a6d7",
+                "url": "https://api.github.com/repos/aimeos/pagible/zipball/593e333687b8f2cf2e44e67e6dc63cd614e19f4b",
+                "reference": "593e333687b8f2cf2e44e67e6dc63cd614e19f4b",
                 "shasum": ""
             },
             "require": {
@@ -227,7 +227,7 @@
                 "issues": "https://github.com/aimeos/pagible/issues",
                 "source": "https://github.com/aimeos/pagible/tree/0.13"
             },
-            "time": "2026-10-01T11:45:12+00:00"
+            "time": "2026-10-02T07:19:54+00:00"
         },
         {
             "name": "aimeos/pagible-admin",
@@ -235,12 +235,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/aimeos/pagible-admin.git",
-                "reference": "c723d0066f55ffd2c61764755bbb1125227a5ef8"
+                "reference": "afa7472aa06a89e87036ce80b37e1633235587e8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/c723d0066f55ffd2c61764755bbb1125227a5ef8",
-                "reference": "c723d0066f55ffd2c61764755bbb1125227a5ef8",
+                "url": "https://api.github.com/repos/aimeos/pagible-admin/zipball/afa7472aa06a89e87036ce80b37e1633235587e8",
+                "reference": "afa7472aa06a89e87036ce80b37e1633235587e8",
                 "shasum": ""
             },
             "require": {
@@ -286,7 +286,7 @@
                 "issues": "https://github.com/aimeos/pagible-admin/issues",
                 "source": "https://github.com/aimeos/pagible-admin/tree/0.13"
             },
-            "time": "2026-10-01T12:02:10+00:00"
+            "time": "2026-10-02T07:19:38+00:00"
         },
         {
             "name": "aimeos/pagible-ai",
